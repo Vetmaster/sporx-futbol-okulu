@@ -32,6 +32,7 @@ const navItems = {
   attendance: { label: 'Yoklama', icon: '✓', roles: ['admin', 'staff'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['admin', 'staff', 'parent'] },
   accounting: { label: 'Muhasebe', icon: '↗', roles: ['admin'] },
+  accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['admin'], hidden: true },
   notifications: { label: 'Bildirimler', icon: '●', roles: ['admin', 'staff', 'parent'] }
 };
 
@@ -39,7 +40,7 @@ const roleNames = { admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Öğre
 const pageMeta = {
   dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], child: ['Çocuğum', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
-  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
+  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
 
 const appShell = document.querySelector('#appShell');
@@ -163,7 +164,17 @@ function feesView() {
 function accountingView() {
   const income = state.accountingEntries.filter(entry => entry.kind === 'income').reduce((sum, entry) => sum + Number(entry.amount), 0);
   const expense = state.accountingEntries.filter(entry => entry.kind === 'expense').reduce((sum, entry) => sum + Number(entry.amount), 0);
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Temel muhasebe</h2><p>Yerel gelir ve gider kayıtları</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><small>${state.accountingEntries.filter(e => e.kind === 'income').length} kayıt</small></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><small>${state.accountingEntries.filter(e => e.kind === 'expense').length} kayıt</small></article><article class="stat-card"><span class="label">Net durum</span><strong>${formatCurrency(income - expense)}</strong><small>${income - expense >= 0 ? 'Pozitif bakiye' : 'Negatif bakiye'}</small></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><span class="status blue">Bu cihazda</span></div>${state.accountingEntries.map(e => `<div class="ledger-entry"><strong>${formatAccountingDate(e.date)}</strong><div><strong>${e.title}</strong><small class="muted">${e.type}</small></div><span class="amount ${e.kind}">${e.kind === 'income' ? '+' : '-'}${formatCurrency(e.amount)}</span></div>`).join('')}</section></div>`;
+  const incomeCount = state.accountingEntries.filter(entry => entry.kind === 'income').length;
+  const expenseCount = state.accountingEntries.filter(entry => entry.kind === 'expense').length;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Temel muhasebe</h2><p>Yerel gelir ve gider kayıtları</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><button class="stat-link" type="button" data-action="accounting-entries">${incomeCount} kayıt</button></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><button class="stat-link" type="button" data-action="accounting-entries">${expenseCount} kayıt</button></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries">Tümünü gör</button></div>${accountingEntryRows(state.accountingEntries.slice(0, 4))}</section></div>`;
+}
+
+function accountingEntryRows(entries) {
+  return entries.map(entry => `<div class="ledger-entry"><strong>${formatAccountingDate(entry.date)}</strong><div><strong>${entry.title}</strong><small class="muted">${entry.type}</small></div><span class="amount ${entry.kind}">${entry.kind === 'income' ? '+' : '-'}${formatCurrency(entry.amount)}</span></div>`).join('') || '<div class="empty-state">Henüz muhasebe işlemi bulunmuyor.</div>';
+}
+
+function accountingEntriesView() {
+  return `<div class="page-stack"><div class="section-heading"><div><button class="back-button" type="button" data-page="accounting">← Muhasebeye dön</button><h2>Son işlemler</h2><p>${state.accountingEntries.length} gelir ve gider kaydı · Bu cihazda</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="panel">${accountingEntryRows(state.accountingEntries)}</section></div>`;
 }
 
 function notificationsView() {
@@ -171,7 +182,7 @@ function notificationsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları şimdilik bu cihazda saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Yerel kayıt · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Yerel bildirimi kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
 }
 
-const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, notifications: notificationsView };
+const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -235,6 +246,7 @@ document.addEventListener('click', event => {
   if (action === 'add-student') document.querySelector('#studentDialog').showModal();
   else if (action === 'new-training') openTrainingDialog();
   else if (action === 'new-entry') openAccountingDialog();
+  else if (action === 'accounting-entries') { state.page = 'accountingEntries'; render(); }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
   else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); student.fee = 'paid'; persistLocalData(); render(); showToast('Aidat yerel veritabanına kaydedildi.'); }
   else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
@@ -303,7 +315,7 @@ document.querySelector('#accountingForm').addEventListener('submit', event => {
   persistLocalData();
   document.querySelector('#accountingDialog').close();
   event.currentTarget.reset();
-  state.page = 'accounting';
+  if (state.page !== 'accountingEntries') state.page = 'accounting';
   render();
   showToast('Muhasebe işlemi yerel veritabanına kaydedildi.');
 });

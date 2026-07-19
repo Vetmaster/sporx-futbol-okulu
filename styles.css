@@ -71,6 +71,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .stat-card .label { color: var(--muted); font-size: 13px; }
 .stat-card strong { display: block; margin: 7px 0 6px; font-size: 27px; }
 .stat-card small { color: var(--brand); font-weight: 700; }
+.stat-link { border: 0; padding: 0; color: var(--brand); background: none; font-size: 13px; font-weight: 700; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
+.stat-link:hover, .stat-link:focus-visible { text-decoration-color: currentColor; }
 .panel { min-width: 0; overflow: hidden; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
 .panel-heading h3 { margin: 0; font-size: 16px; }
