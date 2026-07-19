@@ -55,6 +55,7 @@ function statusLabel(fee) { return fee === 'paid' ? '<span class="status">Ödend
 function formatCurrency(value) { return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value); }
 function localDateValue(date = new Date()) { const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10); }
 function formatTrainingDate(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
+function studentsForTraining(training) { return state.students.filter(student => student.group === training.group); }
 function studentNameLink(student, inverse = false) { return `<button class="student-name-link${inverse ? ' inverse' : ''}" type="button" data-action="profile" data-id="${student.id}">${student.name}</button>`; }
 
 function navMarkup(key, item) {
@@ -79,7 +80,7 @@ function dashboardView() {
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>₺208.300</strong><small>+%8 geçen aya göre</small></article>
     </section>
     <section class="dashboard-grid">
-      <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${state.trainings.map(t => `<div class="list-row"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${t.count} öğrenci</span></div>`).join('')}</article>
+      <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${state.trainings.map(t => `<div class="list-row"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${studentsForTraining(t).length} öğrenci</span></div>`).join('')}</article>
       <article class="panel"><div class="panel-heading"><h3>Kulüp performansı</h3><span class="status blue">Temmuz</span></div><div class="progress-group">
         ${progress('Aidat tahsilatı', 86)}${progress('Antrenman katılımı', 91)}${progress('Kontenjan kullanımı', 78)}
       </div></article>
@@ -133,11 +134,11 @@ function studentProfileView() {
 
 function trainingsView() {
   const orderedTrainings = [...state.trainings].sort((a, b) => `${a.date || ''} ${a.time}`.localeCompare(`${b.date || ''} ${b.time}`));
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>Planlanan grup çalışmaları · ${state.trainings.length} kayıt</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="status">${t.time}</span></header><div class="training-date">${formatTrainingDate(t.date)} · ${t.duration || 90} dakika</div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span><span>◎ ${t.count} öğrenci</span></div><div class="training-actions">${state.role !== 'parent' ? `<button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>` : '<button class="primary-button" data-action="calendar-added">Takvime ekle</button>'}<button class="secondary-button">Detay</button></div></article>`).join('') || '<div class="panel empty-state">Henüz planlanmış antrenman bulunmuyor.</div>'}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>Planlanan grup çalışmaları · ${state.trainings.length} kayıt</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="status">${t.time}</span></header><div class="training-date">${formatTrainingDate(t.date)} · ${t.duration || 90} dakika</div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span><span>◎ ${studentsForTraining(t).length} öğrenci</span></div><div class="training-actions">${state.role !== 'parent' ? `<button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>` : '<button class="primary-button" data-action="calendar-added">Takvime ekle</button>'}<button class="secondary-button">Detay</button></div></article>`).join('') || '<div class="panel empty-state">Henüz planlanmış antrenman bulunmuyor.</div>'}</section></div>`;
 }
 
 function attendanceView() {
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Yoklama merkezi</h2><p>Antrenman bazında katılım kaydı</p></div></div><section class="panel">${state.trainings.map(t => `<div class="list-row"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${t.count} öğrenci · ${t.coach}</small></div><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button></div>`).join('')}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Yoklama merkezi</h2><p>Antrenman bazında katılım kaydı</p></div></div><section class="panel">${state.trainings.map(t => `<div class="list-row"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${studentsForTraining(t).length} öğrenci · ${t.coach}</small></div><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button></div>`).join('')}</section></div>`;
 }
 
 function feesView() {
@@ -182,9 +183,10 @@ function showToast(message) { const toast = document.querySelector('#toast'); to
 
 function openAttendance(id) {
   const training = state.trainings.find(item => item.id === Number(id));
+  const trainingStudents = studentsForTraining(training);
   state.activeTrainingId = training.id;
   document.querySelector('#attendanceTitle').textContent = `${training.group} · ${training.title}`;
-  document.querySelector('#attendanceList').innerHTML = state.students.map(s => `<div class="attendance-item"><input id="attendance-${s.id}" type="checkbox" data-student-id="${s.id}" aria-label="${s.name} antrenmana katıldı" checked><span>${studentNameLink(s)} <small class="muted">· ${s.group}</small></span></div>`).join('');
+  document.querySelector('#attendanceList').innerHTML = trainingStudents.map(s => `<div class="attendance-item"><input id="attendance-${s.id}" type="checkbox" data-student-id="${s.id}" aria-label="${s.name} antrenmana katıldı" checked><span>${studentNameLink(s)} <small class="muted">· ${s.group}</small></span></div>`).join('') || '<div class="empty-state">Bu gruba kayıtlı öğrenci bulunmuyor.</div>';
   document.querySelector('#attendanceDialog').showModal();
 }
 
@@ -257,8 +259,7 @@ document.querySelector('#trainingForm').addEventListener('submit', event => {
     group,
     title: data.get('title').trim(),
     coach: data.get('coach').trim(),
-    field: data.get('field').trim(),
-    count: state.students.filter(student => student.group === group).length
+    field: data.get('field').trim()
   });
   persistLocalData();
   document.querySelector('#trainingDialog').close();
