@@ -77,26 +77,27 @@
     <form method="dialog" class="dialog-form" id="studentForm">
       <div class="dialog-heading">
         <div><span class="eyebrow">YENİ KAYIT</span><h2>Öğrenci bilgileri</h2></div>
-        <button class="icon-button" value="cancel" aria-label="Kapat">×</button>
+        <button class="icon-button" type="button" data-dialog-close="studentDialog" aria-label="Kapat">×</button>
       </div>
       <div class="form-grid">
         <label>Öğrenci adı soyadı<input name="studentName" required></label>
         <label>Doğum tarihi<input name="birthDate" type="date" required></label>
+        <label>Grup<select name="group" required><option value="">Seçiniz</option><option>Saat 09:00</option><option>Saat 10:00</option><option>Saat 11:00</option><option>Saat 12:00</option><option>U11</option><option>U12</option><option>U13</option><option>U14</option></select></label>
         <label>Oynadığı mevki<select name="position" required><option value="">Seçiniz</option><option>Kaleci</option><option>Defans</option><option>Orta saha</option><option>Forvet</option></select></label>
         <label>Veli adı soyadı<input name="parentName" required></label>
         <label>İrtibat telefonu<input name="phone" type="tel" placeholder="05xx xxx xx xx" required></label>
         <label>İrtibat e-posta adresi<input name="email" type="email" required></label>
         <label class="full-field">Kısa ev adresi<textarea name="address" rows="3" required></textarea></label>
       </div>
-      <div class="dialog-actions"><button value="cancel" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Öğrenciyi kaydet</button></div>
+      <div class="dialog-actions"><button type="button" data-dialog-close="studentDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Öğrenciyi kaydet</button></div>
     </form>
   </dialog>
 
   <dialog id="attendanceDialog">
     <form method="dialog" class="dialog-form" id="attendanceForm">
-      <div class="dialog-heading"><div><span class="eyebrow">YOKLAMA</span><h2 id="attendanceTitle">U12 Antrenmanı</h2></div><button class="icon-button" value="cancel" aria-label="Kapat">×</button></div>
+      <div class="dialog-heading"><div><span class="eyebrow">YOKLAMA</span><h2 id="attendanceTitle">U12 Antrenmanı</h2></div><button class="icon-button" type="button" data-dialog-close="attendanceDialog" aria-label="Kapat">×</button></div>
       <div id="attendanceList" class="attendance-list"></div>
-      <div class="dialog-actions"><button value="cancel" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Yoklamayı kaydet</button></div>
+      <div class="dialog-actions"><button type="button" data-dialog-close="attendanceDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Yoklamayı kaydet</button></div>
     </form>
   </dialog>
 

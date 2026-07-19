@@ -11,6 +11,8 @@ const state = {
   selectedStudentId: null
 };
 
+const GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
+
 function persistLocalData() {
   window.SporXDB.save({
     students: state.students,
@@ -69,7 +71,7 @@ function dashboardView() {
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Bugünün kulüp özeti</h2><p>20 Temmuz Pazartesi · Son güncelleme şimdi</p></div><button class="primary-button" data-action="add-student">+ Yeni öğrenci</button></div>
     <section class="stats-grid">
-      <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>${state.students.length + 179}</strong><small>6 yaş grubu</small></article>
+      <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>${state.students.length + 179}</strong><small>${GROUPS.length} grup</small></article>
       <article class="stat-card"><span class="label">Bugünkü antrenman</span><strong>${state.trainings.length + 1}</strong><small>İlki 16:30</small></article>
       <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>₺28.400</strong><small>23 öğrenci</small></article>
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>₺208.300</strong><small>+%8 geçen aya göre</small></article>
@@ -102,7 +104,7 @@ function parentDashboard() {
 
 function studentsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kayıtlı öğrenciler</h2><p>${state.students.length} örnek kayıt görüntüleniyor</p></div><button class="primary-button" data-action="add-student">+ Yeni öğrenci</button></div>
-    <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="Öğrenci veya veli ara"><select id="groupFilter"><option value="">Tüm yaş grupları</option><option>U10</option><option>U11</option><option>U12</option><option>U13</option></select></div>
+    <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="Öğrenci veya veli ara"><select id="groupFilter"><option value="">Tüm gruplar</option>${GROUPS.map(group => `<option>${group}</option>`).join('')}</select></div>
     <section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Doğum tarihi</th><th>Grup / Mevki</th><th>Veli</th><th>Aidat</th><th>Devam</th><th></th></tr></thead><tbody id="studentsBody">${studentRows(state.students)}</tbody></table></section></div>`;
 }
 
@@ -152,7 +154,7 @@ function accountingView() {
 
 function notificationsView() {
   const canSend = state.role !== 'parent';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları şimdilik bu cihazda saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Yerel kayıt · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option><option>U10 velileri</option><option>U12 velileri</option><option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Yerel bildirimi kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları şimdilik bu cihazda saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Yerel kayıt · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Yerel bildirimi kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
 }
 
 const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, notifications: notificationsView };
@@ -191,6 +193,8 @@ document.querySelector('#sidebarScrim').addEventListener('click', () => document
 roleSwitcher.addEventListener('change', () => { state.role = roleSwitcher.value; state.page = 'dashboard'; render(); });
 
 document.addEventListener('click', event => {
+  const dialogCloseButton = event.target.closest('[data-dialog-close]');
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); return; }
   const pageButton = event.target.closest('[data-page]');
   if (pageButton && appShell.contains(pageButton)) { state.page = pageButton.dataset.page; document.querySelector('#sidebar').classList.remove('open'); render(); return; }
   const actionButton = event.target.closest('[data-action]');
@@ -216,7 +220,7 @@ document.querySelector('#studentForm').addEventListener('submit', event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const birth = new Date(data.get('birthDate'));
-  state.students.unshift({ id: Date.now(), name: data.get('studentName'), birth: birth.toLocaleDateString('tr-TR'), group: `U${new Date().getFullYear() - birth.getFullYear()}`, position: data.get('position'), parent: data.get('parentName'), phone: data.get('phone'), email: data.get('email'), address: data.get('address'), fee: 'pending', attendance: 100 });
+  state.students.unshift({ id: Date.now(), name: data.get('studentName'), birth: birth.toLocaleDateString('tr-TR'), group: data.get('group'), position: data.get('position'), parent: data.get('parentName'), phone: data.get('phone'), email: data.get('email'), address: data.get('address'), fee: 'pending', attendance: 100 });
   persistLocalData();
   document.querySelector('#studentDialog').close(); event.currentTarget.reset(); state.page = 'students'; render(); showToast('Öğrenci yerel veritabanına kaydedildi.');
 });

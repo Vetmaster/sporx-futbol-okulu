@@ -1,6 +1,6 @@
 (function () {
   const STORAGE_KEY = 'sporx.localdb.v1';
-  const VERSION = 1;
+  const VERSION = 2;
 
   const seed = {
     version: VERSION,
@@ -9,10 +9,10 @@
       { id: 2, name: 'Mert Kaya', birth: '02.09.2013', group: 'U13', position: 'Forvet', parent: 'Emre Kaya', phone: '0542 222 34 56', email: 'emre@example.com', address: 'Merkez', fee: 'late', attendance: 84 },
       { id: 3, name: 'Arda Demir', birth: '21.06.2015', group: 'U11', position: 'Defans', parent: 'Selin Demir', phone: '0533 333 45 67', email: 'selin@example.com', address: 'Merkez', fee: 'pending', attendance: 96 },
       { id: 4, name: 'Can Eren', birth: '07.11.2014', group: 'U12', position: 'Kaleci', parent: 'Burak Eren', phone: '0548 444 56 78', email: 'burak@example.com', address: 'Merkez', fee: 'paid', attendance: 88 },
-      { id: 5, name: 'Deniz Yılmaz', birth: '30.01.2016', group: 'U10', position: 'Forvet', parent: 'Derya Yılmaz', phone: '0539 555 67 89', email: 'derya@example.com', address: 'Merkez', fee: 'late', attendance: 79 }
+      { id: 5, name: 'Deniz Yılmaz', birth: '30.01.2016', group: 'Saat 09:00', position: 'Forvet', parent: 'Derya Yılmaz', phone: '0539 555 67 89', email: 'derya@example.com', address: 'Merkez', fee: 'late', attendance: 79 }
     ],
     trainings: [
-      { id: 1, time: '16:30', group: 'U10', title: 'Teknik Antrenman', coach: 'Oğuz Yalçın', count: 24, field: 'Ana saha' },
+      { id: 1, time: '09:00', group: 'Saat 09:00', title: 'Teknik Antrenman', coach: 'Oğuz Yalçın', count: 24, field: 'Ana saha' },
       { id: 2, time: '18:00', group: 'U12', title: 'Taktik Çalışma', coach: 'Serkan Aydın', count: 20, field: 'Ana saha' },
       { id: 3, time: '19:30', group: 'U14', title: 'Maç Hazırlığı', coach: 'Oğuz Yalçın', count: 22, field: 'Saha 2' }
     ],
@@ -25,7 +25,7 @@
     notifications: [
       { id: 1, date: 'Bugün', title: 'Hafta sonu hazırlık maçı', audience: 'U12 velileri', time: '10:14', status: 'Teslim edildi' },
       { id: 2, date: 'Dün', title: 'Temmuz aidat hatırlatması', audience: 'Tüm veliler', time: '09:00', status: 'Teslim edildi' },
-      { id: 3, date: '15 Tem', title: 'Antrenman sahası değişikliği', audience: 'U10 velileri', time: '16:24', status: 'Teslim edildi' }
+      { id: 3, date: '15 Tem', title: 'Antrenman sahası değişikliği', audience: 'Saat 09:00 velileri', time: '16:24', status: 'Teslim edildi' }
     ],
     attendanceRecords: [],
     updatedAt: null
@@ -46,12 +46,16 @@
 
   function normalize(value) {
     const source = value && typeof value === 'object' ? value : {};
+    const migrateGroup = group => group === 'U10' ? 'Saat 09:00' : group;
+    const sourceStudents = Array.isArray(source.students) ? source.students : clone(seed.students);
+    const sourceTrainings = Array.isArray(source.trainings) ? source.trainings : clone(seed.trainings);
+    const sourceNotifications = Array.isArray(source.notifications) ? source.notifications : clone(seed.notifications);
     return {
       version: VERSION,
-      students: Array.isArray(source.students) ? source.students : clone(seed.students),
-      trainings: Array.isArray(source.trainings) ? source.trainings : clone(seed.trainings),
+      students: sourceStudents.map(student => ({ ...student, group: migrateGroup(student.group) })),
+      trainings: sourceTrainings.map(training => ({ ...training, group: migrateGroup(training.group), time: training.group === 'U10' ? '09:00' : training.time })),
       accountingEntries: Array.isArray(source.accountingEntries) ? source.accountingEntries : clone(seed.accountingEntries),
-      notifications: Array.isArray(source.notifications) ? source.notifications : clone(seed.notifications),
+      notifications: sourceNotifications.map(notification => ({ ...notification, audience: notification.audience === 'U10 velileri' ? 'Saat 09:00 velileri' : notification.audience })),
       attendanceRecords: Array.isArray(source.attendanceRecords) ? source.attendanceRecords : [],
       updatedAt: source.updatedAt || null
     };
