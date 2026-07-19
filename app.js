@@ -9,7 +9,8 @@ const state = {
   attendanceRecords: localData.attendanceRecords,
   activeTrainingId: null,
   selectedStudentId: null,
-  accountingFilter: 'all'
+  accountingFilter: 'all',
+  editingAccountingEntryId: null
 };
 
 const GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
@@ -58,6 +59,12 @@ function formatCurrency(value) { return new Intl.NumberFormat('tr-TR', { style: 
 function localDateValue(date = new Date()) { const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10); }
 function formatTrainingDate(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
 function formatAccountingDate(value) { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(new Date(`${value}T00:00:00`)) : value; }
+function accountingDateInputValue(value) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const monthNumbers = { Oca: '01', Şub: '02', Mar: '03', Nis: '04', May: '05', Haz: '06', Tem: '07', Ağu: '08', Eyl: '09', Eki: '10', Kas: '11', Ara: '12' };
+  const [day, month] = String(value).split(' ');
+  return monthNumbers[month] ? `2026-${monthNumbers[month]}-${String(day).padStart(2, '0')}` : localDateValue();
+}
 function studentsForTraining(training) { return state.students.filter(student => student.group === training.group); }
 function latestAttendanceForTraining(training) { return state.attendanceRecords.find(record => Number(record.trainingId) === Number(training.id)); }
 function trainingAttendanceLabel(training) {
@@ -171,7 +178,7 @@ function accountingView() {
 }
 
 function accountingEntryRows(entries) {
-  return entries.map(entry => `<div class="ledger-entry"><strong>${formatAccountingDate(entry.date)}</strong><div class="ledger-details"><strong>${entry.title}</strong><span class="entry-type ${entry.kind}">${entry.type}</span></div><span class="amount ${entry.kind}">${entry.kind === 'income' ? '+' : '-'}${formatCurrency(entry.amount)}</span></div>`).join('') || '<div class="empty-state">Henüz muhasebe işlemi bulunmuyor.</div>';
+  return entries.map(entry => `<div class="ledger-entry" data-entry-id="${entry.id}"><strong>${formatAccountingDate(entry.date)}</strong><div class="ledger-details"><strong>${entry.title}</strong><span class="entry-type ${entry.kind}">${entry.type}</span></div><span class="amount ${entry.kind}">${entry.kind === 'income' ? '+' : '-'}${formatCurrency(entry.amount)}</span><button class="ledger-menu-button" type="button" data-action="toggle-entry-actions" aria-label="${entry.title} işlem menüsünü aç" aria-expanded="false">...</button><div class="ledger-actions"><button class="secondary-button" type="button" data-action="edit-entry" data-id="${entry.id}">Düzenle</button><button class="danger-button" type="button" data-action="delete-entry" data-id="${entry.id}">Sil</button></div></div>`).join('') || '<div class="empty-state">Henüz muhasebe işlemi bulunmuyor.</div>';
 }
 
 function accountingEntriesView() {
@@ -224,11 +231,34 @@ function openTrainingDialog() {
   document.querySelector('#trainingDialog').showModal();
 }
 
-function openAccountingDialog() {
+function openAccountingDialog(entry = null) {
   const form = document.querySelector('#accountingForm');
   form.reset();
-  form.elements.date.value = localDateValue();
+  state.editingAccountingEntryId = entry?.id || null;
+  form.elements.date.value = entry ? accountingDateInputValue(entry.date) : localDateValue();
+  form.elements.kind.value = entry?.kind || '';
+  form.elements.title.value = entry?.title || '';
+  form.elements.amount.value = entry?.amount || '';
+  document.querySelector('#accountingEyebrow').textContent = entry ? 'İŞLEMİ DÜZENLE' : 'YENİ İŞLEM';
+  document.querySelector('#accountingDialogTitle').textContent = entry ? 'Muhasebe kaydını güncelle' : 'Gelir veya gider kaydı';
+  document.querySelector('#accountingSubmitButton').textContent = entry ? 'Değişiklikleri kaydet' : 'İşlemi kaydet';
   document.querySelector('#accountingDialog').showModal();
+}
+
+function closeLedgerActions() {
+  document.querySelectorAll('.ledger-entry.show-actions').forEach(item => {
+    item.classList.remove('show-actions');
+    item.querySelector('.ledger-menu-button')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function toggleLedgerActions(row) {
+  const shouldOpen = !row.classList.contains('show-actions');
+  closeLedgerActions();
+  if (shouldOpen) {
+    row.classList.add('show-actions');
+    row.querySelector('.ledger-menu-button')?.setAttribute('aria-expanded', 'true');
+  }
 }
 
 document.querySelector('#loginForm').addEventListener('submit', event => { event.preventDefault(); login('admin'); });
@@ -240,16 +270,22 @@ roleSwitcher.addEventListener('change', () => { state.role = roleSwitcher.value;
 
 document.addEventListener('click', event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
-  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); return; }
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
   const pageButton = event.target.closest('[data-page]');
   if (pageButton && appShell.contains(pageButton)) { state.page = pageButton.dataset.page; document.querySelector('#sidebar').classList.remove('open'); render(); return; }
   const actionButton = event.target.closest('[data-action]');
-  if (!actionButton) return;
+  if (!actionButton) {
+    closeLedgerActions();
+    return;
+  }
   const action = actionButton.dataset.action;
   if (action === 'add-student') document.querySelector('#studentDialog').showModal();
   else if (action === 'new-training') openTrainingDialog();
   else if (action === 'new-entry') openAccountingDialog();
   else if (action === 'accounting-entries') { state.accountingFilter = actionButton.dataset.kind || 'all'; state.page = 'accountingEntries'; render(); }
+  else if (action === 'toggle-entry-actions') toggleLedgerActions(actionButton.closest('.ledger-entry'));
+  else if (action === 'edit-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); closeLedgerActions(); if (entry) openAccountingDialog(entry); }
+  else if (action === 'delete-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); if (entry && window.confirm(`“${entry.title}” işlemi silinsin mi?`)) { state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id); persistLocalData(); render(); showToast('Muhasebe işlemi silindi.'); } }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
   else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); student.fee = 'paid'; persistLocalData(); render(); showToast('Aidat yerel veritabanına kaydedildi.'); }
   else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
@@ -307,20 +343,27 @@ document.querySelector('#accountingForm').addEventListener('submit', event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const kind = data.get('kind');
-  state.accountingEntries.unshift({
-    id: Date.now(),
+  const entryData = {
     date: data.get('date'),
     title: data.get('title').trim(),
     type: kind === 'income' ? 'Gelir' : 'Gider',
     amount: Number(data.get('amount')),
     kind
-  });
+  };
+  if (state.editingAccountingEntryId) {
+    const entry = state.accountingEntries.find(item => item.id === Number(state.editingAccountingEntryId));
+    if (entry) Object.assign(entry, entryData);
+  } else {
+    state.accountingEntries.unshift({ id: Date.now(), ...entryData });
+  }
+  const wasEditing = Boolean(state.editingAccountingEntryId);
+  state.editingAccountingEntryId = null;
   persistLocalData();
   document.querySelector('#accountingDialog').close();
   event.currentTarget.reset();
   if (state.page !== 'accountingEntries') state.page = 'accounting';
   render();
-  showToast('Muhasebe işlemi yerel veritabanına kaydedildi.');
+  showToast(wasEditing ? 'Muhasebe işlemi güncellendi.' : 'Muhasebe işlemi yerel veritabanına kaydedildi.');
 });
 appContent.addEventListener('submit', event => {
   if (event.target.id !== 'notificationForm') return;
