@@ -1,6 +1,6 @@
 (function () {
   const STORAGE_KEY = 'sporx.localdb.v1';
-  const VERSION = 2;
+  const VERSION = 3;
 
   const seed = {
     version: VERSION,
@@ -12,9 +12,9 @@
       { id: 5, name: 'Deniz Yılmaz', birth: '30.01.2016', group: 'Saat 09:00', position: 'Forvet', parent: 'Derya Yılmaz', phone: '0539 555 67 89', email: 'derya@example.com', address: 'Merkez', fee: 'late', attendance: 79 }
     ],
     trainings: [
-      { id: 1, time: '09:00', group: 'Saat 09:00', title: 'Teknik Antrenman', coach: 'Oğuz Yalçın', count: 24, field: 'Ana saha' },
-      { id: 2, time: '18:00', group: 'U12', title: 'Taktik Çalışma', coach: 'Serkan Aydın', count: 20, field: 'Ana saha' },
-      { id: 3, time: '19:30', group: 'U14', title: 'Maç Hazırlığı', coach: 'Oğuz Yalçın', count: 22, field: 'Saha 2' }
+      { id: 1, date: '2026-07-20', time: '09:00', duration: 90, group: 'Saat 09:00', title: 'Teknik Antrenman', coach: 'Oğuz Yalçın', count: 24, field: 'Ana saha' },
+      { id: 2, date: '2026-07-20', time: '18:00', duration: 90, group: 'U12', title: 'Taktik Çalışma', coach: 'Serkan Aydın', count: 20, field: 'Ana saha' },
+      { id: 3, date: '2026-07-21', time: '19:30', duration: 90, group: 'U14', title: 'Maç Hazırlığı', coach: 'Oğuz Yalçın', count: 22, field: 'Saha 2' }
     ],
     accountingEntries: [
       { id: 1, date: '18 Tem', title: 'Aylık aidat tahsilatları', type: 'Gelir', amount: 18000, kind: 'income' },
@@ -53,7 +53,7 @@
     return {
       version: VERSION,
       students: sourceStudents.map(student => ({ ...student, group: migrateGroup(student.group) })),
-      trainings: sourceTrainings.map(training => ({ ...training, group: migrateGroup(training.group), time: training.group === 'U10' ? '09:00' : training.time })),
+      trainings: sourceTrainings.map(training => ({ ...training, date: training.date || '2026-07-20', duration: Number(training.duration) || 90, group: migrateGroup(training.group), time: training.group === 'U10' ? '09:00' : training.time })),
       accountingEntries: Array.isArray(source.accountingEntries) ? source.accountingEntries : clone(seed.accountingEntries),
       notifications: sourceNotifications.map(notification => ({ ...notification, audience: notification.audience === 'U10 velileri' ? 'Saat 09:00 velileri' : notification.audience })),
       attendanceRecords: Array.isArray(source.attendanceRecords) ? source.attendanceRecords : [],

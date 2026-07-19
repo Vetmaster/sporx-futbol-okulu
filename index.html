@@ -101,6 +101,26 @@
     </form>
   </dialog>
 
+  <dialog id="trainingDialog">
+    <form method="dialog" class="dialog-form" id="trainingForm">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">YENİ ANTRENMAN</span><h2>Antrenman planla</h2></div>
+        <button class="icon-button" type="button" data-dialog-close="trainingDialog" aria-label="Kapat">×</button>
+      </div>
+      <div class="form-grid">
+        <label>Tarih<input name="date" type="date" required></label>
+        <label>Başlangıç saati<input name="time" type="time" required></label>
+        <label>Grup<select name="group" required><option value="">Seçiniz</option><option>Saat 09:00</option><option>Saat 10:00</option><option>Saat 11:00</option><option>Saat 12:00</option><option>U11</option><option>U12</option><option>U13</option><option>U14</option></select></label>
+        <label>Süre<select name="duration" required><option value="60">60 dakika</option><option value="75">75 dakika</option><option value="90" selected>90 dakika</option><option value="120">120 dakika</option></select></label>
+        <label>Antrenman türü<input name="title" list="trainingTypes" placeholder="Örn. Teknik Antrenman" required></label>
+        <label>Antrenör<input name="coach" placeholder="Adı soyadı" required></label>
+        <label class="full-field">Saha<input name="field" placeholder="Örn. Ana saha" required></label>
+      </div>
+      <datalist id="trainingTypes"><option value="Teknik Antrenman"><option value="Taktik Çalışma"><option value="Kondisyon"><option value="Kaleci Çalışması"><option value="Maç Hazırlığı"></datalist>
+      <div class="dialog-actions"><button type="button" data-dialog-close="trainingDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Antrenmanı kaydet</button></div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="local-db.js"></script>
   <script src="app.js"></script>
