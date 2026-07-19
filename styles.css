@@ -114,6 +114,10 @@ tbody tr:hover { background: #f8fbf9; }
 .training-actions { display: flex; gap: 8px; }
 .training-actions button { flex: 1; }
 .ledger-entry { display: grid; grid-template-columns: 90px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--line); }
+.ledger-details { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.entry-type { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 900; }
+.entry-type.income { color: var(--brand-dark); background: var(--brand-soft); }
+.entry-type.expense { color: #842626; background: #fde7e7; }
 .amount { font-weight: 900; }
 .amount.income { color: var(--brand); }
 .amount.expense { color: var(--danger); }

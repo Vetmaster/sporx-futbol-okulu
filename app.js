@@ -171,7 +171,7 @@ function accountingView() {
 }
 
 function accountingEntryRows(entries) {
-  return entries.map(entry => `<div class="ledger-entry"><strong>${formatAccountingDate(entry.date)}</strong><div><strong>${entry.title}</strong><small class="muted">${entry.type}</small></div><span class="amount ${entry.kind}">${entry.kind === 'income' ? '+' : '-'}${formatCurrency(entry.amount)}</span></div>`).join('') || '<div class="empty-state">Henüz muhasebe işlemi bulunmuyor.</div>';
+  return entries.map(entry => `<div class="ledger-entry"><strong>${formatAccountingDate(entry.date)}</strong><div class="ledger-details"><strong>${entry.title}</strong><span class="entry-type ${entry.kind}">${entry.type}</span></div><span class="amount ${entry.kind}">${entry.kind === 'income' ? '+' : '-'}${formatCurrency(entry.amount)}</span></div>`).join('') || '<div class="empty-state">Henüz muhasebe işlemi bulunmuyor.</div>';
 }
 
 function accountingEntriesView() {
