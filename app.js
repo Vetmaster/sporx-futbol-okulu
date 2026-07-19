@@ -8,7 +8,8 @@ const state = {
   notifications: localData.notifications,
   attendanceRecords: localData.attendanceRecords,
   activeTrainingId: null,
-  selectedStudentId: null
+  selectedStudentId: null,
+  accountingFilter: 'all'
 };
 
 const GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
@@ -166,7 +167,7 @@ function accountingView() {
   const expense = state.accountingEntries.filter(entry => entry.kind === 'expense').reduce((sum, entry) => sum + Number(entry.amount), 0);
   const incomeCount = state.accountingEntries.filter(entry => entry.kind === 'income').length;
   const expenseCount = state.accountingEntries.filter(entry => entry.kind === 'expense').length;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Temel muhasebe</h2><p>Yerel gelir ve gider kayıtları</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><button class="stat-link" type="button" data-action="accounting-entries">${incomeCount} kayıt</button></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><button class="stat-link" type="button" data-action="accounting-entries">${expenseCount} kayıt</button></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries">Tümünü gör</button></div>${accountingEntryRows(state.accountingEntries.slice(0, 4))}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Temel muhasebe</h2><p>Yerel gelir ve gider kayıtları</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><button class="stat-link" type="button" data-action="accounting-entries" data-kind="income">${incomeCount} kayıt</button></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><button class="stat-link" type="button" data-action="accounting-entries" data-kind="expense">${expenseCount} kayıt</button></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries" data-kind="all">Tümünü gör</button></div>${accountingEntryRows(state.accountingEntries.slice(0, 4))}</section></div>`;
 }
 
 function accountingEntryRows(entries) {
@@ -174,7 +175,9 @@ function accountingEntryRows(entries) {
 }
 
 function accountingEntriesView() {
-  return `<div class="page-stack"><div class="section-heading"><div><button class="back-button" type="button" data-page="accounting">← Muhasebeye dön</button><h2>Son işlemler</h2><p>${state.accountingEntries.length} gelir ve gider kaydı · Bu cihazda</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="panel">${accountingEntryRows(state.accountingEntries)}</section></div>`;
+  const filteredEntries = state.accountingFilter === 'all' ? state.accountingEntries : state.accountingEntries.filter(entry => entry.kind === state.accountingFilter);
+  const filterLabel = state.accountingFilter === 'income' ? 'Gelir işlemleri' : state.accountingFilter === 'expense' ? 'Gider işlemleri' : 'Tüm işlemler';
+  return `<div class="page-stack"><div class="section-heading"><div><button class="back-button" type="button" data-page="accounting">← Muhasebeye dön</button><h2>${filterLabel}</h2><p>${filteredEntries.length} kayıt · Bu cihazda</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><div class="toolbar accounting-filters"><button class="${state.accountingFilter === 'all' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="all">Tümü</button><button class="${state.accountingFilter === 'income' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="income">Gelir</button><button class="${state.accountingFilter === 'expense' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="expense">Gider</button></div><section class="panel">${accountingEntryRows(filteredEntries)}</section></div>`;
 }
 
 function notificationsView() {
@@ -246,7 +249,7 @@ document.addEventListener('click', event => {
   if (action === 'add-student') document.querySelector('#studentDialog').showModal();
   else if (action === 'new-training') openTrainingDialog();
   else if (action === 'new-entry') openAccountingDialog();
-  else if (action === 'accounting-entries') { state.page = 'accountingEntries'; render(); }
+  else if (action === 'accounting-entries') { state.accountingFilter = actionButton.dataset.kind || 'all'; state.page = 'accountingEntries'; render(); }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
   else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); student.fee = 'paid'; persistLocalData(); render(); showToast('Aidat yerel veritabanına kaydedildi.'); }
   else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
