@@ -121,6 +121,22 @@
     </form>
   </dialog>
 
+  <dialog id="accountingDialog">
+    <form method="dialog" class="dialog-form" id="accountingForm">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">YENİ İŞLEM</span><h2>Gelir veya gider kaydı</h2></div>
+        <button class="icon-button" type="button" data-dialog-close="accountingDialog" aria-label="Kapat">×</button>
+      </div>
+      <div class="form-grid">
+        <label>İşlem tarihi<input name="date" type="date" required></label>
+        <label>İşlem türü<select name="kind" required><option value="">Seçiniz</option><option value="income">Gelir</option><option value="expense">Gider</option></select></label>
+        <label class="full-field">Açıklama<input name="title" placeholder="Örn. Saha kiralama" maxlength="100" required></label>
+        <label class="full-field">Tutar (₺)<input name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="0" required></label>
+      </div>
+      <div class="dialog-actions"><button type="button" data-dialog-close="accountingDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">İşlemi kaydet</button></div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="local-db.js"></script>
   <script src="app.js"></script>

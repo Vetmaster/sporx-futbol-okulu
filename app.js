@@ -55,6 +55,7 @@ function statusLabel(fee) { return fee === 'paid' ? '<span class="status">Ödend
 function formatCurrency(value) { return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value); }
 function localDateValue(date = new Date()) { const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10); }
 function formatTrainingDate(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
+function formatAccountingDate(value) { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(new Date(`${value}T00:00:00`)) : value; }
 function studentsForTraining(training) { return state.students.filter(student => student.group === training.group); }
 function latestAttendanceForTraining(training) { return state.attendanceRecords.find(record => Number(record.trainingId) === Number(training.id)); }
 function trainingAttendanceLabel(training) {
@@ -162,7 +163,7 @@ function feesView() {
 function accountingView() {
   const income = state.accountingEntries.filter(entry => entry.kind === 'income').reduce((sum, entry) => sum + Number(entry.amount), 0);
   const expense = state.accountingEntries.filter(entry => entry.kind === 'expense').reduce((sum, entry) => sum + Number(entry.amount), 0);
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Temel muhasebe</h2><p>Yerel gelir ve gider kayıtları</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><small>${state.accountingEntries.filter(e => e.kind === 'income').length} kayıt</small></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><small>${state.accountingEntries.filter(e => e.kind === 'expense').length} kayıt</small></article><article class="stat-card"><span class="label">Net durum</span><strong>${formatCurrency(income - expense)}</strong><small>${income - expense >= 0 ? 'Pozitif bakiye' : 'Negatif bakiye'}</small></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><span class="status blue">Bu cihazda</span></div>${state.accountingEntries.map(e => `<div class="ledger-entry"><strong>${e.date}</strong><div><strong>${e.title}</strong><small class="muted">${e.type}</small></div><span class="amount ${e.kind}">${e.kind === 'income' ? '+' : '-'}${formatCurrency(e.amount)}</span></div>`).join('')}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Temel muhasebe</h2><p>Yerel gelir ve gider kayıtları</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><small>${state.accountingEntries.filter(e => e.kind === 'income').length} kayıt</small></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><small>${state.accountingEntries.filter(e => e.kind === 'expense').length} kayıt</small></article><article class="stat-card"><span class="label">Net durum</span><strong>${formatCurrency(income - expense)}</strong><small>${income - expense >= 0 ? 'Pozitif bakiye' : 'Negatif bakiye'}</small></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><span class="status blue">Bu cihazda</span></div>${state.accountingEntries.map(e => `<div class="ledger-entry"><strong>${formatAccountingDate(e.date)}</strong><div><strong>${e.title}</strong><small class="muted">${e.type}</small></div><span class="amount ${e.kind}">${e.kind === 'income' ? '+' : '-'}${formatCurrency(e.amount)}</span></div>`).join('')}</section></div>`;
 }
 
 function notificationsView() {
@@ -209,6 +210,13 @@ function openTrainingDialog() {
   document.querySelector('#trainingDialog').showModal();
 }
 
+function openAccountingDialog() {
+  const form = document.querySelector('#accountingForm');
+  form.reset();
+  form.elements.date.value = localDateValue();
+  document.querySelector('#accountingDialog').showModal();
+}
+
 document.querySelector('#loginForm').addEventListener('submit', event => { event.preventDefault(); login('admin'); });
 document.querySelectorAll('[data-demo-role]').forEach(button => button.addEventListener('click', () => login(button.dataset.demoRole)));
 document.querySelector('#logoutButton').addEventListener('click', logout);
@@ -226,6 +234,7 @@ document.addEventListener('click', event => {
   const action = actionButton.dataset.action;
   if (action === 'add-student') document.querySelector('#studentDialog').showModal();
   else if (action === 'new-training') openTrainingDialog();
+  else if (action === 'new-entry') openAccountingDialog();
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
   else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); student.fee = 'paid'; persistLocalData(); render(); showToast('Aidat yerel veritabanına kaydedildi.'); }
   else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
@@ -278,6 +287,25 @@ document.querySelector('#trainingForm').addEventListener('submit', event => {
   state.page = 'trainings';
   render();
   showToast('Antrenman yerel veritabanına kaydedildi.');
+});
+document.querySelector('#accountingForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const kind = data.get('kind');
+  state.accountingEntries.unshift({
+    id: Date.now(),
+    date: data.get('date'),
+    title: data.get('title').trim(),
+    type: kind === 'income' ? 'Gelir' : 'Gider',
+    amount: Number(data.get('amount')),
+    kind
+  });
+  persistLocalData();
+  document.querySelector('#accountingDialog').close();
+  event.currentTarget.reset();
+  state.page = 'accounting';
+  render();
+  showToast('Muhasebe işlemi yerel veritabanına kaydedildi.');
 });
 appContent.addEventListener('submit', event => {
   if (event.target.id !== 'notificationForm') return;
