@@ -96,6 +96,11 @@ th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: l
 th { color: var(--muted); background: #fafcfb; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
 tbody tr:hover { background: #f8fbf9; }
 .text-button { border: 0; padding: 4px; color: var(--brand); background: none; font-weight: 700; }
+.student-name-link { display: inline; border: 0; padding: 0; color: var(--brand-dark); background: none; font-weight: 900; text-align: left; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
+.student-name-link:hover, .student-name-link:focus-visible { color: var(--brand); text-decoration-color: currentColor; }
+.student-name-link.inverse { color: white; }
+.student-name-link.inverse:hover, .student-name-link.inverse:focus-visible { color: var(--lime); }
+.back-button { border: 0; padding: 7px 0; color: var(--brand); background: none; font-weight: 700; }
 .profile-cell { display: flex; align-items: center; gap: 10px; }
 .profile-avatar { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font-weight: 900; }
 .card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -126,6 +131,18 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
 .attendance-list { display: grid; max-height: 50vh; overflow-y: auto; border-top: 1px solid var(--line); }
 .attendance-item { min-height: 52px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .attendance-item input { width: 19px; height: 19px; }
+.student-profile-hero { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 24px; }
+.student-profile-hero .profile-avatar { width: 66px; height: 66px; font-size: 22px; }
+.student-profile-hero h2 { margin: 5px 0; font-size: 28px; }
+.student-profile-hero p { margin: 0; color: var(--muted); }
+.profile-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.detail-list { display: grid; margin: 0; padding: 4px 20px 16px; }
+.detail-list div { display: grid; grid-template-columns: minmax(120px, .65fr) minmax(0, 1fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.detail-list div:last-child { border-bottom: 0; }
+.detail-list dt { color: var(--muted); font-size: 13px; }
+.detail-list dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.detail-list a { color: var(--brand); }
+.empty-state { padding: 24px; color: var(--muted); text-align: center; }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 100; max-width: 360px; padding: 13px 17px; border-radius: 11px; color: white; background: var(--ink); box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
 .bottom-nav, .sidebar-scrim { display: none; }
@@ -144,6 +161,7 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
   .sidebar.open + .content-shell + .sidebar-scrim { display: block; }
   .mobile-menu { display: grid; }
   .dashboard-grid { grid-template-columns: 1fr; }
+  .profile-details-grid { grid-template-columns: 1fr; }
   .topbar { padding-inline: 14px; }
   #appContent { padding-bottom: 88px; }
   .bottom-nav { position: fixed; inset: auto 0 0; z-index: 22; display: grid; grid-template-columns: repeat(4, 1fr); padding: 7px max(8px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); border-top: 1px solid var(--line); background: rgba(255,255,255,.96); backdrop-filter: blur(12px); }
@@ -163,6 +181,8 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
   .list-row { grid-template-columns: 58px minmax(0,1fr); }
   .list-row > :last-child { grid-column: 2; justify-self: start; }
   .parent-hero { grid-template-columns: auto 1fr; }
+  .student-profile-hero { grid-template-columns: auto 1fr; }
+  .student-profile-hero > :last-child { grid-column: 1 / -1; justify-self: start; }
   .parent-hero > :last-child { grid-column: 1 / -1; width: 100%; }
   .ledger-entry { grid-template-columns: 72px minmax(0,1fr); }
   .ledger-entry .amount { grid-column: 2; }
