@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.20.02';
+const APP_VERSION = '2026.07.20.03';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
