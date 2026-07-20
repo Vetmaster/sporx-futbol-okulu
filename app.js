@@ -119,8 +119,8 @@ function dashboardView() {
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Bugünün kulüp özeti</h2><p>20 Temmuz Pazartesi · Son güncelleme şimdi</p></div></div>
     <section class="stats-grid">
-      <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>${state.students.length + 179}</strong><small>${GROUPS.length} grup</small></article>
-      <article class="stat-card"><span class="label">Planlanan antrenman</span><strong>${state.trainings.length}</strong><small>Takvimde kayıtlı</small></article>
+      <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>170 / 184</strong><small>${GROUPS.length} grup</small></article>
+      <article class="stat-card"><span class="label">Planlanan antrenman</span><strong>${state.trainings.length}</strong><button class="stat-link" type="button" data-page="trainings">Takvime git</button></article>
       <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>₺28.400</strong><small>23 öğrenci</small></article>
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>₺208.300</strong><small>+%8 geçen aya göre</small></article>
     </section>
