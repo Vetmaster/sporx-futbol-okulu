@@ -56,7 +56,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .app-banner { min-height: 74px; position: sticky; top: 0; z-index: 21; display: flex; align-items: center; padding: 10px clamp(18px, 4vw, 46px); background: rgba(255,255,255,.94); border-bottom: 1px solid var(--line); backdrop-filter: blur(14px); }
 .app-banner-home { min-width: 0; display: flex; align-items: center; gap: 9px; padding: 0 110px 0 0; color: var(--ink); border: 0; background: transparent; text-align: left; }
 .banner-mark { width: 42px; flex: 0 0 42px; border-radius: 11px; font-size: 25px; box-shadow: none; }
-.app-banner-school { min-width: 0; display: block; overflow: hidden; font-family: "Anta", var(--font); font-size: 22px; letter-spacing: .02em; text-overflow: ellipsis; white-space: nowrap; }
+.app-banner-brand-copy { min-width: 0; display: grid; gap: 2px; }
+.app-banner-brand-copy strong { overflow: hidden; font-family: "Anta", var(--font); font-size: 23px; letter-spacing: .04em; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.app-banner-brand-copy small { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .app-banner-build { min-height: 24px; display: inline-flex; flex: 0 0 auto; align-items: center; padding: 0 9px; border-radius: 999px; color: var(--brand-dark); background: var(--brand-soft); font-size: 11px; font-weight: 900; }
 .app-version-label { position: absolute; top: 10px; right: clamp(18px, 4vw, 46px); color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: .03em; }
 .topbar { min-height: 82px; position: sticky; top: 74px; z-index: 20; display: flex; align-items: center; gap: 16px; padding: 12px clamp(18px, 4vw, 46px); background: rgba(244,247,245,.92); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
@@ -197,7 +199,8 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
   .app-banner { min-height: 64px; }
   .app-banner-home { max-width: 100%; gap: 7px; padding-right: 82px; }
   .banner-mark { width: 34px; flex-basis: 34px; border-radius: 9px; font-size: 20px; }
-  .app-banner-school { font-size: 15px; }
+  .app-banner-brand-copy strong { font-size: 19px; }
+  .app-banner-brand-copy small { font-size: 10px; }
   .app-banner-build { min-height: 21px; padding-inline: 6px; font-size: 9px; }
   .app-version-label { top: 8px; font-size: 9px; }
   .topbar { top: 64px; }
