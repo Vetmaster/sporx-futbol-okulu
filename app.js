@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.05';
+const APP_VERSION = '2026.07.21.06';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -95,7 +95,11 @@ function monthlyFeePeriods(student) {
   }
   return periods.reverse();
 }
-function monthlyFeeStatus(student, month) { return student.feePayments?.[month] || (month < feeMonthKey() ? 'late' : 'pending'); }
+function monthlyFeeStatus(student, month) {
+  if (student.feePayments?.[month] === 'paid') return 'paid';
+  return month < feeMonthKey() ? 'late' : 'pending';
+}
+function currentFeeStatus(student) { return monthlyFeeStatus(student, feeMonthKey()); }
 function monthlyFeeRows(student) {
   const canEdit = state.role !== 'parent';
   return monthlyFeePeriods(student).map(month => {
@@ -166,7 +170,7 @@ function dashboardView() {
         ${progress('Aidat tahsilatı', 86)}${progress('Antrenman katılımı', 91)}${progress('Kontenjan kullanımı', 78)}
       </div></article>
     </section>
-    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${state.students.filter(s => s.fee !== 'paid').map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<small>${s.group} · Veli: ${s.parent}</small></div>${statusLabel(s.fee)}</div>`).join('')}</section>
+    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${state.students.filter(s => currentFeeStatus(s) !== 'paid').map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<small>${s.group} · Veli: ${s.parent}</small></div>${statusLabel(currentFeeStatus(s))}</div>`).join('')}</section>
   </div>`;
 }
 
@@ -192,7 +196,7 @@ function studentsView() {
     <section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Doğum tarihi</th><th>Grup / Mevki</th><th>Veli</th><th>Aidat</th><th>Devam</th><th></th></tr></thead><tbody id="studentsBody">${studentRows(state.students)}</tbody></table></section></div>`;
 }
 
-function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${s.group} · ${s.position}</td><td>${s.parent}<br><small class="muted">${s.phone}</small></td><td>${statusLabel(s.fee)}</td><td>%${s.attendance}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
+function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${s.group} · ${s.position}</td><td>${s.parent}<br><small class="muted">${s.phone}</small></td><td>${statusLabel(currentFeeStatus(s))}</td><td>%${s.attendance}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
 
 function childView() {
   const s = state.students[0];
@@ -204,10 +208,11 @@ function studentProfileView() {
   const student = allowedStudent || state.students[0];
   if (!student) return `<div class="page-stack"><section class="panel empty-state"><h2>Öğrenci bulunamadı</h2><button class="secondary-button" data-page="${state.role === 'parent' ? 'dashboard' : 'students'}">Geri dön</button></section></div>`;
   const attendanceCount = state.attendanceRecords.filter(record => record.presentStudentIds.includes(student.id)).length;
+  const currentFee = currentFeeStatus(student);
   return `<div class="page-stack">
     <div class="section-heading"><div><button class="back-button" type="button" data-page="${state.role === 'parent' ? 'child' : 'students'}">← Geri</button></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : ''}</div>
-    <section class="panel student-profile-hero"><span class="profile-avatar">${initials(student.name)}</span><div><span class="eyebrow">AKTİF ÖĞRENCİ</span><h2>${student.name}</h2><p>${student.birth} · ${student.group} · ${student.position}</p></div>${statusLabel(student.fee)}</section>
-    <section class="stats-grid"><article class="stat-card"><span class="label">Devam oranı</span><strong>%${student.attendance}</strong><small>${attendanceCount} kayıtlı yoklama</small></article><article class="stat-card"><span class="label">Aidat durumu</span><strong>${student.fee === 'paid' ? 'Güncel' : student.fee === 'late' ? 'Gecikmiş' : 'Bekliyor'}</strong><small>Temmuz 2026</small></article><article class="stat-card"><span class="label">Yaş grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position}</strong><small>Oyuncu profili</small></article></section>
+    <section class="panel student-profile-hero"><span class="profile-avatar">${initials(student.name)}</span><div><span class="eyebrow">AKTİF ÖĞRENCİ</span><h2>${student.name}</h2><p>${student.birth} · ${student.group} · ${student.position}</p></div>${statusLabel(currentFee)}</section>
+    <section class="stats-grid"><article class="stat-card"><span class="label">Devam oranı</span><strong>%${student.attendance}</strong><small>${attendanceCount} kayıtlı yoklama</small></article><article class="stat-card"><span class="label">Aidat durumu</span><strong>${currentFee === 'paid' ? 'Güncel' : currentFee === 'late' ? 'Gecikmiş' : 'Bekliyor'}</strong><small>${formatFeeMonth(feeMonthKey())}</small></article><article class="stat-card"><span class="label">Yaş grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position}</strong><small>Oyuncu profili</small></article></section>
     <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Yaş grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd><a href="mailto:${student.email}">${student.email}</a></dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
     <section class="panel"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>
     <section class="panel"><div class="panel-heading"><h3>Yaklaşan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${state.trainings.filter(training => training.group === student.group).map(training => `<div class="list-row"><span class="time">${training.time}</span><div><strong>${training.title}</strong><small>${training.coach} · ${training.field}</small></div><span class="status">${training.group}</span></div>`).join('') || '<div class="empty-state">Bu grup için planlanmış antrenman bulunmuyor.</div>'}</section>
@@ -226,10 +231,13 @@ function attendanceView() {
 function feesView() {
   const isParent = state.role === 'parent';
   const list = isParent ? state.students.slice(0,1) : state.students;
+  const currentMonth = feeMonthKey();
+  const currentMonthLabel = formatFeeMonth(currentMonth);
+  const [currentYear, currentMonthNumber] = currentMonth.split('-');
   const total = list.length * 1500;
-  const collected = list.filter(student => student.fee === 'paid').length * 1500;
+  const collected = list.filter(student => currentFeeStatus(student) === 'paid').length * 1500;
   const pending = total - collected;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${isParent ? 'Aidat bilgilerim' : 'Aidat takip listesi'}</h2><p>Temmuz 2026 ödeme dönemi · Yerel kayıt</p></div>${!isParent ? '<button class="primary-button" data-action="collect-fee">+ Tahsilat gir</button>' : ''}</div><section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>Temmuz 2026</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${list.filter(s => s.fee !== 'paid').length} öğrenci</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${list.map(s => `<tr><td>${studentNameLink(s)}</td><td>Temmuz 2026</td><td>₺1.500</td><td>05.07.2026</td><td>${statusLabel(s.fee)}</td>${!isParent ? `<td><button class="text-button" data-action="mark-paid" data-id="${s.id}">${s.fee === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button></td>` : ''}</tr>`).join('')}</tbody></table></section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${isParent ? 'Aidat bilgilerim' : 'Aidat takip listesi'}</h2><p>${currentMonthLabel} ödeme dönemi · Yerel kayıt</p></div>${!isParent ? '<button class="primary-button" data-action="collect-fee">+ Tahsilat gir</button>' : ''}</div><section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${list.filter(s => currentFeeStatus(s) !== 'paid').length} öğrenci</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${list.map(s => { const status = currentFeeStatus(s); return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>₺1.500</td><td>05.${currentMonthNumber}.${currentYear}</td><td>${statusLabel(status)}</td>${!isParent ? `<td><button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button></td>` : ''}</tr>`; }).join('')}</tbody></table></section></div>`;
 }
 
 function accountingPeriodFiltersMarkup() {
