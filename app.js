@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.02';
+const APP_VERSION = '2026.07.21.03';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -20,7 +20,6 @@ const state = {
   attendanceRecords: localData.attendanceRecords,
   activeTrainingId: null,
   selectedStudentId: null,
-  profileReturnPage: 'students',
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
   editingStudentId: null,
@@ -43,7 +42,6 @@ function persistLocalData() {
 const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['admin', 'staff', 'parent'] },
   students: { label: 'Öğrenciler', icon: '◎', roles: ['admin', 'staff'] },
-  groups: { label: 'Öğrenci Grupları', icon: '◎', roles: ['admin', 'staff'], hidden: true },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['admin', 'staff', 'parent'], hidden: true },
   child: { label: 'Çocuğum', icon: '◎', roles: ['parent'] },
   trainings: { label: 'Antrenman', icon: '▦', roles: ['admin', 'staff', 'parent'] },
@@ -56,7 +54,7 @@ const navItems = {
 
 const roleNames = { admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Öğrenci velisi' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], groups: ['Öğrenci Grupları', 'Tüm gruplar ve kayıtlı öğrenciler'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], child: ['Çocuğum', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], child: ['Çocuğum', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -131,7 +129,7 @@ function dashboardView() {
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Bugünün kulüp özeti</h2><p>20 Temmuz Pazartesi · Son güncelleme şimdi</p></div></div>
     <section class="stats-grid">
-      <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>170 / 184</strong><button class="stat-link" type="button" data-page="groups">${GROUPS.length} grup</button></article>
+      <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>170 / 184</strong><button class="stat-link" type="button" data-page="students">${GROUPS.length} grup</button></article>
       <article class="stat-card"><span class="label">Planlanan antrenman</span><strong>${state.trainings.length}</strong><button class="stat-link" type="button" data-page="trainings">Takvime git</button></article>
       <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>₺28.400</strong><small>23 öğrenci</small></article>
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>₺208.300</strong><small>+%8 geçen aya göre</small></article>
@@ -170,16 +168,6 @@ function studentsView() {
 
 function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${s.group} · ${s.position}</td><td>${s.parent}<br><small class="muted">${s.phone}</small></td><td>${statusLabel(s.fee)}</td><td>%${s.attendance}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
 
-function groupsView() {
-  return `<div class="page-stack">
-    <div class="section-heading"><div><button class="back-button" type="button" data-page="dashboard">← Genel bakışa dön</button><h2>Öğrenci grupları</h2><p>${GROUPS.length} grup · ${state.students.length} kayıtlı öğrenci</p></div></div>
-    <section class="groups-grid">${GROUPS.map(group => {
-      const students = state.students.filter(student => student.group === group);
-      return `<article class="panel group-card"><div class="panel-heading"><h3>${group}</h3><span class="status">${students.length} öğrenci</span></div><div class="group-student-list">${students.map(student => `<div class="group-student-row"><span class="profile-avatar">${initials(student.name)}</span><div>${studentNameLink(student)}<small>${student.position} · Veli: ${student.parent}</small></div></div>`).join('') || '<div class="empty-state">Bu grupta kayıtlı öğrenci yok.</div>'}</div></article>`;
-    }).join('')}</section>
-  </div>`;
-}
-
 function childView() {
   const s = state.students[0];
   return `<div class="page-stack"><section class="panel parent-hero"><span class="profile-avatar">${initials(s.name)}</span><div><h2>${studentNameLink(s, true)}</h2><p>${s.birth} · ${s.group} · ${s.position}</p></div><button class="secondary-button" data-action="profile" data-id="${s.id}">Tam profili aç</button></section><section class="stats-grid"><article class="stat-card"><span class="label">Katılım</span><strong>%${s.attendance}</strong><small>Çok iyi</small></article><article class="stat-card"><span class="label">Aidat</span><strong>Güncel</strong><small>Temmuz ödendi</small></article><article class="stat-card"><span class="label">Antrenman grubu</span><strong>${s.group}</strong><small>Salı · Perşembe</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${s.position}</strong><small>Gelişim profili</small></article></section><section class="panel"><div class="panel-heading"><h3>İletişim bilgileri</h3></div><div class="progress-group"><span><strong>Veli:</strong> ${s.parent}</span><span><strong>Telefon:</strong> ${s.phone}</span><span><strong>E-posta:</strong> ${s.email}</span></div></section></div>`;
@@ -191,7 +179,7 @@ function studentProfileView() {
   if (!student) return `<div class="page-stack"><section class="panel empty-state"><h2>Öğrenci bulunamadı</h2><button class="secondary-button" data-page="${state.role === 'parent' ? 'dashboard' : 'students'}">Geri dön</button></section></div>`;
   const attendanceCount = state.attendanceRecords.filter(record => record.presentStudentIds.includes(student.id)).length;
   return `<div class="page-stack">
-    <div class="section-heading"><div><button class="back-button" type="button" data-page="${state.role === 'parent' ? 'child' : state.profileReturnPage}">← Geri</button></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : ''}</div>
+    <div class="section-heading"><div><button class="back-button" type="button" data-page="${state.role === 'parent' ? 'child' : 'students'}">← Geri</button></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : ''}</div>
     <section class="panel student-profile-hero"><span class="profile-avatar">${initials(student.name)}</span><div><span class="eyebrow">AKTİF ÖĞRENCİ</span><h2>${student.name}</h2><p>${student.birth} · ${student.group} · ${student.position}</p></div>${statusLabel(student.fee)}</section>
     <section class="stats-grid"><article class="stat-card"><span class="label">Devam oranı</span><strong>%${student.attendance}</strong><small>${attendanceCount} kayıtlı yoklama</small></article><article class="stat-card"><span class="label">Aidat durumu</span><strong>${student.fee === 'paid' ? 'Güncel' : student.fee === 'late' ? 'Gecikmiş' : 'Bekliyor'}</strong><small>Temmuz 2026</small></article><article class="stat-card"><span class="label">Yaş grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position}</strong><small>Oyuncu profili</small></article></section>
     <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Yaş grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd><a href="mailto:${student.email}">${student.email}</a></dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
@@ -246,7 +234,7 @@ function notificationsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları şimdilik bu cihazda saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Yerel kayıt · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Yerel bildirimi kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
 }
 
-const views = { dashboard: dashboardView, students: studentsView, groups: groupsView, studentProfile: studentProfileView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, notifications: notificationsView };
+const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -370,7 +358,7 @@ document.addEventListener('click', event => {
   else if (action === 'delete-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); if (entry && window.confirm(`“${entry.title}” işlemi silinsin mi?`)) { state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id); persistLocalData(); render(); showToast('Muhasebe işlemi silindi.'); } }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
   else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); student.fee = 'paid'; persistLocalData(); render(); showToast('Aidat yerel veritabanına kaydedildi.'); }
-  else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.profileReturnPage = state.page === 'groups' ? 'groups' : 'students'; state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
+  else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
   else if (action === 'calendar-added') showToast('Antrenman takvime eklendi.');
   else showToast('Bu işlem sonraki geliştirme adımında açılacak.');
 });
