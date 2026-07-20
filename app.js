@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.12';
+const APP_VERSION = '2026.07.21.14';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -20,6 +20,7 @@ const state = {
   attendanceRecords: localData.attendanceRecords,
   activeTrainingId: null,
   selectedStudentId: null,
+  feeFilter: 'all',
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
   editingStudentId: null,
@@ -171,12 +172,14 @@ function renderNavigation() {
 
 function dashboardView() {
   if (state.role === 'parent') return parentDashboard();
+  const pendingFeeStudents = state.students.filter(student => currentFeeStatus(student) !== 'paid');
+  const pendingFeeAmount = pendingFeeStudents.length * 1500;
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Bugünün kulüp özeti</h2><p>20 Temmuz Pazartesi · Son güncelleme şimdi</p></div></div>
     <section class="stats-grid">
       <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>170 / 184</strong><button class="stat-link" type="button" data-page="students">${GROUPS.length} grup</button></article>
       <article class="stat-card"><span class="label">Planlanan antrenman</span><strong>${state.trainings.length}</strong><button class="stat-link" type="button" data-page="trainings">Takvime git</button></article>
-      <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>₺28.400</strong><small>23 öğrenci</small></article>
+      <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>${formatCurrency(pendingFeeAmount)}</strong><button class="stat-link" type="button" data-action="pending-fees">${pendingFeeStudents.length} öğrenci</button></article>
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>₺208.300</strong><small>+%8 geçen aya göre</small></article>
     </section>
     <section class="dashboard-grid">
@@ -185,7 +188,7 @@ function dashboardView() {
         ${progress('Aidat tahsilatı', 86)}${progress('Antrenman katılımı', 91)}${progress('Kontenjan kullanımı', 78)}
       </div></article>
     </section>
-    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${state.students.filter(s => currentFeeStatus(s) !== 'paid').map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<small>${s.group} · Veli: ${s.parent}</small></div>${statusLabel(currentFeeStatus(s))}</div>`).join('')}</section>
+    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<small>${s.group} · Veli: ${s.parent}</small></div>${statusLabel(currentFeeStatus(s))}</div>`).join('')}</section>
   </div>`;
 }
 
@@ -258,14 +261,18 @@ function attendanceView() {
 
 function feesView() {
   const isParent = state.role === 'parent';
-  const list = isParent ? state.students.slice(0,1) : state.students;
+  const allStudents = isParent ? state.students.slice(0,1) : state.students;
+  const pendingStudents = allStudents.filter(student => currentFeeStatus(student) !== 'paid');
+  const list = state.feeFilter === 'pending' ? pendingStudents : allStudents;
   const currentMonth = feeMonthKey();
   const currentMonthLabel = formatFeeMonth(currentMonth);
   const [currentYear, currentMonthNumber] = currentMonth.split('-');
-  const total = list.length * 1500;
-  const collected = list.filter(student => currentFeeStatus(student) === 'paid').length * 1500;
+  const total = allStudents.length * 1500;
+  const collected = allStudents.filter(student => currentFeeStatus(student) === 'paid').length * 1500;
   const pending = total - collected;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${isParent ? 'Aidat bilgilerim' : 'Aidat takip listesi'}</h2><p>${currentMonthLabel} ödeme dönemi · Yerel kayıt</p></div>${!isParent ? '<button class="primary-button" data-action="collect-fee">+ Tahsilat gir</button>' : ''}</div><section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${list.filter(s => currentFeeStatus(s) !== 'paid').length} öğrenci</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${list.map(s => { const status = currentFeeStatus(s); return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>₺1.500</td><td>05.${currentMonthNumber}.${currentYear}</td><td>${statusLabel(status)}</td>${!isParent ? `<td><button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button></td>` : ''}</tr>`; }).join('')}</tbody></table></section></div>`;
+  const title = state.feeFilter === 'pending' && !isParent ? 'Ödemesi yapılmamış öğrenciler' : isParent ? 'Aidat bilgilerim' : 'Aidat takip listesi';
+  const headerAction = state.feeFilter === 'pending' && !isParent ? '<button class="secondary-button" data-action="fee-filter" data-filter="all">Tüm aidatları göster</button>' : !isParent ? '<button class="primary-button" data-action="collect-fee">+ Tahsilat gir</button>' : '';
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci</p></div>${headerAction}</div><section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${list.map(s => { const status = currentFeeStatus(s); return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>₺1.500</td><td>05.${currentMonthNumber}.${currentYear}</td><td>${statusLabel(status)}</td>${!isParent ? `<td><button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button></td>` : ''}</tr>`; }).join('')}</tbody></table></section></div>`;
 }
 
 function accountingPeriodFiltersMarkup() {
@@ -402,7 +409,7 @@ document.addEventListener('click', event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
   if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
   const pageButton = event.target.closest('[data-page]');
-  if (pageButton && appShell.contains(pageButton)) { state.page = pageButton.dataset.page; document.querySelector('#sidebar').classList.remove('open'); render(); return; }
+  if (pageButton && appShell.contains(pageButton)) { state.page = pageButton.dataset.page; if (state.page === 'fees') state.feeFilter = 'all'; document.querySelector('#sidebar').classList.remove('open'); render(); return; }
   const actionButton = event.target.closest('[data-action]');
   if (!actionButton) {
     closeLedgerActions();
@@ -416,6 +423,8 @@ document.addEventListener('click', event => {
   else if (action === 'new-entry') openAccountingDialog();
   else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
   else if (action === 'accounting-entries') { state.accountingFilter = actionButton.dataset.kind || 'all'; state.page = 'accountingEntries'; render(); }
+  else if (action === 'pending-fees') { state.feeFilter = 'pending'; state.page = 'fees'; render(); }
+  else if (action === 'fee-filter') { state.feeFilter = actionButton.dataset.filter || 'all'; render(); }
   else if (action === 'toggle-entry-actions') toggleLedgerActions(actionButton.closest('.ledger-entry'));
   else if (action === 'edit-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); closeLedgerActions(); if (entry) openAccountingDialog(entry); }
   else if (action === 'delete-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); if (entry && window.confirm(`“${entry.title}” işlemi silinsin mi?`)) { state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id); persistLocalData(); render(); showToast('Muhasebe işlemi silindi.'); } }
