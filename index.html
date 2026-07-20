@@ -8,10 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.07.20.09">
+  <link rel="stylesheet" href="styles.css?v=2026.07.21.12">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
+    <span class="auth-version-label" id="authVersionLabel" aria-label="Uygulama sürümü"></span>
     <div class="auth-brand">
       <div class="brand-mark" aria-hidden="true">X</div>
       <div>
@@ -86,7 +87,7 @@
   <dialog id="studentDialog">
     <form method="dialog" class="dialog-form" id="studentForm">
       <div class="dialog-heading">
-        <div><span class="eyebrow">YENİ KAYIT</span><h2>Öğrenci bilgileri</h2></div>
+        <div><span class="eyebrow" id="studentEyebrow">YENİ KAYIT</span><h2 id="studentDialogTitle">Öğrenci bilgileri</h2></div>
         <button class="icon-button" type="button" data-dialog-close="studentDialog" aria-label="Kapat">×</button>
       </div>
       <div class="form-grid">
@@ -99,7 +100,7 @@
         <label>İrtibat e-posta adresi<input name="email" type="email" required></label>
         <label class="full-field">Kısa ev adresi<textarea name="address" rows="3" required></textarea></label>
       </div>
-      <div class="dialog-actions"><button type="button" data-dialog-close="studentDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Öğrenciyi kaydet</button></div>
+      <div class="dialog-actions"><button type="button" data-dialog-close="studentDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button" id="studentSubmitButton">Öğrenciyi kaydet</button></div>
     </form>
   </dialog>
 
@@ -148,7 +149,7 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="local-db.js?v=2026.07.20.09"></script>
-  <script src="app.js?v=2026.07.20.09"></script>
+  <script src="local-db.js?v=2026.07.21.12"></script>
+  <script src="app.js?v=2026.07.21.12"></script>
 </body>
 </html>
