@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2026.07.20.01">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -52,6 +52,17 @@
     </aside>
 
     <div class="content-shell">
+      <header class="app-banner">
+        <button class="app-banner-home" type="button" data-page="dashboard" aria-label="SporX ana sayfasına git">
+          <span class="brand-mark banner-mark" aria-hidden="true">X</span>
+          <span class="app-banner-copy">
+            <strong>SPORX</strong>
+            <small>FB Çekmeköy Futbol Okulu Yönetim Sistemi</small>
+          </span>
+          <span class="app-banner-build">1.0</span>
+        </button>
+        <span class="app-version-label" id="headerVersionLabel" aria-label="Uygulama sürümü"></span>
+      </header>
       <header class="topbar">
         <button class="icon-button mobile-menu" id="menuButton" aria-label="Menüyü aç">☰</button>
         <div>
@@ -138,7 +149,7 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="local-db.js"></script>
-  <script src="app.js"></script>
+  <script src="local-db.js?v=2026.07.20.01"></script>
+  <script src="app.js?v=2026.07.20.01"></script>
 </body>
 </html>

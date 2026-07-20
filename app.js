@@ -1,3 +1,4 @@
+const APP_VERSION = '2026.07.20.01';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -62,6 +63,7 @@ const appContent = document.querySelector('#appContent');
 const mainNav = document.querySelector('#mainNav');
 const bottomNav = document.querySelector('#bottomNav');
 const roleSwitcher = document.querySelector('#roleSwitcher');
+document.querySelector('#headerVersionLabel').textContent = `v${APP_VERSION}`;
 
 function allowedItems() { return Object.entries(navItems).filter(([, item]) => item.roles.includes(state.role) && !item.hidden); }
 function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2).join(''); }
