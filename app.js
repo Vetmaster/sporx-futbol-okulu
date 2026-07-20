@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.20.09';
+const APP_VERSION = '2026.07.21.01';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -22,6 +22,7 @@ const state = {
   selectedStudentId: null,
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
+  editingStudentId: null,
   editingTrainingId: null,
   editingAccountingEntryId: null
 };
@@ -71,6 +72,12 @@ function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2
 function statusLabel(fee) { return fee === 'paid' ? '<span class="status">Ödendi</span>' : fee === 'late' ? '<span class="status danger">Gecikti</span>' : '<span class="status warning">Bekliyor</span>'; }
 function formatCurrency(value) { return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value); }
 function localDateValue(date = new Date()) { const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10); }
+function studentBirthInputValue(value) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const match = String(value).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  return match ? `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}` : '';
+}
+function formatStudentBirthDate(value) { const [year, month, day] = String(value).split('-'); return year && month && day ? `${day}.${month}.${year}` : value; }
 function formatTrainingDate(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
 function formatAccountingDate(value) { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(new Date(`${value}T00:00:00`)) : value; }
 function accountingDateInputValue(value) {
@@ -256,6 +263,24 @@ function openAttendance(id) {
   document.querySelector('#attendanceDialog').showModal();
 }
 
+function openStudentDialog(student = null) {
+  const form = document.querySelector('#studentForm');
+  form.reset();
+  state.editingStudentId = student?.id || null;
+  form.elements.studentName.value = student?.name || '';
+  form.elements.birthDate.value = student ? studentBirthInputValue(student.birth) : '';
+  form.elements.group.value = student?.group || '';
+  form.elements.position.value = student?.position || '';
+  form.elements.parentName.value = student?.parent || '';
+  form.elements.phone.value = student?.phone || '';
+  form.elements.email.value = student?.email || '';
+  form.elements.address.value = student?.address || '';
+  document.querySelector('#studentEyebrow').textContent = student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
+  document.querySelector('#studentDialogTitle').textContent = student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
+  document.querySelector('#studentSubmitButton').textContent = student ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet';
+  document.querySelector('#studentDialog').showModal();
+}
+
 function openTrainingDialog(training = null) {
   const form = document.querySelector('#trainingForm');
   form.reset();
@@ -312,7 +337,7 @@ roleSwitcher.addEventListener('change', () => { state.role = roleSwitcher.value;
 
 document.addEventListener('click', event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
-  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
   const pageButton = event.target.closest('[data-page]');
   if (pageButton && appShell.contains(pageButton)) { state.page = pageButton.dataset.page; document.querySelector('#sidebar').classList.remove('open'); render(); return; }
   const actionButton = event.target.closest('[data-action]');
@@ -321,7 +346,8 @@ document.addEventListener('click', event => {
     return;
   }
   const action = actionButton.dataset.action;
-  if (action === 'add-student') document.querySelector('#studentDialog').showModal();
+  if (action === 'add-student') openStudentDialog();
+  else if (action === 'edit-profile' && state.role !== 'parent') { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
   else if (action === 'new-training') openTrainingDialog();
   else if (action === 'edit-training' && state.role === 'admin') { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
   else if (action === 'new-entry') openAccountingDialog();
@@ -348,10 +374,21 @@ appContent.addEventListener('input', event => {
 document.querySelector('#studentForm').addEventListener('submit', event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
-  const birth = new Date(data.get('birthDate'));
-  state.students.unshift({ id: Date.now(), name: data.get('studentName'), birth: birth.toLocaleDateString('tr-TR'), group: data.get('group'), position: data.get('position'), parent: data.get('parentName'), phone: data.get('phone'), email: data.get('email'), address: data.get('address'), fee: 'pending', attendance: 100 });
+  const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
+  const wasEditing = Boolean(state.editingStudentId);
+  if (wasEditing) {
+    const student = state.students.find(item => item.id === Number(state.editingStudentId));
+    if (student) Object.assign(student, studentData);
+  } else {
+    state.students.unshift({ id: Date.now(), ...studentData, fee: 'pending', attendance: 100 });
+  }
+  state.editingStudentId = null;
   persistLocalData();
-  document.querySelector('#studentDialog').close(); event.currentTarget.reset(); state.page = 'students'; render(); showToast('Öğrenci yerel veritabanına kaydedildi.');
+  document.querySelector('#studentDialog').close();
+  event.currentTarget.reset();
+  state.page = wasEditing ? 'studentProfile' : 'students';
+  render();
+  showToast(wasEditing ? 'Öğrenci profili güncellendi.' : 'Öğrenci yerel veritabanına kaydedildi.');
 });
 document.querySelector('#attendanceForm').addEventListener('submit', event => {
   event.preventDefault();
