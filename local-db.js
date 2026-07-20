@@ -1,15 +1,15 @@
 (function () {
   const STORAGE_KEY = 'sporx.localdb.v1';
-  const VERSION = 4;
+  const VERSION = 5;
 
   const seed = {
     version: VERSION,
     students: [
-      { id: 1, name: 'Ege Arslan', birth: '14.03.2014', group: 'U12', position: 'Orta saha', parent: 'Ayşe Arslan', phone: '0532 111 22 33', email: 'ayse@example.com', address: 'Merkez', fee: 'paid', attendance: 92 },
-      { id: 2, name: 'Mert Kaya', birth: '02.09.2013', group: 'U13', position: 'Forvet', parent: 'Emre Kaya', phone: '0542 222 34 56', email: 'emre@example.com', address: 'Merkez', fee: 'late', attendance: 84 },
-      { id: 3, name: 'Arda Demir', birth: '21.06.2015', group: 'U11', position: 'Defans', parent: 'Selin Demir', phone: '0533 333 45 67', email: 'selin@example.com', address: 'Merkez', fee: 'pending', attendance: 96 },
-      { id: 4, name: 'Can Eren', birth: '07.11.2014', group: 'U12', position: 'Kaleci', parent: 'Burak Eren', phone: '0548 444 56 78', email: 'burak@example.com', address: 'Merkez', fee: 'paid', attendance: 88 },
-      { id: 5, name: 'Deniz Yılmaz', birth: '30.01.2016', group: 'Saat 09:00', position: 'Forvet', parent: 'Derya Yılmaz', phone: '0539 555 67 89', email: 'derya@example.com', address: 'Merkez', fee: 'late', attendance: 79 }
+      { id: 1, name: 'Ege Arslan', birth: '14.03.2014', group: 'U12', position: 'Orta saha', parent: 'Ayşe Arslan', phone: '0532 111 22 33', email: 'ayse@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'paid' }, fee: 'paid', attendance: 92 },
+      { id: 2, name: 'Mert Kaya', birth: '02.09.2013', group: 'U13', position: 'Forvet', parent: 'Emre Kaya', phone: '0542 222 34 56', email: 'emre@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'late' }, fee: 'late', attendance: 84 },
+      { id: 3, name: 'Arda Demir', birth: '21.06.2015', group: 'U11', position: 'Defans', parent: 'Selin Demir', phone: '0533 333 45 67', email: 'selin@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'pending' }, fee: 'pending', attendance: 96 },
+      { id: 4, name: 'Can Eren', birth: '07.11.2014', group: 'U12', position: 'Kaleci', parent: 'Burak Eren', phone: '0548 444 56 78', email: 'burak@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'paid' }, fee: 'paid', attendance: 88 },
+      { id: 5, name: 'Deniz Yılmaz', birth: '30.01.2016', group: 'Saat 09:00', position: 'Forvet', parent: 'Derya Yılmaz', phone: '0539 555 67 89', email: 'derya@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'late' }, fee: 'late', attendance: 79 }
     ],
     trainings: [
       { id: 1, date: '2026-07-20', time: '09:00', duration: 90, group: 'Saat 09:00', title: 'Teknik Antrenman', coach: 'Oğuz Yalçın', field: 'Ana saha' },
@@ -52,7 +52,11 @@
     const sourceNotifications = Array.isArray(source.notifications) ? source.notifications : clone(seed.notifications);
     return {
       version: VERSION,
-      students: sourceStudents.map(student => ({ ...student, group: migrateGroup(student.group) })),
+      students: sourceStudents.map(student => {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const feePayments = student.feePayments && typeof student.feePayments === 'object' && !Array.isArray(student.feePayments) ? { ...student.feePayments } : { [currentMonth]: student.fee || 'pending' };
+        return { ...student, group: migrateGroup(student.group), enrollmentDate: student.enrollmentDate || '2026-07-01', feePayments };
+      }),
       trainings: sourceTrainings.map(training => {
         const { count, ...trainingData } = training;
         return { ...trainingData, date: training.date || '2026-07-20', duration: Number(training.duration) || 90, group: migrateGroup(training.group), time: training.group === 'U10' ? '09:00' : training.time };

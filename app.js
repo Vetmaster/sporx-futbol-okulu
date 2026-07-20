@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.04';
+const APP_VERSION = '2026.07.21.05';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -78,6 +78,32 @@ function studentBirthInputValue(value) {
   return match ? `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}` : '';
 }
 function formatStudentBirthDate(value) { const [year, month, day] = String(value).split('-'); return year && month && day ? `${day}.${month}.${year}` : value; }
+function feeMonthKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
+function formatFeeMonth(key) { const [year, month] = String(key).split('-').map(Number); return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)); }
+function formatEnrollmentDate(value) { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : value; }
+function monthlyFeePeriods(student) {
+  const enrollmentDate = /^\d{4}-\d{2}-\d{2}$/.test(student.enrollmentDate) ? student.enrollmentDate : '2026-07-01';
+  const [startYear, startMonth] = enrollmentDate.split('-').map(Number);
+  const start = new Date(startYear, startMonth - 1, 1);
+  const end = new Date();
+  const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+  const cursor = start > endMonth ? endMonth : start;
+  const periods = [];
+  while (cursor <= endMonth) {
+    periods.push(feeMonthKey(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return periods.reverse();
+}
+function monthlyFeeStatus(student, month) { return student.feePayments?.[month] || (month < feeMonthKey() ? 'late' : 'pending'); }
+function monthlyFeeRows(student) {
+  const canEdit = state.role !== 'parent';
+  return monthlyFeePeriods(student).map(month => {
+    const status = monthlyFeeStatus(student, month);
+    const [year, monthNumber] = month.split('-');
+    return `<tr><td><strong>${formatFeeMonth(month)}</strong></td><td>₺1.500</td><td>05.${monthNumber}.${year}</td><td>${statusLabel(status)}</td>${canEdit ? `<td><label class="fee-paid-control"><input type="checkbox" data-monthly-fee data-id="${student.id}" data-month="${month}" aria-label="${formatFeeMonth(month)} aidatını ödendi işaretle" ${status === 'paid' ? 'checked' : ''}><span>${status === 'paid' ? 'Ödendi' : 'Ödendi seç'}</span></label></td>` : ''}</tr>`;
+  }).join('');
+}
 function formatTrainingDate(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
 function formatAccountingDate(value) { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(new Date(`${value}T00:00:00`)) : value; }
 function accountingDateInputValue(value) {
@@ -182,7 +208,8 @@ function studentProfileView() {
     <div class="section-heading"><div><button class="back-button" type="button" data-page="${state.role === 'parent' ? 'child' : 'students'}">← Geri</button></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : ''}</div>
     <section class="panel student-profile-hero"><span class="profile-avatar">${initials(student.name)}</span><div><span class="eyebrow">AKTİF ÖĞRENCİ</span><h2>${student.name}</h2><p>${student.birth} · ${student.group} · ${student.position}</p></div>${statusLabel(student.fee)}</section>
     <section class="stats-grid"><article class="stat-card"><span class="label">Devam oranı</span><strong>%${student.attendance}</strong><small>${attendanceCount} kayıtlı yoklama</small></article><article class="stat-card"><span class="label">Aidat durumu</span><strong>${student.fee === 'paid' ? 'Güncel' : student.fee === 'late' ? 'Gecikmiş' : 'Bekliyor'}</strong><small>Temmuz 2026</small></article><article class="stat-card"><span class="label">Yaş grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position}</strong><small>Oyuncu profili</small></article></section>
-    <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Yaş grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd><a href="mailto:${student.email}">${student.email}</a></dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
+    <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Yaş grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd><a href="mailto:${student.email}">${student.email}</a></dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
+    <section class="panel"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>
     <section class="panel"><div class="panel-heading"><h3>Yaklaşan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${state.trainings.filter(training => training.group === student.group).map(training => `<div class="list-row"><span class="time">${training.time}</span><div><strong>${training.title}</strong><small>${training.coach} · ${training.field}</small></div><span class="status">${training.group}</span></div>`).join('') || '<div class="empty-state">Bu grup için planlanmış antrenman bulunmuyor.</div>'}</section>
   </div>`;
 }
@@ -357,7 +384,7 @@ document.addEventListener('click', event => {
   else if (action === 'edit-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); closeLedgerActions(); if (entry) openAccountingDialog(entry); }
   else if (action === 'delete-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); if (entry && window.confirm(`“${entry.title}” işlemi silinsin mi?`)) { state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id); persistLocalData(); render(); showToast('Muhasebe işlemi silindi.'); } }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
-  else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); student.fee = 'paid'; persistLocalData(); render(); showToast('Aidat yerel veritabanına kaydedildi.'); }
+  else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); student.fee = 'paid'; student.feePayments = { ...student.feePayments, [feeMonthKey()]: 'paid' }; persistLocalData(); render(); showToast('Aidat yerel veritabanına kaydedildi.'); }
   else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
   else if (action === 'calendar-added') showToast('Antrenman takvime eklendi.');
   else showToast('Bu işlem sonraki geliştirme adımında açılacak.');
@@ -371,6 +398,19 @@ appContent.addEventListener('input', event => {
   document.querySelector('#studentsBody').innerHTML = studentRows(filtered);
 });
 
+appContent.addEventListener('change', event => {
+  const paymentControl = event.target.closest('[data-monthly-fee]');
+  if (!paymentControl || state.role === 'parent') return;
+  const student = state.students.find(item => item.id === Number(paymentControl.dataset.id));
+  if (!student) return;
+  const status = paymentControl.checked ? 'paid' : 'pending';
+  student.feePayments = { ...student.feePayments, [paymentControl.dataset.month]: status };
+  if (paymentControl.dataset.month === feeMonthKey()) student.fee = status;
+  persistLocalData();
+  render();
+  showToast(paymentControl.checked ? 'Aidat ödendi olarak kaydedildi.' : 'Aidat bekliyor olarak güncellendi.');
+});
+
 document.querySelector('#studentForm').addEventListener('submit', event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
@@ -380,7 +420,8 @@ document.querySelector('#studentForm').addEventListener('submit', event => {
     const student = state.students.find(item => item.id === Number(state.editingStudentId));
     if (student) Object.assign(student, studentData);
   } else {
-    state.students.unshift({ id: Date.now(), ...studentData, fee: 'pending', attendance: 100 });
+    const enrollmentDate = localDateValue();
+    state.students.unshift({ id: Date.now(), ...studentData, enrollmentDate, feePayments: { [feeMonthKey()]: 'pending' }, fee: 'pending', attendance: 100 });
   }
   state.editingStudentId = null;
   persistLocalData();

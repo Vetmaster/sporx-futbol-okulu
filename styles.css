@@ -112,6 +112,9 @@ tbody tr:hover { background: #f8fbf9; }
 .back-button { border: 0; padding: 7px 0; color: var(--brand); background: none; font-weight: 700; }
 .profile-cell { display: flex; align-items: center; gap: 10px; }
 .profile-avatar { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font-weight: 900; }
+.fee-paid-control { display: inline-flex; align-items: center; gap: 8px; color: var(--brand-dark); font-weight: 700; cursor: pointer; }
+.fee-paid-control input { width: 18px; height: 18px; accent-color: var(--brand); }
+.monthly-fee-table td:first-child { text-transform: capitalize; }
 .card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .training-card { padding: 19px; }
 .training-card header { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
