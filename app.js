@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.20.03';
+const APP_VERSION = '2026.07.20.04';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -236,7 +236,6 @@ function render() {
   document.querySelector('#pageSubtitle').textContent = subtitle;
   document.querySelector('#sidebarRole').textContent = roleNames[state.role];
   document.querySelector('#sidebarUser').textContent = state.role === 'parent' ? 'Ayşe Arslan' : state.role === 'staff' ? 'Oğuz Yalçın' : 'Hasan Sargın';
-  document.querySelector('#notificationCount').textContent = Math.min(state.notifications.length, 9);
   roleSwitcher.value = state.role;
   appContent.innerHTML = views[state.page]();
   appContent.focus({ preventScroll: true });
