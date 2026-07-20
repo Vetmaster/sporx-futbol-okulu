@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.07.20.06">
+  <link rel="stylesheet" href="styles.css?v=2026.07.20.07">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -114,7 +114,7 @@
   <dialog id="trainingDialog">
     <form method="dialog" class="dialog-form" id="trainingForm">
       <div class="dialog-heading">
-        <div><span class="eyebrow">YENİ ANTRENMAN</span><h2>Antrenman planla</h2></div>
+        <div><span class="eyebrow" id="trainingEyebrow">YENİ ANTRENMAN</span><h2 id="trainingDialogTitle">Antrenman planla</h2></div>
         <button class="icon-button" type="button" data-dialog-close="trainingDialog" aria-label="Kapat">×</button>
       </div>
       <div class="form-grid">
@@ -127,7 +127,7 @@
         <label class="full-field">Saha<input name="field" placeholder="Örn. Ana saha" required></label>
       </div>
       <datalist id="trainingTypes"><option value="Teknik Antrenman"><option value="Taktik Çalışma"><option value="Kondisyon"><option value="Kaleci Çalışması"><option value="Maç Hazırlığı"></datalist>
-      <div class="dialog-actions"><button type="button" data-dialog-close="trainingDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Antrenmanı kaydet</button></div>
+      <div class="dialog-actions"><button type="button" data-dialog-close="trainingDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button" id="trainingSubmitButton">Antrenmanı kaydet</button></div>
     </form>
   </dialog>
 
@@ -148,7 +148,7 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="local-db.js?v=2026.07.20.06"></script>
-  <script src="app.js?v=2026.07.20.06"></script>
+  <script src="local-db.js?v=2026.07.20.07"></script>
+  <script src="app.js?v=2026.07.20.07"></script>
 </body>
 </html>
