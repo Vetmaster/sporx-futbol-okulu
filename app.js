@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.20.06';
+const APP_VERSION = '2026.07.20.09';
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -22,6 +22,7 @@ const state = {
   selectedStudentId: null,
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
+  editingTrainingId: null,
   editingAccountingEntryId: null
 };
 
@@ -181,7 +182,7 @@ function studentProfileView() {
 
 function trainingsView() {
   const orderedTrainings = [...state.trainings].sort((a, b) => `${a.date || ''} ${a.time}`.localeCompare(`${b.date || ''} ${b.time}`));
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>Planlanan grup çalışmaları · ${state.trainings.length} kayıt</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="status">${t.time}</span></header><div class="training-date">${formatTrainingDate(t.date)} · ${t.duration || 90} dakika</div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span><span>◎ ${trainingAttendanceLabel(t)}</span></div><div class="training-actions">${state.role !== 'parent' ? `<button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>` : '<button class="primary-button" data-action="calendar-added">Takvime ekle</button>'}<button class="secondary-button">Detay</button></div></article>`).join('') || '<div class="panel empty-state">Henüz planlanmış antrenman bulunmuyor.</div>'}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>Planlanan grup çalışmaları · ${state.trainings.length} kayıt</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)} · ${t.time}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span><span>◎ ${trainingAttendanceLabel(t)}</span></div><div class="training-actions">${state.role !== 'parent' ? `<button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>` : '<button class="primary-button" data-action="calendar-added">Takvime ekle</button>'}${state.role === 'admin' ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div></article>`).join('') || '<div class="panel empty-state">Henüz planlanmış antrenman bulunmuyor.</div>'}</section></div>`;
 }
 
 function attendanceView() {
@@ -255,12 +256,20 @@ function openAttendance(id) {
   document.querySelector('#attendanceDialog').showModal();
 }
 
-function openTrainingDialog() {
+function openTrainingDialog(training = null) {
   const form = document.querySelector('#trainingForm');
   form.reset();
-  form.elements.date.value = localDateValue();
-  form.elements.time.value = '09:00';
-  form.elements.coach.value = state.role === 'staff' ? 'Oğuz Yalçın' : '';
+  state.editingTrainingId = training?.id || null;
+  form.elements.date.value = training?.date || localDateValue();
+  form.elements.time.value = training?.time || '09:00';
+  form.elements.group.value = training?.group || '';
+  form.elements.duration.value = String(training?.duration || 90);
+  form.elements.title.value = training?.title || '';
+  form.elements.coach.value = training?.coach || (state.role === 'staff' ? 'Oğuz Yalçın' : '');
+  form.elements.field.value = training?.field || '';
+  document.querySelector('#trainingEyebrow').textContent = training ? 'ANTRENMANI DÜZENLE' : 'YENİ ANTRENMAN';
+  document.querySelector('#trainingDialogTitle').textContent = training ? 'Antrenman bilgilerini güncelle' : 'Antrenman planla';
+  document.querySelector('#trainingSubmitButton').textContent = training ? 'Değişiklikleri kaydet' : 'Antrenmanı kaydet';
   document.querySelector('#trainingDialog').showModal();
 }
 
@@ -303,7 +312,7 @@ roleSwitcher.addEventListener('change', () => { state.role = roleSwitcher.value;
 
 document.addEventListener('click', event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
-  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
   const pageButton = event.target.closest('[data-page]');
   if (pageButton && appShell.contains(pageButton)) { state.page = pageButton.dataset.page; document.querySelector('#sidebar').classList.remove('open'); render(); return; }
   const actionButton = event.target.closest('[data-action]');
@@ -314,6 +323,7 @@ document.addEventListener('click', event => {
   const action = actionButton.dataset.action;
   if (action === 'add-student') document.querySelector('#studentDialog').showModal();
   else if (action === 'new-training') openTrainingDialog();
+  else if (action === 'edit-training' && state.role === 'admin') { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
   else if (action === 'new-entry') openAccountingDialog();
   else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
   else if (action === 'accounting-entries') { state.accountingFilter = actionButton.dataset.kind || 'all'; state.page = 'accountingEntries'; render(); }
@@ -356,8 +366,7 @@ document.querySelector('#trainingForm').addEventListener('submit', event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const group = data.get('group');
-  state.trainings.push({
-    id: Date.now(),
+  const trainingData = {
     date: data.get('date'),
     time: data.get('time'),
     duration: Number(data.get('duration')),
@@ -365,13 +374,21 @@ document.querySelector('#trainingForm').addEventListener('submit', event => {
     title: data.get('title').trim(),
     coach: data.get('coach').trim(),
     field: data.get('field').trim()
-  });
+  };
+  const wasEditing = Boolean(state.editingTrainingId);
+  if (wasEditing) {
+    const training = state.trainings.find(item => item.id === Number(state.editingTrainingId));
+    if (training) Object.assign(training, trainingData);
+  } else {
+    state.trainings.push({ id: Date.now(), ...trainingData });
+  }
+  state.editingTrainingId = null;
   persistLocalData();
   document.querySelector('#trainingDialog').close();
   event.currentTarget.reset();
   state.page = 'trainings';
   render();
-  showToast('Antrenman yerel veritabanına kaydedildi.');
+  showToast(wasEditing ? 'Antrenman bilgileri güncellendi.' : 'Antrenman yerel veritabanına kaydedildi.');
 });
 document.querySelector('#accountingForm').addEventListener('submit', event => {
   event.preventDefault();
