@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.55';
+const APP_VERSION = '2026.07.23.56';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -571,7 +571,7 @@ function configureAuthForm(mode = 'login') {
   document.querySelector('#authDescription').textContent = settingPassword
     ? 'Sasa Futbol hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
     : signingUp
-      ? 'E-posta doğrulamasından sonra erişim talebiniz Süper Admin onayına gönderilir.'
+      ? 'Kayıt talebiniz Süper Admin onayına gönderilir. Onaylanana kadar uygulamaya giriş yapılamaz.'
       : resettingPassword
         ? 'Şifre yenileme bağlantısını gönderebilmemiz için kayıtlı e-posta adresinizi girin.'
         : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
@@ -713,13 +713,15 @@ async function logout() {
 }
 
 function friendlyAuthError(error) {
-  const message = String(error?.message || '');
+  const rawMessage = error?.message || error?.error_description || error?.msg || '';
+  const message = typeof rawMessage === 'string' && rawMessage !== '{}' ? rawMessage : '';
   if (/invalid login credentials/i.test(message)) return 'E-posta adresi veya şifre hatalı.';
   if (/email not confirmed/i.test(message)) return 'E-posta adresiniz henüz doğrulanmamış.';
   if (/password should be at least/i.test(message)) return 'Şifreniz en az 8 karakter olmalıdır.';
   if (/already registered|already been registered/i.test(message)) return 'Bu e-posta adresiyle daha önce kullanıcı kaydı oluşturulmuş.';
+  if (/confirmation email|sending.*email|smtp|email.*authorized/i.test(message)) return 'Kullanıcı kaydı tamamlanamadı. Supabase e-posta doğrulama ayarı kapatılmalıdır.';
   if (/rate limit/i.test(message)) return 'Çok fazla deneme yapıldı. Lütfen kısa bir süre sonra tekrar deneyin.';
-  return message || 'İşlem tamamlanamadı. Lütfen tekrar deneyin.';
+  return message || 'Kullanıcı kaydı tamamlanamadı. Lütfen tekrar deneyin.';
 }
 
 function showToast(message) { const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
@@ -838,7 +840,6 @@ loginForm.addEventListener('submit', async event => {
       email: loginEmail.value.trim(),
       password: loginPassword.value,
       options: {
-        emailRedirectTo: AUTH_REDIRECT_URL,
         data: {
           full_name: signupFullName.value.trim(),
           access_request: true
@@ -850,7 +851,7 @@ loginForm.addEventListener('submit', async event => {
       showAuthMessage(friendlyAuthError(error), true);
       return;
     }
-    showLoginScreen('Kayıt oluşturuldu. E-postanıza gelen doğrulama bağlantısını açın; ardından Süper Admin onayı beklenecek.');
+    showLoginScreen('Kayıt talebiniz oluşturuldu ve Süper Admin onayına gönderildi. Onaylandıktan sonra giriş yapabilirsiniz.');
     return;
   }
 
