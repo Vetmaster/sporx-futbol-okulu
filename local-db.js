@@ -1,19 +1,27 @@
 (function () {
   const STORAGE_KEY = 'sporx.localdb.v1';
-  const VERSION = 12;
+  const VERSION = 13;
   const IMPORT_DATE = '2026-07-22';
   const IMPORT_MONTH = IMPORT_DATE.slice(0, 7);
   const HISTORICAL_FEE_MONTHS = ['2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07'];
+  const IMPORTED_GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
   const IMPORTED_POSITIONS = ['Kaleci', 'Defans', 'Defans', 'Defans', 'Orta saha', 'Orta saha', 'Orta saha', 'Orta saha', 'Forvet', 'Forvet'];
-  const randomizedImportedPosition = index => {
+  const stableImportedIndex = index => {
     let value = Math.imul(Number(index) + 1, 2654435761) >>> 0;
-    value = (value ^ (value >>> 16)) >>> 0;
-    return IMPORTED_POSITIONS[value % IMPORTED_POSITIONS.length];
+    return (value ^ (value >>> 16)) >>> 0;
   };
-  const normalizeImportedGroup = value => {
+  const randomizedImportedGroup = index => IMPORTED_GROUPS[stableImportedIndex(index) % IMPORTED_GROUPS.length];
+  const randomizedImportedPosition = index => {
+    return IMPORTED_POSITIONS[stableImportedIndex(index) % IMPORTED_POSITIONS.length];
+  };
+  const isUnassignedGroup = value => {
+    const group = String(value || '').trim();
+    return !group || group === '0' || group === 'Atanmamış' || group.toLocaleLowerCase('tr-TR') === 'x';
+  };
+  const normalizeImportedGroup = (value, index) => {
     const group = String(value || '').trim();
     if (/^(9|10|11|12|13|14|15)$/.test(group)) return `Saat ${group.padStart(2, '0')}:00`;
-    if (!group || group === '0' || group.toLocaleLowerCase('tr-TR') === 'x') return 'Atanmamış';
+    if (isUnassignedGroup(group)) return randomizedImportedGroup(index);
     return group;
   };
   const historicalFeeRecord = value => {
@@ -36,7 +44,7 @@
     id: index + 1,
     name: row[0],
     birth: row[1],
-    group: normalizeImportedGroup(row[2]),
+    group: normalizeImportedGroup(row[2], index),
     position: randomizedImportedPosition(index),
     parent: '',
     phone: row[3],
@@ -114,7 +122,8 @@
           return [month, record];
         }));
         const fee = sourceVersion < 11 && student.fee === 'pending' ? 'none' : student.fee || 'none';
-        return { ...student, group: migrateGroup(student.group), position: student.position || importedStudent?.position || randomizedImportedPosition(index), enrollmentDate: student.enrollmentDate || '2026-07-01', feePayments, feeHistory, fee };
+        const group = sourceVersion < 13 && isUnassignedGroup(student.group) ? importedStudent?.group || randomizedImportedGroup(index) : migrateGroup(student.group);
+        return { ...student, group, position: student.position || importedStudent?.position || randomizedImportedPosition(index), enrollmentDate: student.enrollmentDate || '2026-07-01', feePayments, feeHistory, fee };
       }),
       trainings: sourceTrainings.map(training => {
         const { count, ...trainingData } = training;
