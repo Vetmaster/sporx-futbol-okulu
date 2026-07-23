@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.61';
+const APP_VERSION = '2026.07.23.62';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -607,7 +607,7 @@ function configureAuthForm(mode = 'login') {
   document.querySelector('#authDescription').textContent = settingPassword
     ? 'Sasa Futbol hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
     : signingUp
-      ? 'Kayıt talebiniz Süper Admin onayına gönderilir. Onaylanana kadar uygulamaya giriş yapılamaz.'
+      ? 'E-posta adresiniz öğrenci kayıtlarındaki irtibat adresiyle eşleşmelidir. Talebiniz Süper Admin onayına gönderilir.'
       : resettingPassword
         ? 'Şifre yenileme bağlantısını gönderebilmemiz için kayıtlı e-posta adresinizi girin.'
         : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
@@ -758,6 +758,7 @@ function friendlyAuthError(error) {
   if (/email not confirmed/i.test(message)) return 'E-posta adresiniz henüz doğrulanmamış.';
   if (/password should be at least/i.test(message)) return 'Şifreniz en az 8 karakter olmalıdır.';
   if (/already registered|already been registered/i.test(message)) return 'Bu e-posta adresiyle daha önce kullanıcı kaydı oluşturulmuş.';
+  if (/database error saving new user|kayıtlı veli e-posta adresi/i.test(message)) return 'Bu e-posta adresi öğrenci kayıtlarındaki irtibat adresleriyle eşleşmiyor.';
   if (/confirmation email|sending.*email|smtp|email.*authorized/i.test(message)) return 'Kullanıcı kaydı tamamlanamadı. Supabase e-posta doğrulama ayarı kapatılmalıdır.';
   if (/rate limit/i.test(message)) return 'Çok fazla deneme yapıldı. Lütfen kısa bir süre sonra tekrar deneyin.';
   return message || 'Kullanıcı kaydı tamamlanamadı. Lütfen tekrar deneyin.';
