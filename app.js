@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.54';
+const APP_VERSION = '2026.07.23.55';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -558,25 +558,31 @@ function showAuthMessage(message = '', isError = false) {
 function setAuthPending(pending) {
   authRequestPending = pending;
   loginSubmitButton.disabled = pending;
-  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : authMode === 'signup' ? 'Kayıt ol' : 'Giriş yap';
+  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : authMode === 'signup' ? 'Kayıt ol' : authMode === 'reset-password' ? 'Bağlantı gönder' : 'Giriş yap';
 }
 
 function configureAuthForm(mode = 'login') {
   authMode = mode;
   const settingPassword = mode === 'set-password';
   const signingUp = mode === 'signup';
-  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : signingUp ? 'YENİ KULLANICI' : 'HOŞ GELDİNİZ';
-  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : signingUp ? 'Hesap oluşturun' : 'Kulübünüz tek ekranda';
+  const resettingPassword = mode === 'reset-password';
+  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : signingUp ? 'YENİ KULLANICI' : resettingPassword ? 'ŞİFRE YENİLEME' : 'HOŞ GELDİNİZ';
+  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : signingUp ? 'Hesap oluşturun' : resettingPassword ? 'E-posta adresinizi yazın' : 'Kulübünüz tek ekranda';
   document.querySelector('#authDescription').textContent = settingPassword
     ? 'Sasa Futbol hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
-    : signingUp ? 'E-posta doğrulamasından sonra erişim talebiniz Süper Admin onayına gönderilir.' : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
+    : signingUp
+      ? 'E-posta doğrulamasından sonra erişim talebiniz Süper Admin onayına gönderilir.'
+      : resettingPassword
+        ? 'Şifre yenileme bağlantısını gönderebilmemiz için kayıtlı e-posta adresinizi girin.'
+        : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
   document.querySelector('#authFullNameField').classList.toggle('is-hidden', !signingUp);
   document.querySelector('#authEmailField').classList.toggle('is-hidden', settingPassword);
-  document.querySelector('#authPasswordField').classList.remove('is-hidden');
+  document.querySelector('#authPasswordField').classList.toggle('is-hidden', resettingPassword);
   document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword && !signingUp);
-  document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || signingUp);
-  document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !signingUp);
+  document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || signingUp || resettingPassword);
+  document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !signingUp && !resettingPassword);
   loginEmail.required = !settingPassword;
+  loginPassword.required = !resettingPassword;
   signupFullName.required = signingUp;
   loginPasswordConfirm.required = settingPassword || signingUp;
   loginPassword.autocomplete = settingPassword || signingUp ? 'new-password' : 'current-password';
@@ -809,6 +815,14 @@ loginForm.addEventListener('submit', async event => {
   showAuthMessage();
   setAuthPending(true);
 
+  if (authMode === 'reset-password') {
+    const email = loginEmail.value.trim();
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: AUTH_REDIRECT_URL });
+    setAuthPending(false);
+    showAuthMessage(error ? friendlyAuthError(error) : 'Şifre yenileme bağlantısı e-posta adresinize gönderildi.', Boolean(error));
+    return;
+  }
+
   if (authMode === 'signup') {
     if (loginPassword.value !== loginPasswordConfirm.value) {
       setAuthPending(false);
@@ -877,19 +891,7 @@ loginForm.addEventListener('submit', async event => {
   await showAuthenticatedApp(data.user);
 });
 
-document.querySelector('#forgotPasswordButton').addEventListener('click', async () => {
-  if (!supabaseClient || authRequestPending) return;
-  const email = loginEmail.value.trim();
-  if (!email) {
-    showAuthMessage('Önce e-posta adresinizi yazın.', true);
-    loginEmail.focus();
-    return;
-  }
-  setAuthPending(true);
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: AUTH_REDIRECT_URL });
-  setAuthPending(false);
-  showAuthMessage(error ? friendlyAuthError(error) : 'Şifre yenileme bağlantısı e-posta adresinize gönderildi.', Boolean(error));
-});
+document.querySelector('#forgotPasswordButton').addEventListener('click', () => configureAuthForm('reset-password'));
 document.querySelector('#createAccountButton').addEventListener('click', () => configureAuthForm('signup'));
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
 
