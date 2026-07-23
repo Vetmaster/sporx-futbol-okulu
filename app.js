@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.34';
+const APP_VERSION = '2026.07.23.35';
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },

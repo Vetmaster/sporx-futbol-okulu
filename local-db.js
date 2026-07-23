@@ -1,9 +1,15 @@
 (function () {
   const STORAGE_KEY = 'sporx.localdb.v1';
-  const VERSION = 11;
+  const VERSION = 12;
   const IMPORT_DATE = '2026-07-22';
   const IMPORT_MONTH = IMPORT_DATE.slice(0, 7);
   const HISTORICAL_FEE_MONTHS = ['2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07'];
+  const IMPORTED_POSITIONS = ['Kaleci', 'Defans', 'Defans', 'Defans', 'Orta saha', 'Orta saha', 'Orta saha', 'Orta saha', 'Forvet', 'Forvet'];
+  const randomizedImportedPosition = index => {
+    let value = Math.imul(Number(index) + 1, 2654435761) >>> 0;
+    value = (value ^ (value >>> 16)) >>> 0;
+    return IMPORTED_POSITIONS[value % IMPORTED_POSITIONS.length];
+  };
   const normalizeImportedGroup = value => {
     const group = String(value || '').trim();
     if (/^(9|10|11|12|13|14|15)$/.test(group)) return `Saat ${group.padStart(2, '0')}:00`;
@@ -31,7 +37,7 @@
     name: row[0],
     birth: row[1],
     group: normalizeImportedGroup(row[2]),
-    position: '',
+    position: randomizedImportedPosition(index),
     parent: '',
     phone: row[3],
     email: '',
@@ -93,7 +99,7 @@
     const sourceNotifications = Array.isArray(source.notifications) ? source.notifications : clone(seed.notifications);
     return {
       version: VERSION,
-      students: sourceStudents.map(student => {
+      students: sourceStudents.map((student, index) => {
         const currentMonth = new Date().toISOString().slice(0, 7);
         const feePayments = student.feePayments && typeof student.feePayments === 'object' && !Array.isArray(student.feePayments) ? { ...student.feePayments } : { [currentMonth]: student.fee || 'none' };
         if (sourceVersion < 11) Object.keys(feePayments).forEach(month => {
@@ -108,7 +114,7 @@
           return [month, record];
         }));
         const fee = sourceVersion < 11 && student.fee === 'pending' ? 'none' : student.fee || 'none';
-        return { ...student, group: migrateGroup(student.group), enrollmentDate: student.enrollmentDate || '2026-07-01', feePayments, feeHistory, fee };
+        return { ...student, group: migrateGroup(student.group), position: student.position || importedStudent?.position || randomizedImportedPosition(index), enrollmentDate: student.enrollmentDate || '2026-07-01', feePayments, feeHistory, fee };
       }),
       trainings: sourceTrainings.map(training => {
         const { count, ...trainingData } = training;
