@@ -1,9 +1,9 @@
-# SporX Futbol Okulu Yönetim Sistemi
+# Sasa Futbol Okul Yönetim Sistemi
 
 İlk kullanıcı arayüzü prototipi. VetAmerikan Shift Asistan ile aynı tipografi yaklaşımını kullanır:
 
 - Roboto: genel kullanıcı arayüzü
-- Anta: SporX marka yazısı
+- Anta: Sasa Futbol marka yazısı
 - Responsive web düzeni: masaüstünde sol menü, mobilde alt menü
 - Prototip rolleri: admin, normal kullanıcı, öğrenci velisi
 
@@ -30,7 +30,7 @@ Ardından `http://127.0.0.1:8765` adresini açın.
 
 ## Yerel veritabanı
 
-Uygulama verileri şimdilik `localStorage` tabanlı, sürümlenmiş `sporx.localdb.v1` veri katmanında tutulur. Öğrenci kayıtları, aidat durumları, yoklamalar, muhasebe hareketleri ve bildirim taslakları sayfa kapatılıp yeniden açıldığında korunur.
+Uygulama verileri şimdilik `localStorage` tabanlı, sürümlenmiş `sporx.localdb.v1` veri katmanında tutulur. Bu anahtar eski veriler kaybolmasın diye korunmaktadır. Öğrenci kayıtları, aidat durumları, yoklamalar, muhasebe hareketleri ve bildirim taslakları sayfa kapatılıp yeniden açıldığında korunur.
 
 Bu yöntem tek cihazlı geliştirme ve prototip kullanımı içindir. Farklı cihazlar veya tarayıcılar aynı veriyi paylaşmaz; tarayıcı verileri temizlenirse kayıtlar silinir.
 
