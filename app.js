@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.50';
+const APP_VERSION = '2026.07.23.54';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -34,6 +34,7 @@ const state = {
   accountingEntries: localData.accountingEntries,
   notifications: localData.notifications,
   attendanceRecords: localData.attendanceRecords,
+  accessRequests: [],
   activeTrainingId: null,
   selectedStudentId: null,
   activeStudentsOnly: true,
@@ -62,24 +63,25 @@ function persistLocalData() {
 }
 
 const navItems = {
-  dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['admin', 'staff', 'parent'] },
-  students: { label: 'Öğrenciler', icon: '◎', roles: ['admin', 'staff'] },
-  studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['admin', 'staff', 'parent'], hidden: true },
-  studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['admin', 'staff', 'parent'], hidden: true },
+  dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'staff', 'parent'] },
+  students: { label: 'Öğrenciler', icon: '◎', roles: ['super_admin', 'admin', 'staff'] },
+  studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
+  studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   child: { label: 'Çocuğum', icon: '◎', roles: ['parent'] },
-  trainings: { label: 'Antrenman', icon: '▦', roles: ['admin', 'staff', 'parent'] },
-  attendance: { label: 'Yoklama', icon: '✓', roles: ['admin', 'staff'] },
-  fees: { label: 'Aidat', icon: '₺', roles: ['admin', 'staff', 'parent'] },
-  accounting: { label: 'Muhasebe', icon: '↗', roles: ['admin'] },
-  accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['admin'], hidden: true },
-  notifications: { label: 'Bildirimler', icon: '●', roles: ['admin', 'staff', 'parent'] }
+  trainings: { label: 'Antrenman', icon: '▦', roles: ['super_admin', 'admin', 'staff', 'parent'] },
+  attendance: { label: 'Yoklama', icon: '✓', roles: ['super_admin', 'admin', 'staff'] },
+  fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'staff', 'parent'] },
+  accounting: { label: 'Muhasebe', icon: '↗', roles: ['super_admin', 'admin'] },
+  accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['super_admin', 'admin'], hidden: true },
+  userApprovals: { label: 'Kullanıcı Onayları', icon: '✓', roles: ['super_admin'] },
+  notifications: { label: 'Bildirimler', icon: '●', roles: ['super_admin', 'admin', 'staff', 'parent'] }
 };
 
-const roleNames = { admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Öğrenci velisi' };
+const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Veli' };
 const pageMeta = {
   dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Çocuğum', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
-  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
+  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
 
 const appShell = document.querySelector('#appShell');
@@ -91,6 +93,7 @@ const loginForm = document.querySelector('#loginForm');
 const loginEmail = document.querySelector('#loginEmail');
 const loginPassword = document.querySelector('#loginPassword');
 const loginPasswordConfirm = document.querySelector('#loginPasswordConfirm');
+const signupFullName = document.querySelector('#signupFullName');
 const loginSubmitButton = document.querySelector('#loginSubmitButton');
 const authMessage = document.querySelector('#authMessage');
 function syncGroupOptions() {
@@ -104,7 +107,9 @@ document.querySelector('#headerVersionLabel').textContent = `v${APP_VERSION}`;
 document.querySelector('#authVersionLabel').textContent = `v${APP_VERSION}`;
 
 function allowedItems() { return Object.entries(navItems).filter(([, item]) => item.roles.includes(state.role) && !item.hidden); }
+function isAdminRole() { return ['super_admin', 'admin'].includes(state.role); }
 function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2).join(''); }
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
 function statusLabel(fee) {
   if (fee === 'paid') return '<span class="status">Ödendi</span>';
   if (fee === 'late') return '<span class="status danger">Ödenmedi</span>';
@@ -123,6 +128,11 @@ function studentBirthInputValue(value) {
 function formatStudentBirthDate(value) { const [year, month, day] = String(value).split('-'); return year && month && day ? `${day}.${month}.${year}` : value; }
 function feeMonthKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function formatFeeMonth(key) { const [year, month] = String(key).split('-').map(Number); return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)); }
+function formatFeeDueDate(key) {
+  const [year, month] = String(key).split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${String(lastDay).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
+}
 function formatEnrollmentDate(value) { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : value; }
 function monthlyFeePeriods(student) {
   const feeStartDate = student.feeTrackingStartDate || student.enrollmentDate;
@@ -189,13 +199,12 @@ function monthlyFeeRows(student) {
   return monthlyFeePeriods(student).map(month => {
     const status = monthlyFeeStatus(student, month);
     const history = student.feeHistory?.[month];
-    const [year, monthNumber] = month.split('-');
     const amount = history?.amount !== null && history?.amount !== undefined ? formatCurrency(history.amount) : history?.note === 'Yıllık ödeme' ? 'Yıllık' : history || status === 'none' ? '—' : '₺1.500';
     const sourceNote = history?.note && !(status === 'none' && history.note === 'Aidat yok') ? `<small class="muted">${history.note}</small>` : '';
     const canSelectFeeStatus = canEdit && ['none', 'late'].includes(status);
     const statusMarkup = canSelectFeeStatus ? `${feeStatusControl(student, month, status)}${sourceNote}` : `${statusLabel(status)}${sourceNote}`;
     const paymentControl = status === 'none' ? statusLabel('none') : !['exempt', 'unknown'].includes(status) ? `<label class="fee-paid-control"><input type="checkbox" data-monthly-fee data-id="${student.id}" data-month="${month}" aria-label="${formatFeeMonth(month)} aidatını ödendi işaretle" ${status === 'paid' ? 'checked' : ''}><span>${status === 'paid' ? 'Ödendi' : 'Ödendi seç'}</span></label>` : '—';
-    return `<tr><td><strong>${formatFeeMonth(month)}</strong></td><td>${amount}</td><td>05.${monthNumber}.${year}</td><td>${statusMarkup}</td>${canEdit ? `<td>${paymentControl}</td>` : ''}</tr>`;
+    return `<tr><td><strong>${formatFeeMonth(month)}</strong></td><td>${amount}</td><td>${formatFeeDueDate(month)}</td><td>${statusMarkup}</td>${canEdit ? `<td>${paymentControl}</td>` : ''}</tr>`;
   }).join('');
 }
 function formatTrainingDate(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
@@ -294,7 +303,7 @@ function navMarkup(key, item) {
 function renderNavigation() {
   const items = allowedItems();
   mainNav.innerHTML = items.map(([key, item]) => navMarkup(key, item)).join('');
-  const mobileKeys = state.role === 'parent' ? ['dashboard', 'child', 'trainings', 'fees'] : ['dashboard', 'students', 'trainings', state.role === 'admin' ? 'accounting' : 'attendance'];
+  const mobileKeys = state.role === 'parent' ? ['dashboard', 'child', 'trainings', 'fees'] : ['dashboard', 'students', 'trainings', isAdminRole() ? 'accounting' : 'attendance'];
   bottomNav.innerHTML = mobileKeys.filter(key => navItems[key]?.roles.includes(state.role)).map(key => navMarkup(key, navItems[key])).join('');
 }
 
@@ -433,7 +442,7 @@ function studentAttendanceHistoryView() {
 
 function trainingsView() {
   const orderedTrainings = sortedTrainings(state.trainings, state.trainingSortDirection);
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>Planlanan grup çalışmaları · ${state.trainings.length} kayıt</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)} · ${t.time}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div><div class="training-actions">${state.role !== 'parent' ? `<button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>` : '<button class="primary-button" data-action="calendar-added">Takvime ekle</button>'}${state.role === 'admin' ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div></article>`).join('') || '<div class="panel empty-state">Henüz planlanmış antrenman bulunmuyor.</div>'}</section></div></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>Planlanan grup çalışmaları · ${state.trainings.length} kayıt</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)} · ${t.time}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div><div class="training-actions">${state.role !== 'parent' ? `<button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>` : '<button class="primary-button" data-action="calendar-added">Takvime ekle</button>'}${isAdminRole() ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div></article>`).join('') || '<div class="panel empty-state">Henüz planlanmış antrenman bulunmuyor.</div>'}</section></div></div>`;
 }
 
 function attendanceView() {
@@ -447,14 +456,13 @@ function feesView() {
   const list = state.feeFilter === 'pending' ? pendingStudents : allStudents;
   const currentMonth = feeMonthKey();
   const currentMonthLabel = formatFeeMonth(currentMonth);
-  const [currentYear, currentMonthNumber] = currentMonth.split('-');
   const liableStudents = allStudents.filter(student => ['paid', 'late'].includes(currentFeeStatus(student)));
   const total = liableStudents.length * 1500;
   const collected = allStudents.filter(student => currentFeeStatus(student) === 'paid').length * 1500;
   const pending = pendingStudents.length * 1500;
   const title = state.feeFilter === 'pending' && !isParent ? 'Ödemesi yapılmamış öğrenciler' : isParent ? 'Aidat bilgilerim' : 'Aidat takip listesi';
   const headerAction = state.feeFilter === 'pending' && !isParent ? '<button class="secondary-button" data-action="fee-filter" data-filter="all">Tüm aidatları göster</button>' : !isParent ? '<button class="primary-button" data-action="collect-fee">+ Tahsilat gir</button>' : '';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci</p></div>${headerAction}</div><section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${list.map(s => { const status = currentFeeStatus(s); const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>${status === 'none' ? '—' : '₺1.500'}</td><td>05.${currentMonthNumber}.${currentYear}</td><td>${statusLabel(status)}</td>${!isParent ? `<td>${paymentAction}</td>` : ''}</tr>`; }).join('')}</tbody></table></section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci</p></div>${headerAction}</div><section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${list.map(s => { const status = currentFeeStatus(s); const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>${status === 'none' ? '—' : '₺1.500'}</td><td>${formatFeeDueDate(currentMonth)}</td><td>${statusLabel(status)}</td>${!isParent ? `<td>${paymentAction}</td>` : ''}</tr>`; }).join('')}</tbody></table></section></div>`;
 }
 
 function accountingPeriodFiltersMarkup() {
@@ -499,7 +507,33 @@ function notificationsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları Supabase üzerinde saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Supabase taslağı · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi taslak olarak kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
 }
 
-const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, notifications: notificationsView };
+function userApprovalsView() {
+  const pendingRequests = state.accessRequests.filter(request => request.status === 'pending');
+  const resolvedRequests = state.accessRequests.filter(request => request.status !== 'pending');
+  const pendingRows = pendingRequests.map(request => `
+    <div class="approval-row">
+      <div>
+        <strong>${escapeHtml(request.fullName)}</strong>
+        <small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small>
+      </div>
+      <select id="approval-role-${request.id}" aria-label="${escapeHtml(request.fullName)} için kullanıcı rolü">
+        <option value="admin" ${request.requestedRole === 'admin' ? 'selected' : ''}>Admin</option>
+        <option value="parent" ${request.requestedRole === 'parent' ? 'selected' : ''}>Veli</option>
+      </select>
+      <div class="approval-actions">
+        <button class="primary-button" type="button" data-action="approve-user" data-id="${request.id}">Onayla</button>
+        <button class="danger-button" type="button" data-action="reject-user" data-id="${request.id}">Reddet</button>
+      </div>
+    </div>`).join('');
+  const resolvedRows = resolvedRequests.slice(0, 10).map(request => `
+    <div class="list-row">
+      <span class="status ${request.status === 'rejected' ? 'danger' : ''}">${request.status === 'approved' ? 'Onaylandı' : 'Reddedildi'}</span>
+      <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
+    </div>`).join('');
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Sonuçlanan talepler</h3></div>${resolvedRows}</section>` : ''}</div>`;
+}
+
+const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -524,24 +558,29 @@ function showAuthMessage(message = '', isError = false) {
 function setAuthPending(pending) {
   authRequestPending = pending;
   loginSubmitButton.disabled = pending;
-  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : 'Giriş yap';
+  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : authMode === 'signup' ? 'Kayıt ol' : 'Giriş yap';
 }
 
 function configureAuthForm(mode = 'login') {
   authMode = mode;
   const settingPassword = mode === 'set-password';
-  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : 'HOŞ GELDİNİZ';
-  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : 'Kulübünüz tek ekranda';
+  const signingUp = mode === 'signup';
+  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : signingUp ? 'YENİ KULLANICI' : 'HOŞ GELDİNİZ';
+  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : signingUp ? 'Hesap oluşturun' : 'Kulübünüz tek ekranda';
   document.querySelector('#authDescription').textContent = settingPassword
     ? 'Sasa Futbol hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
-    : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
+    : signingUp ? 'E-posta doğrulamasından sonra erişim talebiniz Süper Admin onayına gönderilir.' : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
+  document.querySelector('#authFullNameField').classList.toggle('is-hidden', !signingUp);
   document.querySelector('#authEmailField').classList.toggle('is-hidden', settingPassword);
   document.querySelector('#authPasswordField').classList.remove('is-hidden');
-  document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword);
-  document.querySelector('#forgotPasswordButton').classList.toggle('is-hidden', settingPassword);
+  document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword && !signingUp);
+  document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || signingUp);
+  document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !signingUp);
   loginEmail.required = !settingPassword;
-  loginPasswordConfirm.required = settingPassword;
-  loginPassword.autocomplete = settingPassword ? 'new-password' : 'current-password';
+  signupFullName.required = signingUp;
+  loginPasswordConfirm.required = settingPassword || signingUp;
+  loginPassword.autocomplete = settingPassword || signingUp ? 'new-password' : 'current-password';
+  signupFullName.value = '';
   loginPassword.value = '';
   loginPasswordConfirm.value = '';
   showAuthMessage();
@@ -570,6 +609,7 @@ function applyRemoteData(remoteData) {
   state.accountingEntries = remoteData.accountingEntries;
   state.notifications = remoteData.notifications;
   state.attendanceRecords = remoteData.attendanceRecords;
+  state.accessRequests = remoteData.accessRequests || [];
   GROUPS = [...new Set([...BASE_GROUPS, ...remoteData.groups.map(group => group.name)])];
   syncGroupOptions();
   persistLocalData();
@@ -585,9 +625,25 @@ async function showAuthenticatedApp(user) {
     .eq('id', user.id)
     .maybeSingle();
 
-  if (error || !profile || !roleNames[profile.role]) {
+  if (!error && !profile) {
+    const { data: request } = await supabaseClient
+      .from('access_requests')
+      .select('status')
+      .eq('user_id', user.id)
+      .maybeSingle();
     await supabaseClient.auth.signOut();
-    showLoginScreen('Bu hesap için yetkili bir Sasa Futbol profili bulunamadı.', true);
+    const requestMessage = request?.status === 'pending'
+      ? 'E-posta adresiniz doğrulandı. Uygulama erişiminiz Süper Admin onayı bekliyor.'
+      : request?.status === 'rejected'
+        ? 'Kullanıcı erişim talebiniz admin tarafından reddedildi.'
+        : 'Bu hesap için yetkili bir Sasa Futbol profili bulunamadı.';
+    showLoginScreen(requestMessage, request?.status !== 'pending');
+    return;
+  }
+
+  if (error || !roleNames[profile.role]) {
+    await supabaseClient.auth.signOut();
+    showLoginScreen('Kullanıcı yetkisi kontrol edilemedi. Lütfen tekrar deneyin.', true);
     return;
   }
 
@@ -604,7 +660,7 @@ async function showAuthenticatedApp(user) {
   document.querySelector('#authDescription').textContent = 'Öğrenci, aidat, antrenman ve muhasebe kayıtları Supabase’den alınıyor.';
   document.querySelector('#authEmailField').classList.add('is-hidden');
   document.querySelector('#authPasswordField').classList.add('is-hidden');
-  document.querySelector('#forgotPasswordButton').classList.add('is-hidden');
+  document.querySelector('#authSecondaryActions').classList.add('is-hidden');
   loginSubmitButton.classList.add('is-hidden');
 
   let remoteData;
@@ -655,6 +711,7 @@ function friendlyAuthError(error) {
   if (/invalid login credentials/i.test(message)) return 'E-posta adresi veya şifre hatalı.';
   if (/email not confirmed/i.test(message)) return 'E-posta adresiniz henüz doğrulanmamış.';
   if (/password should be at least/i.test(message)) return 'Şifreniz en az 8 karakter olmalıdır.';
+  if (/already registered|already been registered/i.test(message)) return 'Bu e-posta adresiyle daha önce kullanıcı kaydı oluşturulmuş.';
   if (/rate limit/i.test(message)) return 'Çok fazla deneme yapıldı. Lütfen kısa bir süre sonra tekrar deneyin.';
   return message || 'İşlem tamamlanamadı. Lütfen tekrar deneyin.';
 }
@@ -752,6 +809,37 @@ loginForm.addEventListener('submit', async event => {
   showAuthMessage();
   setAuthPending(true);
 
+  if (authMode === 'signup') {
+    if (loginPassword.value !== loginPasswordConfirm.value) {
+      setAuthPending(false);
+      showAuthMessage('Şifreler birbiriyle aynı olmalıdır.', true);
+      return;
+    }
+    if (loginPassword.value.length < 8) {
+      setAuthPending(false);
+      showAuthMessage('Şifreniz en az 8 karakter olmalıdır.', true);
+      return;
+    }
+    const { error } = await supabaseClient.auth.signUp({
+      email: loginEmail.value.trim(),
+      password: loginPassword.value,
+      options: {
+        emailRedirectTo: AUTH_REDIRECT_URL,
+        data: {
+          full_name: signupFullName.value.trim(),
+          access_request: true
+        }
+      }
+    });
+    if (error) {
+      setAuthPending(false);
+      showAuthMessage(friendlyAuthError(error), true);
+      return;
+    }
+    showLoginScreen('Kayıt oluşturuldu. E-postanıza gelen doğrulama bağlantısını açın; ardından Süper Admin onayı beklenecek.');
+    return;
+  }
+
   if (authMode === 'set-password') {
     if (loginPassword.value !== loginPasswordConfirm.value) {
       setAuthPending(false);
@@ -802,6 +890,8 @@ document.querySelector('#forgotPasswordButton').addEventListener('click', async 
   setAuthPending(false);
   showAuthMessage(error ? friendlyAuthError(error) : 'Şifre yenileme bağlantısı e-posta adresinize gönderildi.', Boolean(error));
 });
+document.querySelector('#createAccountButton').addEventListener('click', () => configureAuthForm('signup'));
+document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
 
 document.querySelector('#logoutButton').addEventListener('click', logout);
 document.querySelector('#menuButton').addEventListener('click', () => document.querySelector('#sidebar').classList.add('open'));
@@ -821,13 +911,35 @@ document.addEventListener('click', async event => {
   if (action === 'add-student') openStudentDialog();
   else if (action === 'edit-profile' && state.role !== 'parent') { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
   else if (action === 'new-training') openTrainingDialog();
-  else if (action === 'edit-training' && state.role === 'admin') { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
+  else if (action === 'edit-training' && isAdminRole()) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
   else if (action === 'new-entry') openAccountingDialog();
   else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
   else if (action === 'accounting-entries') { state.accountingFilter = actionButton.dataset.kind || 'all'; state.page = 'accountingEntries'; render(); }
   else if (action === 'pending-fees') { state.feeFilter = 'pending'; state.page = 'fees'; render(); }
   else if (action === 'fee-filter') { state.feeFilter = actionButton.dataset.filter || 'all'; render(); }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
+  else if (action === 'approve-user' && state.role === 'super_admin') {
+    const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
+    const roleControl = document.querySelector(`#approval-role-${actionButton.dataset.id}`);
+    if (!request || !roleControl) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.approveAccessRequest(request.id, roleControl.value));
+    if (!saved) return;
+    request.status = 'approved';
+    request.requestedRole = roleControl.value;
+    request.reviewedAt = new Date().toISOString();
+    render();
+    showToast(`${request.fullName} kullanıcısı onaylandı.`);
+  }
+  else if (action === 'reject-user' && state.role === 'super_admin') {
+    const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
+    if (!request || !window.confirm(`“${request.fullName}” kullanıcısının erişim talebi reddedilsin mi?`)) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.rejectAccessRequest(request.id));
+    if (!saved) return;
+    request.status = 'rejected';
+    request.reviewedAt = new Date().toISOString();
+    render();
+    showToast(`${request.fullName} kullanıcısının talebi reddedildi.`);
+  }
   else if (action === 'toggle-entry-actions') toggleLedgerActions(actionButton.closest('.ledger-entry'));
   else if (action === 'edit-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); closeLedgerActions(); if (entry) openAccountingDialog(entry); }
   else if (action === 'delete-entry') {

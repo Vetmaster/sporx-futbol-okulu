@@ -58,7 +58,8 @@
         trainingRows,
         accountingRows,
         notificationRows,
-        attendanceRows
+        attendanceRows,
+        accessRequestRows
       ] = await Promise.all([
         client.from('training_groups').select('id, name, sort_order').order('sort_order'),
         fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, training_groups(name)'),
@@ -66,7 +67,8 @@
         fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date'),
         fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on'),
         fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_at, created_at', 'created_at'),
-        fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at')
+        fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at'),
+        fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at')
       ]);
 
       if (groupsResult.error) throw groupsResult.error;
@@ -158,6 +160,19 @@
         presentStudentIds: (row.attendance_records || []).filter(record => record.present).map(record => Number(record.student_id))
       }));
 
+      const accessRequests = accessRequestRows
+        .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))
+        .map(row => ({
+          id: Number(row.id),
+          userId: row.user_id,
+          email: row.email,
+          fullName: row.full_name,
+          requestedRole: row.requested_role,
+          status: row.status,
+          reviewedAt: row.reviewed_at,
+          createdAt: row.created_at
+        }));
+
       return {
         schoolId,
         groups,
@@ -165,7 +180,8 @@
         trainings,
         accountingEntries,
         notifications,
-        attendanceRecords
+        attendanceRecords,
+        accessRequests
       };
     }
 
@@ -353,6 +369,21 @@
       return { id: Number(data.id), createdAt: data.created_at };
     }
 
+    async function approveAccessRequest(requestId, role) {
+      const { error } = await client.rpc('approve_access_request', {
+        target_request_id: requestId,
+        approved_role: role
+      });
+      if (error) throw error;
+    }
+
+    async function rejectAccessRequest(requestId) {
+      const { error } = await client.rpc('reject_access_request', {
+        target_request_id: requestId
+      });
+      if (error) throw error;
+    }
+
     return {
       load,
       saveStudent,
@@ -361,7 +392,9 @@
       deleteAccounting,
       saveFeeStatus,
       saveAttendance,
-      saveNotification
+      saveNotification,
+      approveAccessRequest,
+      rejectAccessRequest
     };
   }
 
