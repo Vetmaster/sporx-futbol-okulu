@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.07.23.48">
+  <link rel="stylesheet" href="styles.css?v=2026.07.23.49">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -22,19 +22,16 @@
     </div>
     <form class="auth-card" id="loginForm">
       <div>
-        <span class="eyebrow">HOŞ GELDİNİZ</span>
-        <h1>Kulübünüz tek ekranda</h1>
-        <p class="muted">Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.</p>
+        <span class="eyebrow" id="authEyebrow">HOŞ GELDİNİZ</span>
+        <h1 id="authTitle">Kulübünüz tek ekranda</h1>
+        <p class="muted" id="authDescription">Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.</p>
       </div>
-      <label>E-posta adresi<input type="email" value="admin@sasafutbol.com" required></label>
-      <label>Şifre<input type="password" value="123456" minlength="6" required></label>
-      <button class="primary-button" type="submit">Giriş yap</button>
-      <div class="demo-logins">
-        <span>Prototip rolleri</span>
-        <button type="button" data-demo-role="admin">Admin</button>
-        <button type="button" data-demo-role="staff">Kullanıcı</button>
-        <button type="button" data-demo-role="parent">Veli</button>
-      </div>
+      <label id="authEmailField">E-posta adresi<input id="loginEmail" name="email" type="email" autocomplete="email" required></label>
+      <label>Şifre<input id="loginPassword" name="password" type="password" minlength="8" autocomplete="current-password" required></label>
+      <label class="is-hidden" id="authPasswordConfirmField">Şifre tekrar<input id="loginPasswordConfirm" name="passwordConfirm" type="password" minlength="8" autocomplete="new-password"></label>
+      <p class="auth-message is-hidden" id="authMessage" role="status" aria-live="polite"></p>
+      <button class="primary-button" id="loginSubmitButton" type="submit">Giriş yap</button>
+      <button class="auth-link-button" id="forgotPasswordButton" type="button">Şifremi unuttum</button>
     </form>
   </section>
 
@@ -71,11 +68,7 @@
           <p id="pageSubtitle">Kulübün bugünkü durumu</p>
         </div>
         <div class="topbar-actions">
-          <select id="roleSwitcher" aria-label="Prototip rolü">
-            <option value="admin">Admin</option>
-            <option value="staff">Normal kullanıcı</option>
-            <option value="parent">Öğrenci velisi</option>
-          </select>
+          <span class="session-role" id="topbarSessionRole"></span>
         </div>
       </header>
       <main id="appContent" tabindex="-1"></main>
@@ -150,8 +143,9 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="students-seed.js?v=2026.07.23.48"></script>
-  <script src="local-db.js?v=2026.07.23.48"></script>
-  <script src="app.js?v=2026.07.23.48"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="students-seed.js?v=2026.07.23.49"></script>
+  <script src="local-db.js?v=2026.07.23.49"></script>
+  <script src="app.js?v=2026.07.23.49"></script>
 </body>
 </html>

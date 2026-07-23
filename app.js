@@ -1,4 +1,14 @@
-const APP_VERSION = '2026.07.23.48';
+const APP_VERSION = '2026.07.23.49';
+const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
+const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
+const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+const authCallbackType = new URLSearchParams(window.location.hash.slice(1)).get('type');
+let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
+let authRequestPending = false;
+let signedOutMessage = '';
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
@@ -13,6 +23,8 @@ const savedAccountingPeriod = window.localStorage.getItem('sporx_accounting_peri
 const localData = window.SporXDB.load();
 const state = {
   role: 'admin',
+  userFullName: '',
+  userEmail: '',
   page: 'dashboard',
   students: localData.students,
   trainings: localData.trainings,
@@ -72,7 +84,12 @@ const authScreen = document.querySelector('#authScreen');
 const appContent = document.querySelector('#appContent');
 const mainNav = document.querySelector('#mainNav');
 const bottomNav = document.querySelector('#bottomNav');
-const roleSwitcher = document.querySelector('#roleSwitcher');
+const loginForm = document.querySelector('#loginForm');
+const loginEmail = document.querySelector('#loginEmail');
+const loginPassword = document.querySelector('#loginPassword');
+const loginPasswordConfirm = document.querySelector('#loginPasswordConfirm');
+const loginSubmitButton = document.querySelector('#loginSubmitButton');
+const authMessage = document.querySelector('#authMessage');
 document.querySelectorAll('select[name="group"]').forEach(select => {
   const existingGroups = new Set([...select.options].map(option => option.value));
   GROUPS.filter(group => !existingGroups.has(group)).forEach(group => select.add(new Option(group, group)));
@@ -485,14 +502,105 @@ function render() {
   document.querySelector('#pageTitle').textContent = title;
   document.querySelector('#pageSubtitle').textContent = subtitle;
   document.querySelector('#sidebarRole').textContent = roleNames[state.role];
-  document.querySelector('#sidebarUser').textContent = state.role === 'parent' ? 'Ayşe Arslan' : state.role === 'staff' ? 'Oğuz Yalçın' : 'Hasan Sargın';
-  roleSwitcher.value = state.role;
+  document.querySelector('#sidebarUser').textContent = state.userFullName || state.userEmail || 'Sasa Futbol Kullanıcısı';
+  document.querySelector('#topbarSessionRole').textContent = roleNames[state.role];
+  document.querySelector('.user-avatar').textContent = initials(state.userFullName || state.userEmail || 'SF');
   appContent.innerHTML = views[state.page]();
   appContent.focus({ preventScroll: true });
 }
 
-function login(role = 'admin') { state.role = role; state.page = 'dashboard'; authScreen.classList.add('is-hidden'); appShell.classList.remove('is-hidden'); render(); }
-function logout() { appShell.classList.add('is-hidden'); authScreen.classList.remove('is-hidden'); document.querySelector('#loginForm input').focus(); }
+function showAuthMessage(message = '', isError = false) {
+  authMessage.textContent = message;
+  authMessage.classList.toggle('is-hidden', !message);
+  authMessage.classList.toggle('error', Boolean(message) && isError);
+}
+
+function setAuthPending(pending) {
+  authRequestPending = pending;
+  loginSubmitButton.disabled = pending;
+  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : 'Giriş yap';
+}
+
+function configureAuthForm(mode = 'login') {
+  authMode = mode;
+  const settingPassword = mode === 'set-password';
+  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : 'HOŞ GELDİNİZ';
+  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : 'Kulübünüz tek ekranda';
+  document.querySelector('#authDescription').textContent = settingPassword
+    ? 'Sasa Futbol hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
+    : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
+  document.querySelector('#authEmailField').classList.toggle('is-hidden', settingPassword);
+  document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword);
+  document.querySelector('#forgotPasswordButton').classList.toggle('is-hidden', settingPassword);
+  loginEmail.required = !settingPassword;
+  loginPasswordConfirm.required = settingPassword;
+  loginPassword.autocomplete = settingPassword ? 'new-password' : 'current-password';
+  loginPassword.value = '';
+  loginPasswordConfirm.value = '';
+  showAuthMessage();
+  setAuthPending(false);
+}
+
+function showLoginScreen(message = '', isError = false) {
+  appShell.classList.add('is-hidden');
+  authScreen.classList.remove('is-hidden');
+  configureAuthForm('login');
+  showAuthMessage(message, isError);
+  window.setTimeout(() => loginEmail.focus(), 0);
+}
+
+function showPasswordSetupScreen() {
+  appShell.classList.add('is-hidden');
+  authScreen.classList.remove('is-hidden');
+  configureAuthForm('set-password');
+  window.setTimeout(() => loginPassword.focus(), 0);
+}
+
+async function showAuthenticatedApp(user) {
+  const { data: profile, error } = await supabaseClient
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error || !profile || !roleNames[profile.role]) {
+    await supabaseClient.auth.signOut();
+    showLoginScreen('Bu hesap için yetkili bir Sasa Futbol profili bulunamadı.', true);
+    return;
+  }
+
+  state.role = profile.role;
+  state.userFullName = profile.full_name || user.user_metadata?.full_name || '';
+  state.userEmail = user.email || '';
+  state.page = 'dashboard';
+  authScreen.classList.add('is-hidden');
+  appShell.classList.remove('is-hidden');
+  setAuthPending(false);
+  render();
+}
+
+async function logout() {
+  if (!supabaseClient) return;
+  signedOutMessage = 'Oturumunuz güvenli biçimde kapatıldı.';
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    signedOutMessage = '';
+    showToast('Oturum kapatılamadı. Lütfen tekrar deneyin.');
+    return;
+  }
+  state.userFullName = '';
+  state.userEmail = '';
+}
+
+function friendlyAuthError(error) {
+  const message = String(error?.message || '');
+  if (/invalid login credentials/i.test(message)) return 'E-posta adresi veya şifre hatalı.';
+  if (/email not confirmed/i.test(message)) return 'E-posta adresiniz henüz doğrulanmamış.';
+  if (/password should be at least/i.test(message)) return 'Şifreniz en az 8 karakter olmalıdır.';
+  if (/rate limit/i.test(message)) return 'Çok fazla deneme yapıldı. Lütfen kısa bir süre sonra tekrar deneyin.';
+  return message || 'İşlem tamamlanamadı. Lütfen tekrar deneyin.';
+}
+
 function showToast(message) { const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
 
 function openAttendance(id) {
@@ -571,12 +679,66 @@ function toggleLedgerActions(row) {
   }
 }
 
-document.querySelector('#loginForm').addEventListener('submit', event => { event.preventDefault(); login('admin'); });
-document.querySelectorAll('[data-demo-role]').forEach(button => button.addEventListener('click', () => login(button.dataset.demoRole)));
+loginForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!supabaseClient || authRequestPending) return;
+  showAuthMessage();
+  setAuthPending(true);
+
+  if (authMode === 'set-password') {
+    if (loginPassword.value !== loginPasswordConfirm.value) {
+      setAuthPending(false);
+      showAuthMessage('Şifreler birbiriyle aynı olmalıdır.', true);
+      return;
+    }
+    if (loginPassword.value.length < 8) {
+      setAuthPending(false);
+      showAuthMessage('Şifreniz en az 8 karakter olmalıdır.', true);
+      return;
+    }
+    authMode = 'login';
+    const { data, error } = await supabaseClient.auth.updateUser({ password: loginPassword.value });
+    if (error) {
+      authMode = 'set-password';
+      setAuthPending(false);
+      showAuthMessage(friendlyAuthError(error), true);
+      return;
+    }
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    await showAuthenticatedApp(data.user);
+    showToast('Şifreniz kaydedildi. Hesabınız kullanıma hazır.');
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: loginEmail.value.trim(),
+    password: loginPassword.value
+  });
+  if (error) {
+    setAuthPending(false);
+    showAuthMessage(friendlyAuthError(error), true);
+    return;
+  }
+  await showAuthenticatedApp(data.user);
+});
+
+document.querySelector('#forgotPasswordButton').addEventListener('click', async () => {
+  if (!supabaseClient || authRequestPending) return;
+  const email = loginEmail.value.trim();
+  if (!email) {
+    showAuthMessage('Önce e-posta adresinizi yazın.', true);
+    loginEmail.focus();
+    return;
+  }
+  setAuthPending(true);
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: AUTH_REDIRECT_URL });
+  setAuthPending(false);
+  showAuthMessage(error ? friendlyAuthError(error) : 'Şifre yenileme bağlantısı e-posta adresinize gönderildi.', Boolean(error));
+});
+
 document.querySelector('#logoutButton').addEventListener('click', logout);
 document.querySelector('#menuButton').addEventListener('click', () => document.querySelector('#sidebar').classList.add('open'));
 document.querySelector('#sidebarScrim').addEventListener('click', () => document.querySelector('#sidebar').classList.remove('open'));
-roleSwitcher.addEventListener('change', () => { state.role = roleSwitcher.value; state.page = 'dashboard'; render(); });
 
 document.addEventListener('click', event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
@@ -736,3 +898,35 @@ appContent.addEventListener('submit', event => {
   render();
   showToast('Bildirim yerel veritabanına kaydedildi.');
 });
+
+async function handleAuthStateChange(event, session) {
+  if (event === 'PASSWORD_RECOVERY') authMode = 'set-password';
+
+  if (!session?.user) {
+    const message = signedOutMessage;
+    signedOutMessage = '';
+    if (authMode === 'set-password') {
+      authMode = 'login';
+      showLoginScreen('Davet veya şifre yenileme bağlantısının süresi dolmuş. Lütfen yeni bağlantı isteyin.', true);
+    } else {
+      showLoginScreen(message);
+    }
+    return;
+  }
+
+  if (authMode === 'set-password') {
+    showPasswordSetupScreen();
+    return;
+  }
+
+  await showAuthenticatedApp(session.user);
+}
+
+configureAuthForm(authMode);
+if (!supabaseClient) {
+  showLoginScreen('Güvenli giriş hizmeti yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.', true);
+} else {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    window.setTimeout(() => handleAuthStateChange(event, session), 0);
+  });
+}

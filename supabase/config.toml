@@ -1,0 +1,48 @@
+project_id = "sasa-futbol"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "https://vetmaster.github.io/sporx-futbol-okulu/"
+additional_redirect_urls = [
+  "http://127.0.0.1:8765",
+  "http://localhost:8765"
+]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = true
+max_frequency = "1m"
+otp_length = 8
+otp_expiry = 3600
+
+[auth.email.smtp]
+enabled = true
+host = "smtp.gmail.com"
+port = 587
+user = "00vetmaster00@gmail.com"
+pass = "env(SASA_FUTBOL_SMTP_PASS)"
+admin_email = "00vetmaster00@gmail.com"
+sender_name = "Sasa Futbol"
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
