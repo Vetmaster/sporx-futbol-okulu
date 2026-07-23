@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.62';
+const APP_VERSION = '2026.07.23.63';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -657,6 +657,77 @@ function applyRemoteData(remoteData) {
   persistLocalData();
 }
 
+const REALTIME_TABLES = [
+  'profiles',
+  'training_groups',
+  'students',
+  'fee_periods',
+  'trainings',
+  'accounting_entries',
+  'notifications',
+  'attendance_sessions',
+  'attendance_records',
+  'access_requests'
+];
+let realtimeChannel = null;
+let realtimeRefreshTimer = null;
+let realtimeRefreshInFlight = false;
+let realtimeRefreshQueued = false;
+let lastLocalMutationAt = 0;
+
+function stopRealtimeSync() {
+  window.clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer = null;
+  realtimeRefreshQueued = false;
+  if (realtimeChannel && supabaseClient) supabaseClient.removeChannel(realtimeChannel);
+  realtimeChannel = null;
+}
+
+async function refreshRemoteDataFromRealtime() {
+  if (!remoteDataStore || !state.schoolId || !state.userId) return;
+  if (realtimeRefreshInFlight) {
+    realtimeRefreshQueued = true;
+    return;
+  }
+  realtimeRefreshInFlight = true;
+  try {
+    const remoteData = await remoteDataStore.load({ school_id: state.schoolId, user_id: state.userId });
+    applyRemoteData(remoteData);
+    render();
+    if (Date.now() - lastLocalMutationAt > 2000) showToast('Veriler diğer cihazdan güncellendi.');
+  } catch (error) {
+    console.error('Realtime veri yenileme hatası:', error);
+  } finally {
+    realtimeRefreshInFlight = false;
+    if (realtimeRefreshQueued) {
+      realtimeRefreshQueued = false;
+      scheduleRealtimeRefresh();
+    }
+  }
+}
+
+function scheduleRealtimeRefresh(payload = null) {
+  if (payload?.table === 'profiles' && payload.eventType === 'DELETE' && payload.old?.id === state.userId) {
+    signedOutMessage = 'Uygulama erişiminiz Süper Admin tarafından kaldırıldı.';
+    stopRealtimeSync();
+    supabaseClient.auth.signOut();
+    return;
+  }
+  window.clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer = window.setTimeout(refreshRemoteDataFromRealtime, 300);
+}
+
+function startRealtimeSync() {
+  stopRealtimeSync();
+  if (!supabaseClient || !state.schoolId || !state.userId) return;
+  const channel = supabaseClient.channel(`sasa-school-${state.schoolId}-${state.userId}`);
+  REALTIME_TABLES.forEach(table => {
+    channel.on('postgres_changes', { event: '*', schema: 'public', table }, scheduleRealtimeRefresh);
+  });
+  realtimeChannel = channel;
+  channel.subscribe();
+}
+
 let activeProfileLoad = null;
 async function showAuthenticatedApp(user) {
   if (activeProfileLoad?.userId === user.id) return activeProfileLoad.promise;
@@ -727,6 +798,7 @@ async function showAuthenticatedApp(user) {
   appShell.classList.remove('is-hidden');
   setAuthPending(false);
   render();
+  startRealtimeSync();
   })();
   activeProfileLoad = { userId: user.id, promise: loadPromise };
   try {
@@ -748,6 +820,7 @@ async function logout() {
   state.userFullName = '';
   state.userEmail = '';
   state.userId = null;
+  stopRealtimeSync();
   window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
 }
 
@@ -767,6 +840,7 @@ function friendlyAuthError(error) {
 function showToast(message) { const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
 async function runRemoteMutation(action) {
   try {
+    lastLocalMutationAt = Date.now();
     await action();
     return true;
   } catch (error) {
@@ -1197,6 +1271,7 @@ async function handleAuthStateChange(event, session) {
   if (event === 'PASSWORD_RECOVERY') authMode = 'set-password';
 
   if (!session?.user) {
+    stopRealtimeSync();
     const message = signedOutMessage;
     signedOutMessage = '';
     if (authMode === 'set-password') {
