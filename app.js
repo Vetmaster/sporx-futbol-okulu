@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.37';
+const APP_VERSION = '2026.07.23.40';
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
@@ -289,7 +289,7 @@ function dashboardView() {
         ${progress('Aidat tahsilatı', 86)}${progress('Antrenman katılımı', 91)}${progress('Kontenjan kullanımı', 78)}
       </div></article>
     </section>
-    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 5).map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<small>${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div>${statusLabel(currentFeeStatus(s))}</div>`).join('')}</section>
+    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 5).map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<span class="inline-separator" aria-hidden="true">•</span><small>Grup: ${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div><div class="fee-month-badges" aria-label="Ödenmemiş aylar">${unpaidFeePeriods(s).map(month => `<span class="status danger">${formatFeeMonth(month)}</span>`).join('')}</div></div>`).join('')}</section>
   </div>`;
 }
 
