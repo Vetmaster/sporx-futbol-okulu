@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.63';
+const APP_VERSION = '2026.07.23.64';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -673,7 +673,6 @@ let realtimeChannel = null;
 let realtimeRefreshTimer = null;
 let realtimeRefreshInFlight = false;
 let realtimeRefreshQueued = false;
-let lastLocalMutationAt = 0;
 
 function stopRealtimeSync() {
   window.clearTimeout(realtimeRefreshTimer);
@@ -694,7 +693,6 @@ async function refreshRemoteDataFromRealtime() {
     const remoteData = await remoteDataStore.load({ school_id: state.schoolId, user_id: state.userId });
     applyRemoteData(remoteData);
     render();
-    if (Date.now() - lastLocalMutationAt > 2000) showToast('Veriler diğer cihazdan güncellendi.');
   } catch (error) {
     console.error('Realtime veri yenileme hatası:', error);
   } finally {
@@ -840,7 +838,6 @@ function friendlyAuthError(error) {
 function showToast(message) { const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
 async function runRemoteMutation(action) {
   try {
-    lastLocalMutationAt = Date.now();
     await action();
     return true;
   } catch (error) {
