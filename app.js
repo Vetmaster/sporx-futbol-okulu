@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.58';
+const APP_VERSION = '2026.07.23.59';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -564,7 +564,7 @@ function userApprovalsView() {
     <div class="list-row">
       <span class="status ${request.status === 'rejected' ? 'danger' : ''}">${request.status === 'approved' ? 'Onaylandı' : 'Reddedildi'}</span>
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
-      ${request.status === 'approved' ? `<label class="approval-revoke-control"><input type="radio" name="revoke-approval-${request.id}" data-action="revoke-user-approval" data-id="${request.id}"> Onayı kaldır</label>` : ''}
+      ${request.status === 'approved' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : ''}
     </div>`).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Sonuçlanan talepler</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
@@ -986,13 +986,14 @@ document.addEventListener('click', async event => {
   else if (action === 'revoke-user-approval' && state.role === 'super_admin') {
     const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
     if (!request || request.status !== 'approved') return;
+    if (actionButton.checked) return;
     if (!window.confirm(`“${request.fullName}” kullanıcısının uygulama erişimi kaldırılsın mı?`)) {
-      actionButton.checked = false;
+      actionButton.checked = true;
       return;
     }
     const saved = await runRemoteMutation(() => remoteDataStore.revokeAccessRequestApproval(request.id));
     if (!saved) {
-      actionButton.checked = false;
+      actionButton.checked = true;
       return;
     }
     request.status = 'pending';
