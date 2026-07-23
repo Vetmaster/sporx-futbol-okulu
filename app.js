@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.56';
+const APP_VERSION = '2026.07.23.57';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -21,6 +21,7 @@ const ACCOUNTING_PERIODS = [
   { id: '1y', label: 'Son 1 yıl', type: 'years', value: 1 }
 ];
 const savedAccountingPeriod = window.localStorage.getItem('sporx_accounting_period');
+const NAVIGATION_STORAGE_KEY = 'sasa_navigation_state';
 const localData = window.SporXDB.load();
 const state = {
   role: 'admin',
@@ -83,6 +84,40 @@ const pageMeta = {
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
+
+function persistNavigationState() {
+  if (!state.userId) return;
+  window.sessionStorage.setItem(NAVIGATION_STORAGE_KEY, JSON.stringify({
+    userId: state.userId,
+    page: state.page,
+    selectedStudentId: state.selectedStudentId,
+    feeFilter: state.feeFilter,
+    accountingFilter: state.accountingFilter,
+    trainingSortDirection: state.trainingSortDirection
+  }));
+}
+
+function restoreNavigationState(userId) {
+  let savedState;
+  try {
+    savedState = JSON.parse(window.sessionStorage.getItem(NAVIGATION_STORAGE_KEY) || 'null');
+  } catch {
+    window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
+    return;
+  }
+  if (!savedState || savedState.userId !== userId) return;
+
+  state.page = navItems[savedState.page]?.roles.includes(state.role) ? savedState.page : 'dashboard';
+  state.selectedStudentId = Number(savedState.selectedStudentId) || null;
+  state.feeFilter = ['all', 'pending'].includes(savedState.feeFilter) ? savedState.feeFilter : 'all';
+  state.accountingFilter = ['all', 'income', 'expense'].includes(savedState.accountingFilter) ? savedState.accountingFilter : 'all';
+  state.trainingSortDirection = savedState.trainingSortDirection === 'desc' ? 'desc' : 'asc';
+
+  if (['studentProfile', 'studentAttendanceHistory'].includes(state.page) && !state.students.some(student => Number(student.id) === state.selectedStudentId)) {
+    state.page = state.role === 'parent' ? 'child' : 'students';
+    state.selectedStudentId = null;
+  }
+}
 
 const appShell = document.querySelector('#appShell');
 const authScreen = document.querySelector('#authScreen');
@@ -537,6 +572,7 @@ const views = { dashboard: dashboardView, students: studentsView, studentProfile
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
+  persistNavigationState();
   renderNavigation();
   const [title, subtitle] = pageMeta[state.page];
   document.querySelector('#pageTitle').textContent = title;
@@ -684,6 +720,7 @@ async function showAuthenticatedApp(user) {
   state.userEmail = user.email || '';
   state.page = 'dashboard';
   applyRemoteData(remoteData);
+  restoreNavigationState(user.id);
   document.querySelector('#authPasswordField').classList.remove('is-hidden');
   loginSubmitButton.classList.remove('is-hidden');
   authScreen.classList.add('is-hidden');
@@ -710,6 +747,8 @@ async function logout() {
   }
   state.userFullName = '';
   state.userEmail = '';
+  state.userId = null;
+  window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
 }
 
 function friendlyAuthError(error) {
