@@ -106,6 +106,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .approval-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(170px, 220px) auto; align-items: center; gap: 14px; padding: 15px 20px; border-bottom: 1px solid var(--line); }
 .approval-row small { display: block; margin-top: 5px; color: var(--muted); }
 .approval-actions { display: flex; gap: 8px; }
+.approval-revoke-control { display: inline-flex; align-items: center; gap: 8px; color: #842626; font-size: 13px; font-weight: 800; cursor: pointer; }
+.approval-revoke-control input { width: 18px; height: 18px; margin: 0; padding: 0; accent-color: #b83232; box-shadow: none; }
 .training-summary-row { grid-template-columns: 112px minmax(0, 1fr) auto; }
 .training-date-time { display: grid; gap: 3px; color: var(--brand); }
 .training-date-time small { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: capitalize; }

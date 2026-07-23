@@ -384,6 +384,13 @@
       if (error) throw error;
     }
 
+    async function revokeAccessRequestApproval(requestId) {
+      const { error } = await client.rpc('revoke_access_request_approval', {
+        target_request_id: requestId
+      });
+      if (error) throw error;
+    }
+
     return {
       load,
       saveStudent,
@@ -394,7 +401,8 @@
       saveAttendance,
       saveNotification,
       approveAccessRequest,
-      rejectAccessRequest
+      rejectAccessRequest,
+      revokeAccessRequestApproval
     };
   }
 
