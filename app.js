@@ -1,10 +1,11 @@
-const APP_VERSION = '2026.07.23.49';
+const APP_VERSION = '2026.07.23.50';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
+const remoteDataStore = supabaseClient && window.SasaSupabaseData?.create(supabaseClient);
 const authCallbackType = new URLSearchParams(window.location.hash.slice(1)).get('type');
 let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
@@ -23,6 +24,8 @@ const savedAccountingPeriod = window.localStorage.getItem('sporx_accounting_peri
 const localData = window.SporXDB.load();
 const state = {
   role: 'admin',
+  schoolId: null,
+  userId: null,
   userFullName: '',
   userEmail: '',
   page: 'dashboard',
@@ -46,7 +49,7 @@ const state = {
 };
 
 const BASE_GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
-const GROUPS = [...new Set([...BASE_GROUPS, ...localData.students.map(student => student.group).filter(Boolean)])];
+let GROUPS = [...new Set([...BASE_GROUPS, ...localData.students.map(student => student.group).filter(Boolean)])];
 
 function persistLocalData() {
   window.SporXDB.save({
@@ -90,10 +93,13 @@ const loginPassword = document.querySelector('#loginPassword');
 const loginPasswordConfirm = document.querySelector('#loginPasswordConfirm');
 const loginSubmitButton = document.querySelector('#loginSubmitButton');
 const authMessage = document.querySelector('#authMessage');
-document.querySelectorAll('select[name="group"]').forEach(select => {
-  const existingGroups = new Set([...select.options].map(option => option.value));
-  GROUPS.filter(group => !existingGroups.has(group)).forEach(group => select.add(new Option(group, group)));
-});
+function syncGroupOptions() {
+  document.querySelectorAll('select[name="group"]').forEach(select => {
+    const existingGroups = new Set([...select.options].map(option => option.value));
+    GROUPS.filter(group => !existingGroups.has(group)).forEach(group => select.add(new Option(group, group)));
+  });
+}
+syncGroupOptions();
 document.querySelector('#headerVersionLabel').textContent = `v${APP_VERSION}`;
 document.querySelector('#authVersionLabel').textContent = `v${APP_VERSION}`;
 
@@ -474,7 +480,7 @@ function accountingView() {
   const expenseCount = periodEntries.filter(entry => entry.kind === 'expense').length;
   const incomeMethods = paymentMethodTotals(periodEntries, 'income');
   const expenseMethods = paymentMethodTotals(periodEntries, 'expense');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Muhasebe</h2><p>Yerel gelir ve gider kayıtları · ${accountingPeriodLabel()}</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><div class="stat-card-breakdown"><button class="stat-link" type="button" data-action="accounting-entries" data-kind="income">${incomeCount} kayıt</button>${paymentMethodSummary(incomeMethods)}</div></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><div class="stat-card-breakdown"><button class="stat-link" type="button" data-action="accounting-entries" data-kind="expense">${expenseCount} kayıt</button>${paymentMethodSummary(expenseMethods)}</div></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries" data-kind="all">Tümünü gör</button></div>${accountingEntryRows(periodEntries.slice(0, 4))}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Muhasebe</h2><p>Supabase gelir ve gider kayıtları · ${accountingPeriodLabel()}</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><div class="stat-card-breakdown"><button class="stat-link" type="button" data-action="accounting-entries" data-kind="income">${incomeCount} kayıt</button>${paymentMethodSummary(incomeMethods)}</div></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><div class="stat-card-breakdown"><button class="stat-link" type="button" data-action="accounting-entries" data-kind="expense">${expenseCount} kayıt</button>${paymentMethodSummary(expenseMethods)}</div></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries" data-kind="all">Tümünü gör</button></div>${accountingEntryRows(periodEntries.slice(0, 4))}</section></div>`;
 }
 
 function accountingEntryRows(entries) {
@@ -490,7 +496,7 @@ function accountingEntriesView() {
 
 function notificationsView() {
   const canSend = state.role !== 'parent';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları şimdilik bu cihazda saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Yerel kayıt · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Yerel bildirimi kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları Supabase üzerinde saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Supabase taslağı · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi taslak olarak kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
 }
 
 const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, notifications: notificationsView };
@@ -530,6 +536,7 @@ function configureAuthForm(mode = 'login') {
     ? 'Sasa Futbol hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
     : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
   document.querySelector('#authEmailField').classList.toggle('is-hidden', settingPassword);
+  document.querySelector('#authPasswordField').classList.remove('is-hidden');
   document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword);
   document.querySelector('#forgotPasswordButton').classList.toggle('is-hidden', settingPassword);
   loginEmail.required = !settingPassword;
@@ -556,10 +563,25 @@ function showPasswordSetupScreen() {
   window.setTimeout(() => loginPassword.focus(), 0);
 }
 
+function applyRemoteData(remoteData) {
+  state.schoolId = remoteData.schoolId;
+  state.students = remoteData.students;
+  state.trainings = remoteData.trainings;
+  state.accountingEntries = remoteData.accountingEntries;
+  state.notifications = remoteData.notifications;
+  state.attendanceRecords = remoteData.attendanceRecords;
+  GROUPS = [...new Set([...BASE_GROUPS, ...remoteData.groups.map(group => group.name)])];
+  syncGroupOptions();
+  persistLocalData();
+}
+
+let activeProfileLoad = null;
 async function showAuthenticatedApp(user) {
+  if (activeProfileLoad?.userId === user.id) return activeProfileLoad.promise;
+  const loadPromise = (async () => {
   const { data: profile, error } = await supabaseClient
     .from('profiles')
-    .select('full_name, role')
+    .select('full_name, role, school_id')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -569,14 +591,50 @@ async function showAuthenticatedApp(user) {
     return;
   }
 
+  if (!remoteDataStore) {
+    showLoginScreen('Supabase veri bağlantısı yüklenemedi. Sayfayı yenileyip tekrar deneyin.', true);
+    return;
+  }
+
+  authScreen.classList.remove('is-hidden');
+  appShell.classList.add('is-hidden');
+  configureAuthForm('login');
+  document.querySelector('#authEyebrow').textContent = 'GÜVENLİ BAĞLANTI';
+  document.querySelector('#authTitle').textContent = 'Kulüp verileri yükleniyor';
+  document.querySelector('#authDescription').textContent = 'Öğrenci, aidat, antrenman ve muhasebe kayıtları Supabase’den alınıyor.';
+  document.querySelector('#authEmailField').classList.add('is-hidden');
+  document.querySelector('#authPasswordField').classList.add('is-hidden');
+  document.querySelector('#forgotPasswordButton').classList.add('is-hidden');
+  loginSubmitButton.classList.add('is-hidden');
+
+  let remoteData;
+  try {
+    remoteData = await remoteDataStore.load({ school_id: profile.school_id, user_id: user.id });
+  } catch (loadError) {
+    configureAuthForm('login');
+    showLoginScreen(`Kulüp verileri yüklenemedi: ${loadError.message || 'Bağlantı hatası'}`, true);
+    return;
+  }
+
   state.role = profile.role;
+  state.userId = user.id;
   state.userFullName = profile.full_name || user.user_metadata?.full_name || '';
   state.userEmail = user.email || '';
   state.page = 'dashboard';
+  applyRemoteData(remoteData);
+  document.querySelector('#authPasswordField').classList.remove('is-hidden');
+  loginSubmitButton.classList.remove('is-hidden');
   authScreen.classList.add('is-hidden');
   appShell.classList.remove('is-hidden');
   setAuthPending(false);
   render();
+  })();
+  activeProfileLoad = { userId: user.id, promise: loadPromise };
+  try {
+    await loadPromise;
+  } finally {
+    if (activeProfileLoad?.promise === loadPromise) activeProfileLoad = null;
+  }
 }
 
 async function logout() {
@@ -602,6 +660,15 @@ function friendlyAuthError(error) {
 }
 
 function showToast(message) { const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
+async function runRemoteMutation(action) {
+  try {
+    await action();
+    return true;
+  } catch (error) {
+    showToast(`Supabase kaydı tamamlanamadı: ${error.message || 'Bağlantı hatası'}`);
+    return false;
+  }
+}
 
 function openAttendance(id) {
   const training = state.trainings.find(item => item.id === Number(id));
@@ -740,7 +807,7 @@ document.querySelector('#logoutButton').addEventListener('click', logout);
 document.querySelector('#menuButton').addEventListener('click', () => document.querySelector('#sidebar').classList.add('open'));
 document.querySelector('#sidebarScrim').addEventListener('click', () => document.querySelector('#sidebar').classList.remove('open'));
 
-document.addEventListener('click', event => {
+document.addEventListener('click', async event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
   if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
   const pageButton = event.target.closest('[data-page]');
@@ -763,9 +830,30 @@ document.addEventListener('click', event => {
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'toggle-entry-actions') toggleLedgerActions(actionButton.closest('.ledger-entry'));
   else if (action === 'edit-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); closeLedgerActions(); if (entry) openAccountingDialog(entry); }
-  else if (action === 'delete-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); if (entry && window.confirm(`“${entry.title}” işlemi silinsin mi?`)) { state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id); persistLocalData(); render(); showToast('Muhasebe işlemi silindi.'); } }
+  else if (action === 'delete-entry') {
+    const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id));
+    if (entry && window.confirm(`“${entry.title}” işlemi silinsin mi?`)) {
+      const saved = await runRemoteMutation(() => remoteDataStore.deleteAccounting(entry.id));
+      if (!saved) return;
+      state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id);
+      persistLocalData();
+      render();
+      showToast('Muhasebe işlemi Supabase’den silindi.');
+    }
+  }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
-  else if (action === 'mark-paid') { const student = state.students.find(s => s.id === Number(actionButton.dataset.id)); if (student) { setMonthlyFeeStatus(student, feeMonthKey(), 'paid'); persistLocalData(); render(); showToast('Aidat ödendi; tahsilat muhasebeye gelir olarak eklendi.'); } }
+  else if (action === 'mark-paid') {
+    const student = state.students.find(s => s.id === Number(actionButton.dataset.id));
+    if (student) {
+      const month = feeMonthKey();
+      const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, month, 'paid', monthlyFeeAmount(student, month)));
+      if (!saved) return;
+      setMonthlyFeeStatus(student, month, 'paid');
+      persistLocalData();
+      render();
+      showToast('Aidat Supabase’e kaydedildi; tahsilat muhasebeye eklendi.');
+    }
+  }
   else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
   else if (action === 'calendar-added') showToast('Antrenman takvime eklendi.');
   else showToast('Bu işlem sonraki geliştirme adımında açılacak.');
@@ -777,7 +865,7 @@ appContent.addEventListener('input', event => {
   updateStudentsTable();
 });
 
-appContent.addEventListener('change', event => {
+appContent.addEventListener('change', async event => {
   if (event.target.id === 'trainingSortSelect') {
     state.trainingSortDirection = event.target.value === 'desc' ? 'desc' : 'asc';
     render();
@@ -787,6 +875,8 @@ appContent.addEventListener('change', event => {
   if (statusControl && state.role !== 'parent') {
     const student = state.students.find(item => item.id === Number(statusControl.dataset.id));
     if (!student) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, statusControl.dataset.month, statusControl.value, monthlyFeeAmount(student, statusControl.dataset.month)));
+    if (!saved) { render(); return; }
     setMonthlyFeeStatus(student, statusControl.dataset.month, statusControl.value);
     persistLocalData();
     render();
@@ -798,23 +888,39 @@ appContent.addEventListener('change', event => {
   const student = state.students.find(item => item.id === Number(paymentControl.dataset.id));
   if (!student) return;
   const status = paymentControl.checked ? 'paid' : 'late';
+  const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, paymentControl.dataset.month, status, monthlyFeeAmount(student, paymentControl.dataset.month)));
+  if (!saved) { render(); return; }
   setMonthlyFeeStatus(student, paymentControl.dataset.month, status);
   persistLocalData();
   render();
   showToast(paymentControl.checked ? 'Aidat ödendi; tahsilat muhasebeye gelir olarak eklendi.' : 'Ödeme kaldırıldı; aidat borç bakiyesine geri eklendi.');
 });
 
-document.querySelector('#studentForm').addEventListener('submit', event => {
+document.querySelector('#studentForm').addEventListener('submit', async event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
   const wasEditing = Boolean(state.editingStudentId);
+  const existingStudent = wasEditing ? state.students.find(item => item.id === Number(state.editingStudentId)) : null;
+  const enrollmentDate = existingStudent?.enrollmentDate || localDateValue();
+  const studentRecord = {
+    ...(existingStudent || {}),
+    ...studentData,
+    enrollmentDate,
+    feeTrackingStartDate: existingStudent?.feeTrackingStartDate || `${feeMonthKey()}-01`,
+    feePayments: existingStudent?.feePayments || { [feeMonthKey()]: 'none' },
+    feeHistory: existingStudent?.feeHistory || {},
+    fee: existingStudent?.fee || 'none',
+    attendance: existingStudent?.attendance ?? 100
+  };
+  const saved = await runRemoteMutation(async () => {
+    studentRecord.id = await remoteDataStore.saveStudent(studentRecord, !wasEditing);
+  });
+  if (!saved) return;
   if (wasEditing) {
-    const student = state.students.find(item => item.id === Number(state.editingStudentId));
-    if (student) Object.assign(student, studentData);
+    Object.assign(existingStudent, studentRecord);
   } else {
-    const enrollmentDate = localDateValue();
-    state.students.unshift({ id: Date.now(), ...studentData, enrollmentDate, feePayments: { [feeMonthKey()]: 'none' }, fee: 'none', attendance: 100 });
+    state.students.unshift(studentRecord);
   }
   state.editingStudentId = null;
   persistLocalData();
@@ -822,18 +928,26 @@ document.querySelector('#studentForm').addEventListener('submit', event => {
   event.currentTarget.reset();
   state.page = wasEditing ? 'studentProfile' : 'students';
   render();
-  showToast(wasEditing ? 'Öğrenci profili güncellendi.' : 'Öğrenci yerel veritabanına kaydedildi.');
+  showToast(wasEditing ? 'Öğrenci profili Supabase’de güncellendi.' : 'Öğrenci Supabase’e kaydedildi.');
 });
-document.querySelector('#attendanceForm').addEventListener('submit', event => {
+document.querySelector('#attendanceForm').addEventListener('submit', async event => {
   event.preventDefault();
   const presentStudentIds = [...document.querySelectorAll('#attendanceList [data-student-id]:checked')].map(input => Number(input.dataset.studentId));
-  state.attendanceRecords.unshift({ id: Date.now(), trainingId: state.activeTrainingId, date: new Date().toISOString(), presentStudentIds });
+  const training = state.trainings.find(item => Number(item.id) === Number(state.activeTrainingId));
+  const allStudentIds = training ? studentsForTraining(training).map(student => student.id) : [];
+  let sessionId;
+  const saved = await runRemoteMutation(async () => {
+    sessionId = await remoteDataStore.saveAttendance(state.activeTrainingId, allStudentIds, presentStudentIds);
+  });
+  if (!saved) return;
+  state.attendanceRecords = state.attendanceRecords.filter(record => Number(record.trainingId) !== Number(state.activeTrainingId));
+  state.attendanceRecords.unshift({ id: sessionId, trainingId: state.activeTrainingId, date: new Date().toISOString(), presentStudentIds });
   persistLocalData();
   document.querySelector('#attendanceDialog').close();
   render();
-  showToast('Yoklama yerel veritabanına kaydedildi.');
+  showToast('Yoklama Supabase’e kaydedildi.');
 });
-document.querySelector('#trainingForm').addEventListener('submit', event => {
+document.querySelector('#trainingForm').addEventListener('submit', async event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const group = data.get('group');
@@ -847,11 +961,16 @@ document.querySelector('#trainingForm').addEventListener('submit', event => {
     field: data.get('field').trim()
   };
   const wasEditing = Boolean(state.editingTrainingId);
+  const existingTraining = wasEditing ? state.trainings.find(item => item.id === Number(state.editingTrainingId)) : null;
+  const trainingRecord = { ...(existingTraining || {}), ...trainingData };
+  const saved = await runRemoteMutation(async () => {
+    trainingRecord.id = await remoteDataStore.saveTraining(trainingRecord, !wasEditing);
+  });
+  if (!saved) return;
   if (wasEditing) {
-    const training = state.trainings.find(item => item.id === Number(state.editingTrainingId));
-    if (training) Object.assign(training, trainingData);
+    Object.assign(existingTraining, trainingRecord);
   } else {
-    state.trainings.push({ id: Date.now(), ...trainingData });
+    state.trainings.push(trainingRecord);
   }
   state.editingTrainingId = null;
   persistLocalData();
@@ -859,9 +978,9 @@ document.querySelector('#trainingForm').addEventListener('submit', event => {
   event.currentTarget.reset();
   state.page = 'trainings';
   render();
-  showToast(wasEditing ? 'Antrenman bilgileri güncellendi.' : 'Antrenman yerel veritabanına kaydedildi.');
+  showToast(wasEditing ? 'Antrenman Supabase’de güncellendi.' : 'Antrenman Supabase’e kaydedildi.');
 });
-document.querySelector('#accountingForm').addEventListener('submit', event => {
+document.querySelector('#accountingForm').addEventListener('submit', async event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const kind = data.get('kind');
@@ -873,30 +992,38 @@ document.querySelector('#accountingForm').addEventListener('submit', event => {
     paymentMethod: data.get('paymentMethod'),
     kind
   };
-  if (state.editingAccountingEntryId) {
-    const entry = state.accountingEntries.find(item => item.id === Number(state.editingAccountingEntryId));
-    if (entry) Object.assign(entry, entryData);
-  } else {
-    state.accountingEntries.unshift({ id: Date.now(), ...entryData });
-  }
   const wasEditing = Boolean(state.editingAccountingEntryId);
+  const existingEntry = wasEditing ? state.accountingEntries.find(item => item.id === Number(state.editingAccountingEntryId)) : null;
+  const entryRecord = { ...(existingEntry || {}), ...entryData };
+  const saved = await runRemoteMutation(async () => {
+    entryRecord.id = await remoteDataStore.saveAccounting(entryRecord, !wasEditing);
+  });
+  if (!saved) return;
+  if (wasEditing) Object.assign(existingEntry, entryRecord);
+  else state.accountingEntries.unshift(entryRecord);
   state.editingAccountingEntryId = null;
   persistLocalData();
   document.querySelector('#accountingDialog').close();
   event.currentTarget.reset();
   if (state.page !== 'accountingEntries') state.page = 'accounting';
   render();
-  showToast(wasEditing ? 'Muhasebe işlemi güncellendi.' : 'Muhasebe işlemi yerel veritabanına kaydedildi.');
+  showToast(wasEditing ? 'Muhasebe işlemi Supabase’de güncellendi.' : 'Muhasebe işlemi Supabase’e kaydedildi.');
 });
-appContent.addEventListener('submit', event => {
+appContent.addEventListener('submit', async event => {
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
   const data = new FormData(event.target);
-  state.notifications.unshift({ id: Date.now(), date: 'Bugün', title: data.get('title'), body: data.get('message'), audience: data.get('audience'), time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), status: 'Yerel taslak' });
+  const notification = { date: 'Bugün', title: data.get('title'), body: data.get('message'), audience: data.get('audience'), time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), status: 'Taslak' };
+  const saved = await runRemoteMutation(async () => {
+    const result = await remoteDataStore.saveNotification(notification);
+    notification.id = result.id;
+  });
+  if (!saved) return;
+  state.notifications.unshift(notification);
   persistLocalData();
   event.target.reset();
   render();
-  showToast('Bildirim yerel veritabanına kaydedildi.');
+  showToast('Bildirim taslağı Supabase’e kaydedildi.');
 });
 
 async function handleAuthStateChange(event, session) {
