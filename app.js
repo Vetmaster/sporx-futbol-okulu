@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.59';
+const APP_VERSION = '2026.07.23.60';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -556,7 +556,7 @@ function userApprovalsView() {
         <option value="parent" ${request.requestedRole === 'parent' ? 'selected' : ''}>Veli</option>
       </select>
       <div class="approval-actions">
-        <button class="primary-button" type="button" data-action="approve-user" data-id="${request.id}">Onayla</button>
+        <label class="approval-switch-control pending"><span>Onay bekliyor</span><input type="checkbox" role="switch" aria-label="${escapeHtml(request.fullName)} kullanıcısını onayla" data-action="approve-user" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>
         <button class="danger-button" type="button" data-action="reject-user" data-id="${request.id}">Reddet</button>
       </div>
     </div>`).join('');
@@ -965,8 +965,12 @@ document.addEventListener('click', async event => {
     const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
     const roleControl = document.querySelector(`#approval-role-${actionButton.dataset.id}`);
     if (!request || !roleControl) return;
+    if (!actionButton.checked) return;
     const saved = await runRemoteMutation(() => remoteDataStore.approveAccessRequest(request.id, roleControl.value));
-    if (!saved) return;
+    if (!saved) {
+      actionButton.checked = false;
+      return;
+    }
     request.status = 'approved';
     request.requestedRole = roleControl.value;
     request.reviewedAt = new Date().toISOString();

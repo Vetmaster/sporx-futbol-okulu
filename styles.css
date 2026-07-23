@@ -105,8 +105,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .list-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 66px; padding: 11px 20px; border-bottom: 1px solid var(--line); }
 .approval-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(170px, 220px) auto; align-items: center; gap: 14px; padding: 15px 20px; border-bottom: 1px solid var(--line); }
 .approval-row small { display: block; margin-top: 5px; color: var(--muted); }
-.approval-actions { display: flex; gap: 8px; }
+.approval-actions { display: flex; align-items: center; gap: 12px; }
 .approval-switch-control { position: relative; display: inline-flex; align-items: center; gap: 9px; color: var(--brand-dark); font-size: 13px; font-weight: 800; cursor: pointer; }
+.approval-switch-control.pending { color: var(--muted); }
 .approval-switch-control input { position: absolute; right: 0; width: 44px; height: 24px; margin: 0; padding: 0; opacity: 0; cursor: pointer; z-index: 1; }
 .approval-switch-track { position: relative; display: inline-flex; width: 44px; height: 24px; padding: 3px; border-radius: 999px; background: #c8d0cc; transition: background .2s ease; }
 .approval-switch-thumb { width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 2px 5px rgba(0, 0, 0, .22); transform: translateX(0); transition: transform .2s ease; }
