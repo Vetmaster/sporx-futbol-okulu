@@ -377,13 +377,6 @@
       if (error) throw error;
     }
 
-    async function rejectAccessRequest(requestId) {
-      const { error } = await client.rpc('reject_access_request', {
-        target_request_id: requestId
-      });
-      if (error) throw error;
-    }
-
     async function revokeAccessRequestApproval(requestId) {
       const { error } = await client.rpc('revoke_access_request_approval', {
         target_request_id: requestId
@@ -401,7 +394,6 @@
       saveAttendance,
       saveNotification,
       approveAccessRequest,
-      rejectAccessRequest,
       revokeAccessRequestApproval
     };
   }

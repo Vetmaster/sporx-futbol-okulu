@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.60';
+const APP_VERSION = '2026.07.23.61';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -544,7 +544,7 @@ function notificationsView() {
 
 function userApprovalsView() {
   const pendingRequests = state.accessRequests.filter(request => request.status === 'pending');
-  const resolvedRequests = state.accessRequests.filter(request => request.status !== 'pending');
+  const approvedRequests = state.accessRequests.filter(request => request.status === 'approved');
   const pendingRows = pendingRequests.map(request => `
     <div class="approval-row">
       <div>
@@ -557,16 +557,15 @@ function userApprovalsView() {
       </select>
       <div class="approval-actions">
         <label class="approval-switch-control pending"><span>Onay bekliyor</span><input type="checkbox" role="switch" aria-label="${escapeHtml(request.fullName)} kullanıcısını onayla" data-action="approve-user" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>
-        <button class="danger-button" type="button" data-action="reject-user" data-id="${request.id}">Reddet</button>
       </div>
     </div>`).join('');
-  const resolvedRows = resolvedRequests.slice(0, 10).map(request => `
+  const resolvedRows = approvedRequests.slice(0, 10).map(request => `
     <div class="list-row">
-      <span class="status ${request.status === 'rejected' ? 'danger' : ''}">${request.status === 'approved' ? 'Onaylandı' : 'Reddedildi'}</span>
+      <span class="status">Onaylandı</span>
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
-      ${request.status === 'approved' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : ''}
+      <label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>
     </div>`).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Sonuçlanan talepler</h3></div>${resolvedRows}</section>` : ''}</div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
 const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: childView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
@@ -976,16 +975,6 @@ document.addEventListener('click', async event => {
     request.reviewedAt = new Date().toISOString();
     render();
     showToast(`${request.fullName} kullanıcısı onaylandı.`);
-  }
-  else if (action === 'reject-user' && state.role === 'super_admin') {
-    const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
-    if (!request || !window.confirm(`“${request.fullName}” kullanıcısının erişim talebi reddedilsin mi?`)) return;
-    const saved = await runRemoteMutation(() => remoteDataStore.rejectAccessRequest(request.id));
-    if (!saved) return;
-    request.status = 'rejected';
-    request.reviewedAt = new Date().toISOString();
-    render();
-    showToast(`${request.fullName} kullanıcısının talebi reddedildi.`);
   }
   else if (action === 'revoke-user-approval' && state.role === 'super_admin') {
     const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
