@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.07.21.12">
+  <link rel="stylesheet" href="styles.css?v=2026.07.23.37">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -141,6 +141,7 @@
       <div class="form-grid">
         <label>İşlem tarihi<input name="date" type="date" required></label>
         <label>İşlem türü<select name="kind" required><option value="">Seçiniz</option><option value="income">Gelir</option><option value="expense">Gider</option></select></label>
+        <label class="full-field">Ödeme yöntemi<select name="paymentMethod" required><option value="cash">Nakit</option><option value="transfer">Havale</option><option value="card">Kredi kartı</option></select></label>
         <label class="full-field">Açıklama<input name="title" placeholder="Örn. Saha kiralama" maxlength="100" required></label>
         <label class="full-field">Tutar (₺)<input name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="0" required></label>
       </div>
@@ -149,7 +150,8 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="local-db.js?v=2026.07.21.12"></script>
-  <script src="app.js?v=2026.07.21.12"></script>
+  <script src="students-seed.js?v=2026.07.23.37"></script>
+  <script src="local-db.js?v=2026.07.23.37"></script>
+  <script src="app.js?v=2026.07.23.37"></script>
 </body>
 </html>

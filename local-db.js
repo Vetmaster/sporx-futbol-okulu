@@ -1,26 +1,69 @@
 (function () {
   const STORAGE_KEY = 'sporx.localdb.v1';
-  const VERSION = 5;
+  const VERSION = 12;
+  const IMPORT_DATE = '2026-07-22';
+  const IMPORT_MONTH = IMPORT_DATE.slice(0, 7);
+  const HISTORICAL_FEE_MONTHS = ['2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07'];
+  const IMPORTED_POSITIONS = ['Kaleci', 'Defans', 'Defans', 'Defans', 'Orta saha', 'Orta saha', 'Orta saha', 'Orta saha', 'Forvet', 'Forvet'];
+  const randomizedImportedPosition = index => {
+    let value = Math.imul(Number(index) + 1, 2654435761) >>> 0;
+    value = (value ^ (value >>> 16)) >>> 0;
+    return IMPORTED_POSITIONS[value % IMPORTED_POSITIONS.length];
+  };
+  const normalizeImportedGroup = value => {
+    const group = String(value || '').trim();
+    if (/^(9|10|11|12|13|14|15)$/.test(group)) return `Saat ${group.padStart(2, '0')}:00`;
+    if (!group || group === '0' || group.toLocaleLowerCase('tr-TR') === 'x') return 'Atanmamış';
+    return group;
+  };
+  const historicalFeeRecord = value => {
+    if (value === null || value === undefined || String(value).trim() === '') return null;
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) return { status: 'paid', amount: numericValue, source: String(value) };
+    const source = String(value).trim();
+    const normalized = source.toLocaleLowerCase('tr-TR').replace(/\.$/, '');
+    if (normalized === 'yok') return { status: 'none', amount: null, note: 'Aidat yok', source };
+    if (normalized === 'ücretsiz') return { status: 'exempt', amount: 0, note: 'Ücretsiz', source };
+    if (normalized === 'yıllık') return { status: 'paid', amount: null, note: 'Yıllık ödeme', source };
+    if (normalized === 'tatil') return { status: 'exempt', amount: null, note: 'Tatil', source };
+    return { status: 'unknown', amount: null, note: source, source };
+  };
+  const importedFeeHistory = values => Object.fromEntries(HISTORICAL_FEE_MONTHS.flatMap((month, index) => {
+    const record = historicalFeeRecord(values?.[index]);
+    return record ? [[month, record]] : [];
+  }));
+  const importedStudents = (window.SporXImportedStudentRows || []).map((row, index) => ({
+    id: index + 1,
+    name: row[0],
+    birth: row[1],
+    group: normalizeImportedGroup(row[2]),
+    position: randomizedImportedPosition(index),
+    parent: '',
+    phone: row[3],
+    email: '',
+    address: '',
+    notes: row[4],
+    enrollmentDate: row[5] || IMPORT_DATE,
+    feeTrackingStartDate: `${IMPORT_MONTH}-01`,
+    feePayments: { [IMPORT_MONTH]: 'none' },
+    feeHistory: importedFeeHistory(row[6]),
+    fee: 'none',
+    attendance: 0
+  }));
 
   const seed = {
     version: VERSION,
-    students: [
-      { id: 1, name: 'Ege Arslan', birth: '14.03.2014', group: 'U12', position: 'Orta saha', parent: 'Ayşe Arslan', phone: '0532 111 22 33', email: 'ayse@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'paid' }, fee: 'paid', attendance: 92 },
-      { id: 2, name: 'Mert Kaya', birth: '02.09.2013', group: 'U13', position: 'Forvet', parent: 'Emre Kaya', phone: '0542 222 34 56', email: 'emre@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'late' }, fee: 'late', attendance: 84 },
-      { id: 3, name: 'Arda Demir', birth: '21.06.2015', group: 'U11', position: 'Defans', parent: 'Selin Demir', phone: '0533 333 45 67', email: 'selin@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'pending' }, fee: 'pending', attendance: 96 },
-      { id: 4, name: 'Can Eren', birth: '07.11.2014', group: 'U12', position: 'Kaleci', parent: 'Burak Eren', phone: '0548 444 56 78', email: 'burak@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'paid' }, fee: 'paid', attendance: 88 },
-      { id: 5, name: 'Deniz Yılmaz', birth: '30.01.2016', group: 'Saat 09:00', position: 'Forvet', parent: 'Derya Yılmaz', phone: '0539 555 67 89', email: 'derya@example.com', address: 'Merkez', enrollmentDate: '2026-07-01', feePayments: { '2026-07': 'late' }, fee: 'late', attendance: 79 }
-    ],
+    students: importedStudents,
     trainings: [
       { id: 1, date: '2026-07-20', time: '09:00', duration: 90, group: 'Saat 09:00', title: 'Teknik Antrenman', coach: 'Oğuz Yalçın', field: 'Ana saha' },
       { id: 2, date: '2026-07-20', time: '18:00', duration: 90, group: 'U12', title: 'Taktik Çalışma', coach: 'Serkan Aydın', field: 'Ana saha' },
       { id: 3, date: '2026-07-21', time: '19:30', duration: 90, group: 'U14', title: 'Maç Hazırlığı', coach: 'Oğuz Yalçın', field: 'Saha 2' }
     ],
     accountingEntries: [
-      { id: 1, date: '18 Tem', title: 'Aylık aidat tahsilatları', type: 'Gelir', amount: 18000, kind: 'income' },
-      { id: 2, date: '17 Tem', title: 'Saha kiralama', type: 'Gider', amount: 6500, kind: 'expense' },
-      { id: 3, date: '15 Tem', title: 'Forma satışları', type: 'Gelir', amount: 9200, kind: 'income' },
-      { id: 4, date: '12 Tem', title: 'Antrenman ekipmanı', type: 'Gider', amount: 3850, kind: 'expense' }
+      { id: 1, date: '18 Tem', title: 'Aylık aidat tahsilatları', type: 'Gelir', amount: 18000, kind: 'income', paymentMethod: 'cash' },
+      { id: 2, date: '17 Tem', title: 'Saha kiralama', type: 'Gider', amount: 6500, kind: 'expense', paymentMethod: 'transfer' },
+      { id: 3, date: '15 Tem', title: 'Forma satışları', type: 'Gelir', amount: 9200, kind: 'income', paymentMethod: 'card' },
+      { id: 4, date: '12 Tem', title: 'Antrenman ekipmanı', type: 'Gider', amount: 3850, kind: 'expense', paymentMethod: 'card' }
     ],
     notifications: [
       { id: 1, date: 'Bugün', title: 'Hafta sonu hazırlık maçı', audience: 'U12 velileri', time: '10:14', status: 'Teslim edildi' },
@@ -46,24 +89,40 @@
 
   function normalize(value) {
     const source = value && typeof value === 'object' ? value : {};
+    const sourceVersion = Number(source.version || 0);
+    const shouldImportStudents = sourceVersion < 6;
+    const shouldImportFeeHistory = sourceVersion < 7;
     const migrateGroup = group => group === 'U10' ? 'Saat 09:00' : group;
-    const sourceStudents = Array.isArray(source.students) ? source.students : clone(seed.students);
+    const sourceStudents = shouldImportStudents ? clone(seed.students) : Array.isArray(source.students) ? source.students : clone(seed.students);
+    const importedByName = new Map(seed.students.map(student => [String(student.name).trim().toLocaleUpperCase('tr-TR'), student]));
     const sourceTrainings = Array.isArray(source.trainings) ? source.trainings : clone(seed.trainings);
     const sourceNotifications = Array.isArray(source.notifications) ? source.notifications : clone(seed.notifications);
     return {
       version: VERSION,
-      students: sourceStudents.map(student => {
+      students: sourceStudents.map((student, index) => {
         const currentMonth = new Date().toISOString().slice(0, 7);
-        const feePayments = student.feePayments && typeof student.feePayments === 'object' && !Array.isArray(student.feePayments) ? { ...student.feePayments } : { [currentMonth]: student.fee || 'pending' };
-        return { ...student, group: migrateGroup(student.group), enrollmentDate: student.enrollmentDate || '2026-07-01', feePayments };
+        const feePayments = student.feePayments && typeof student.feePayments === 'object' && !Array.isArray(student.feePayments) ? { ...student.feePayments } : { [currentMonth]: student.fee || 'none' };
+        if (sourceVersion < 11) Object.keys(feePayments).forEach(month => {
+          if (feePayments[month] === 'pending') feePayments[month] = 'none';
+        });
+        const importedStudent = importedByName.get(String(student.name).trim().toLocaleUpperCase('tr-TR'));
+        const sourceFeeHistory = shouldImportFeeHistory && importedStudent ? clone(importedStudent.feeHistory) : student.feeHistory && typeof student.feeHistory === 'object' && !Array.isArray(student.feeHistory) ? { ...student.feeHistory } : {};
+        const feeHistory = Object.fromEntries(Object.entries(sourceFeeHistory).map(([month, record]) => {
+          const sourceStatus = String(record?.source || record?.note || '').trim().toLocaleLowerCase('tr-TR');
+          if (sourceVersion < 10 && record?.status === 'late' && sourceStatus === 'yok') return [month, { ...record, status: 'none', note: 'Aidat yok' }];
+          if (sourceVersion < 11 && record?.status === 'pending') return [month, { ...record, status: 'none', note: record.note === 'Bekliyor' ? 'Aidat yok' : record.note }];
+          return [month, record];
+        }));
+        const fee = sourceVersion < 11 && student.fee === 'pending' ? 'none' : student.fee || 'none';
+        return { ...student, group: migrateGroup(student.group), position: student.position || importedStudent?.position || randomizedImportedPosition(index), enrollmentDate: student.enrollmentDate || '2026-07-01', feePayments, feeHistory, fee };
       }),
       trainings: sourceTrainings.map(training => {
         const { count, ...trainingData } = training;
         return { ...trainingData, date: training.date || '2026-07-20', duration: Number(training.duration) || 90, group: migrateGroup(training.group), time: training.group === 'U10' ? '09:00' : training.time };
       }),
-      accountingEntries: Array.isArray(source.accountingEntries) ? source.accountingEntries : clone(seed.accountingEntries),
+      accountingEntries: (Array.isArray(source.accountingEntries) ? source.accountingEntries : clone(seed.accountingEntries)).map(entry => ({ ...entry, paymentMethod: entry.paymentMethod || 'cash' })),
       notifications: sourceNotifications.map(notification => ({ ...notification, audience: notification.audience === 'U10 velileri' ? 'Saat 09:00 velileri' : notification.audience })),
-      attendanceRecords: Array.isArray(source.attendanceRecords) ? source.attendanceRecords : [],
+      attendanceRecords: shouldImportStudents ? [] : Array.isArray(source.attendanceRecords) ? source.attendanceRecords : [],
       updatedAt: source.updatedAt || null
     };
   }
@@ -84,7 +143,7 @@
   }
 
   function save(data) {
-    const normalized = normalize({ ...data, updatedAt: new Date().toISOString() });
+    const normalized = normalize({ ...data, version: VERSION, updatedAt: new Date().toISOString() });
     memoryFallback = clone(normalized);
     if (storageEnabled) {
       try {
