@@ -236,6 +236,12 @@
       return Number(data.id);
     }
 
+    async function deleteTraining(id) {
+      requireContext();
+      const { error } = await client.from('trainings').delete().eq('id', id);
+      if (error) throw error;
+    }
+
     async function saveAccounting(entry, isNew) {
       requireContext();
       const payload = {
@@ -388,6 +394,7 @@
       load,
       saveStudent,
       saveTraining,
+      deleteTraining,
       saveAccounting,
       deleteAccounting,
       saveFeeStatus,

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.81';
+const APP_VERSION = '2026.07.24.82';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -949,6 +949,7 @@ function openTrainingDialog(training = null) {
   document.querySelector('#trainingEyebrow').textContent = training ? 'ANTRENMANI DÜZENLE' : 'YENİ ANTRENMAN';
   document.querySelector('#trainingDialogTitle').textContent = training ? 'Antrenman bilgilerini güncelle' : 'Antrenman planla';
   document.querySelector('#trainingSubmitButton').textContent = training ? 'Değişiklikleri kaydet' : 'Antrenmanı kaydet';
+  document.querySelector('#deleteTrainingButton').classList.toggle('is-hidden', !training || !isAdminRole());
   document.querySelector('#trainingDialog').showModal();
 }
 
@@ -1090,6 +1091,20 @@ document.addEventListener('click', async event => {
   else if (action === 'edit-profile' && state.role !== 'parent') { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
   else if (action === 'new-training') openTrainingDialog();
   else if (action === 'edit-training' && isAdminRole()) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
+  else if (action === 'delete-training' && isAdminRole()) {
+    const training = state.trainings.find(item => item.id === Number(state.editingTrainingId));
+    if (training && window.confirm(`“${training.title}” antrenmanı silinsin mi? Bu antrenmana ait yoklama kayıtları da silinecektir.`)) {
+      const saved = await runRemoteMutation(() => remoteDataStore.deleteTraining(training.id));
+      if (!saved) return;
+      state.trainings = state.trainings.filter(item => item.id !== training.id);
+      state.attendanceRecords = state.attendanceRecords.filter(record => Number(record.trainingId) !== Number(training.id));
+      state.editingTrainingId = null;
+      persistLocalData();
+      document.querySelector('#trainingDialog').close();
+      render();
+      showToast('Antrenman ve ilgili yoklama kayıtları Supabase’den silindi.');
+    }
+  }
   else if (action === 'new-entry') openAccountingDialog();
   else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
   else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
