@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.76';
+const APP_VERSION = '2026.07.24.77';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -629,7 +629,7 @@ function render() {
   document.querySelector('#pageTitle').textContent = title;
   document.querySelector('#pageSubtitle').textContent = subtitle;
   document.querySelector('#sidebarRole').textContent = roleNames[state.role];
-  document.querySelector('#sidebarUser').textContent = state.userFullName || state.userEmail || 'Sasa Futbol Kullanıcısı';
+  document.querySelector('#sidebarUser').textContent = state.userFullName || state.userEmail || 'SASA-F Kullanıcısı';
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', state.role === 'parent');
@@ -660,7 +660,7 @@ function configureAuthForm(mode = 'login') {
   document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : signingUp ? 'YENİ KULLANICI' : resettingPassword ? 'ŞİFRE YENİLEME' : 'HOŞ GELDİNİZ';
   document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : signingUp ? 'Hesap oluşturun' : resettingPassword ? 'E-posta adresinizi yazın' : 'Kulübünüz tek ekranda';
   document.querySelector('#authDescription').textContent = settingPassword
-    ? 'Sasa Futbol hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
+    ? 'SASA-F hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
     : signingUp
       ? 'E-posta adresiniz öğrenci kayıtlarındaki irtibat adresiyle eşleşmelidir. Talebiniz Süper Admin onayına gönderilir.'
       : resettingPassword
@@ -802,7 +802,7 @@ async function showAuthenticatedApp(user) {
       ? 'E-posta adresiniz doğrulandı. Uygulama erişiminiz Süper Admin onayı bekliyor.'
       : request?.status === 'rejected'
         ? 'Kullanıcı erişim talebiniz admin tarafından reddedildi.'
-        : 'Bu hesap için yetkili bir Sasa Futbol profili bulunamadı.';
+        : 'Bu hesap için yetkili bir SASA-F profili bulunamadı.';
     showLoginScreen(requestMessage, request?.status !== 'pending');
     return;
   }
