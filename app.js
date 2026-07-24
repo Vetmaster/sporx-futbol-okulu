@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.115';
+const APP_VERSION = '2026.07.24.116';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -691,7 +691,7 @@ function paymentMethodTotals(entries, kind) {
   }, { cash: 0, transfer: 0, card: 0 });
 }
 function paymentMethodSummary(totals) {
-  return `<small class="payment-method-summary"><span>Nakit ${formatCurrency(totals.cash)}</span><span>Havale ${formatCurrency(totals.transfer)}</span><span>Kredi kartı ${formatCurrency(totals.card)}</span></small>`;
+  return `<small class="payment-method-summary"><span class="payment-method-cash">Nakit ${formatCurrency(totals.cash)}</span><span class="payment-method-transfer">Havale ${formatCurrency(totals.transfer)}</span><span class="payment-method-card">Kredi kartı ${formatCurrency(totals.card)}</span></small>`;
 }
 
 function accountingView() {
