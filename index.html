@@ -185,11 +185,29 @@
     </form>
   </dialog>
 
+  <dialog id="feeDefinitionDialog">
+    <form method="dialog" class="dialog-form" id="feeDefinitionForm">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">AİDAT TANIMLA</span><h2>Öğrenci aidat dönemi</h2></div>
+        <button class="icon-button" type="button" data-dialog-close="feeDefinitionDialog" aria-label="Kapat">×</button>
+      </div>
+      <div class="form-grid">
+        <label class="full-field">Öğrenci<select name="studentId" id="feeDefinitionStudent" required><option value="">Öğrenci seçiniz</option></select></label>
+        <label>Dönem<input name="period" type="month" required></label>
+        <label>Aidat tutarı (₺)<input name="amount" type="number" min="1" step="1" inputmode="numeric" value="1500" required></label>
+        <label class="full-field">Aidat durumu<select name="status" id="feeDefinitionStatus" required><option value="late">Ödenmedi</option><option value="paid">Ödendi</option></select></label>
+        <label class="fee-payment-field is-hidden">Ödeme tarihi<input name="paymentDate" type="date"></label>
+        <label class="fee-payment-field is-hidden">Ödeme yöntemi<select name="paymentMethod"><option value="cash">Nakit</option><option value="transfer">Havale</option><option value="card">Kredi kartı</option></select></label>
+      </div>
+      <div class="dialog-actions"><button type="button" data-dialog-close="feeDefinitionDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Aidatı kaydet</button></div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.07.24.112"></script>
-  <script src="app.js?v=2026.07.24.126"></script>
+  <script src="supabase-data.js?v=2026.07.24.127"></script>
+  <script src="app.js?v=2026.07.24.127"></script>
 </body>
 </html>

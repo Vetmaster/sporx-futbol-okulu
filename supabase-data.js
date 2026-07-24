@@ -274,11 +274,18 @@
       if (error) throw error;
     }
 
-    async function saveFeeStatus(student, month, status, amount) {
+    async function saveFeeStatus(student, month, status, amount, paymentDetails = {}) {
       requireContext();
       const feeMonth = `${month}-01`;
       const reference = `fee:${student.id}:${month}`;
       const paid = status === 'paid';
+      const paymentDate = paid && /^\d{4}-\d{2}-\d{2}$/.test(paymentDetails.paymentDate || '')
+        ? paymentDetails.paymentDate
+        : new Date().toISOString().slice(0, 10);
+      const paymentMethod = paid && ['cash', 'transfer', 'card'].includes(paymentDetails.paymentMethod)
+        ? paymentDetails.paymentMethod
+        : 'cash';
+      const feeMonthLabel = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00`));
       const feePayload = {
         school_id: schoolId,
         student_id: student.id,
@@ -286,8 +293,8 @@
         status,
         amount: status === 'none' ? null : Number(amount || 1500),
         due_date: new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10),
-        paid_at: paid ? new Date().toISOString() : null,
-        payment_method: paid ? 'cash' : null,
+        paid_at: paid ? `${paymentDate}T12:00:00.000Z` : null,
+        payment_method: paid ? paymentMethod : null,
         note: status === 'none' ? 'Aidat yok' : null,
         source: 'app'
       };
@@ -310,11 +317,11 @@
           school_id: schoolId,
           student_id: student.id,
           fee_period_id: feePeriod.id,
-          occurred_on: new Date().toISOString().slice(0, 10),
-          title: `${student.name} · ${month} aidatı`,
+          occurred_on: paymentDate,
+          title: `${student.name} · ${feeMonthLabel} aidatı`,
           kind: 'income',
           amount: Number(amount || 1500),
-          payment_method: 'cash',
+          payment_method: paymentMethod,
           source: 'fee',
           reference,
           created_by: userId

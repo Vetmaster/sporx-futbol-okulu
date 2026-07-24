@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.126';
+const APP_VERSION = '2026.07.24.127';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -357,27 +357,53 @@ function removeFeeAccountingEntry(student, month) {
   const reference = feeAccountingReference(student, month);
   state.accountingEntries = state.accountingEntries.filter(entry => entry.reference !== reference);
 }
-function addFeeAccountingEntry(student, month) {
+function addFeeAccountingEntry(student, month, paymentDetails = {}) {
   const reference = feeAccountingReference(student, month);
-  if (state.accountingEntries.some(entry => entry.reference === reference)) return;
-  state.accountingEntries.unshift({
-    id: Date.now(),
-    date: localDateValue(),
+  const amount = Number(paymentDetails.amount) > 0 ? Number(paymentDetails.amount) : monthlyFeeAmount(student, month);
+  const paymentDate = /^\d{4}-\d{2}-\d{2}$/.test(paymentDetails.paymentDate || '') ? paymentDetails.paymentDate : localDateValue();
+  const paymentMethod = PAYMENT_METHODS[paymentDetails.paymentMethod] ? paymentDetails.paymentMethod : 'cash';
+  const existingEntry = state.accountingEntries.find(entry => entry.reference === reference);
+  const accountingEntry = {
+    id: existingEntry?.id || Date.now(),
+    date: paymentDate,
     title: `${student.name} · ${formatFeeMonth(month)} aidatı`,
     type: 'Gelir',
-    amount: monthlyFeeAmount(student, month),
+    amount,
     kind: 'income',
-    paymentMethod: 'cash',
+    paymentMethod,
     source: 'fee',
     reference,
     studentId: student.id,
     feeMonth: month
-  });
+  };
+  if (existingEntry) Object.assign(existingEntry, accountingEntry);
+  else state.accountingEntries.unshift(accountingEntry);
 }
-function setMonthlyFeeStatus(student, month, status) {
+function setMonthlyFeeStatus(student, month, status, paymentDetails = {}) {
+  const amount = status === 'none'
+    ? null
+    : Number(paymentDetails.amount) > 0
+      ? Number(paymentDetails.amount)
+      : monthlyFeeAmount(student, month);
+  const paymentDate = status === 'paid'
+    ? (/^\d{4}-\d{2}-\d{2}$/.test(paymentDetails.paymentDate || '') ? paymentDetails.paymentDate : localDateValue())
+    : null;
+  const paymentMethod = status === 'paid' && PAYMENT_METHODS[paymentDetails.paymentMethod] ? paymentDetails.paymentMethod : status === 'paid' ? 'cash' : null;
   student.feePayments = { ...student.feePayments, [month]: status };
+  student.feeHistory = {
+    ...student.feeHistory,
+    [month]: {
+      ...(student.feeHistory?.[month] || {}),
+      status,
+      amount,
+      note: status === 'none' ? 'Aidat yok' : null,
+      paymentMethod,
+      paidAt: paymentDate ? `${paymentDate}T12:00:00.000Z` : null,
+      source: 'app'
+    }
+  };
   if (month === feeMonthKey()) student.fee = status;
-  if (status === 'paid') addFeeAccountingEntry(student, month);
+  if (status === 'paid') addFeeAccountingEntry(student, month, { ...paymentDetails, amount, paymentDate, paymentMethod });
   else removeFeeAccountingEntry(student, month);
 }
 function feeStatusControl(student, month, status) {
@@ -671,17 +697,17 @@ function feesView() {
   const currentMonth = feeMonthKey();
   const currentMonthLabel = formatFeeMonth(currentMonth);
   const liableStudents = allStudents.filter(student => ['paid', 'late'].includes(currentFeeStatus(student)));
-  const total = liableStudents.length * 1500;
-  const collected = allStudents.filter(student => currentFeeStatus(student) === 'paid').length * 1500;
-  const pending = pendingStudents.length * 1500;
+  const total = liableStudents.reduce((sum, student) => sum + monthlyFeeAmount(student, currentMonth), 0);
+  const collected = allStudents.filter(student => currentFeeStatus(student) === 'paid').reduce((sum, student) => sum + monthlyFeeAmount(student, currentMonth), 0);
+  const pending = pendingStudents.reduce((sum, student) => sum + monthlyFeeAmount(student, currentMonth), 0);
   const title = state.feeFilter === 'pending' && !isParent ? 'Ödemesi yapılmamış öğrenciler' : isParent ? 'Aidat bilgilerim' : 'Aidat takip listesi';
-  const headerAction = state.feeFilter === 'pending' && !isParent ? '<button class="secondary-button" data-action="fee-filter" data-filter="all">Tüm aidatları göster</button>' : !isParent ? '<button class="primary-button" data-action="collect-fee">+ Tahsilat gir</button>' : '';
+  const headerAction = state.feeFilter === 'pending' && !isParent ? '<button class="secondary-button" data-action="fee-filter" data-filter="all">Tüm aidatları göster</button>' : !isParent ? '<button class="primary-button" data-action="collect-fee">+ Aidat tanımla</button>' : '';
   const summaryMarkup = isParent
     ? `<section class="stats-grid"><article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${parentDebtBalance ? `${formatCurrency(parentDebtBalance)} borç bakiyesi` : 'Aidat borcunuz yoktur.'}</strong><small>${parentDebtBalance ? `${parentUnpaidMonths.length} ödenmemiş dönem` : 'Ödenmemiş aidat bulunmuyor'}</small></article></section>`
     : `<section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section>`;
   const tableRows = isParent
     ? parentUnpaidMonths.map(month => `<tr><td>${studentNameLink(parentStudent)}</td><td>${formatFeeMonth(month)}</td><td>${formatCurrency(monthlyFeeAmount(parentStudent, month))}</td><td>${formatFeeDueDate(month)}</td><td>${statusLabel('late')}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty-state">Aidat borcunuz bulunmuyor.</div></td></tr>'
-    : list.map(s => { const status = currentFeeStatus(s); const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>${status === 'none' ? '—' : '₺1.500'}</td><td>${formatFeeDueDate(currentMonth)}</td><td>${statusLabel(status)}</td><td>${paymentAction}</td></tr>`; }).join('');
+    : list.map(s => { const status = currentFeeStatus(s); const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>${status === 'none' ? '—' : formatCurrency(monthlyFeeAmount(s, currentMonth))}</td><td>${formatFeeDueDate(currentMonth)}</td><td>${statusLabel(status)}</td><td>${paymentAction}</td></tr>`; }).join('');
   const subtitle = isParent ? `${parentUnpaidMonths.length} ödenmemiş dönem` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
   return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}<section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
 }
@@ -1241,6 +1267,30 @@ function openAccountingDialog(entry = null) {
   document.querySelector('#accountingDialog').showModal();
 }
 
+function updateFeePaymentFields() {
+  const form = document.querySelector('#feeDefinitionForm');
+  const paid = form.elements.status.value === 'paid';
+  form.querySelectorAll('.fee-payment-field').forEach(field => field.classList.toggle('is-hidden', !paid));
+  form.elements.paymentDate.required = paid;
+  form.elements.paymentMethod.required = paid;
+}
+
+function openFeeDefinitionDialog() {
+  const form = document.querySelector('#feeDefinitionForm');
+  form.reset();
+  document.querySelector('#feeDefinitionStudent').innerHTML = `<option value="">Öğrenci seçiniz</option>${[...state.students]
+    .sort((left, right) => left.name.localeCompare(right.name, 'tr-TR'))
+    .map(student => `<option value="${student.id}">${escapeHtml(student.name)} · ${escapeHtml(student.group)}</option>`)
+    .join('')}`;
+  form.elements.period.value = feeMonthKey();
+  form.elements.amount.value = '1500';
+  form.elements.status.value = 'late';
+  form.elements.paymentDate.value = localDateValue();
+  form.elements.paymentMethod.value = 'cash';
+  updateFeePaymentFields();
+  document.querySelector('#feeDefinitionDialog').showModal();
+}
+
 function closeLedgerActions() {
   document.querySelectorAll('.ledger-entry.show-actions').forEach(item => {
     item.classList.remove('show-actions');
@@ -1379,6 +1429,7 @@ document.addEventListener('click', async event => {
     }
   }
   else if (action === 'new-entry') openAccountingDialog();
+  else if (action === 'collect-fee' && state.role !== 'parent') openFeeDefinitionDialog();
   else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
   else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
   else if (action === 'pending-fees') navigateToPage('fees', { feeFilter: 'pending' });
@@ -1588,6 +1639,39 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
   state.page = 'trainings';
   render();
   showToast(wasEditing ? 'Antrenman Supabase’de güncellendi.' : 'Antrenman Supabase’e kaydedildi.');
+});
+document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
+document.querySelector('#feeDefinitionForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const student = state.students.find(item => item.id === Number(data.get('studentId')));
+  const month = String(data.get('period') || '');
+  const status = data.get('status') === 'paid' ? 'paid' : 'late';
+  const amount = Number(data.get('amount'));
+  if (!student || !/^\d{4}-\d{2}$/.test(month) || !Number.isFinite(amount) || amount <= 0) {
+    showToast('Öğrenci, dönem ve aidat tutarı bilgilerini kontrol edin.');
+    return;
+  }
+  const paymentDetails = status === 'paid'
+    ? {
+        amount,
+        paymentDate: String(data.get('paymentDate') || ''),
+        paymentMethod: String(data.get('paymentMethod') || '')
+      }
+    : { amount };
+  if (status === 'paid' && (!/^\d{4}-\d{2}-\d{2}$/.test(paymentDetails.paymentDate) || !PAYMENT_METHODS[paymentDetails.paymentMethod])) {
+    showToast('Ödeme tarihi ve ödeme yöntemini kontrol edin.');
+    return;
+  }
+  const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, month, status, amount, paymentDetails));
+  if (!saved) return;
+  setMonthlyFeeStatus(student, month, status, paymentDetails);
+  persistLocalData();
+  document.querySelector('#feeDefinitionDialog').close();
+  form.reset();
+  render();
+  showToast(status === 'paid' ? 'Aidat ödendi olarak kaydedildi ve muhasebeye eklendi.' : 'Aidat ödenmedi olarak tanımlandı.');
 });
 document.querySelector('#accountingForm').addEventListener('submit', async event => {
   event.preventDefault();
