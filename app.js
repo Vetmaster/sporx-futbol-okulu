@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.88';
+const APP_VERSION = '2026.07.24.89';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -52,6 +52,12 @@ const state = {
   editingAccountingEntryId: null
 };
 
+const MENU_ICONS = {
+  student: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"></path></svg>',
+  training: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="14.5" cy="4.5" r="2"></circle><path d="m12 8-3 4 3 2 2.5 6M12 8l4 3 3-1M9 12l-4 5M12 14l4-1"></path></svg>',
+  accounting: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M8 6h8v4H8zM8.5 14h1M12 14h1M15.5 14h1M8.5 18h1M12 18h1M15.5 18h1"></path></svg>'
+};
+
 const BASE_GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
 let GROUPS = [...new Set([...BASE_GROUPS, ...localData.students.map(student => student.group).filter(Boolean)])];
 
@@ -67,14 +73,14 @@ function persistLocalData() {
 
 const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'staff', 'parent'] },
-  students: { label: 'Öğrenciler', icon: '👤', roles: ['super_admin', 'admin', 'staff'] },
+  students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'staff'] },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   child: { label: 'Çocuğum', icon: '◎', roles: ['parent'] },
-  trainings: { label: 'Antrenman', icon: '🏃', roles: ['super_admin', 'admin', 'staff', 'parent'] },
+  trainings: { label: 'Antrenman', icon: MENU_ICONS.training, roles: ['super_admin', 'admin', 'staff', 'parent'] },
   attendance: { label: 'Yoklama', icon: '✓', roles: ['super_admin', 'admin', 'staff'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'staff', 'parent'] },
-  accounting: { label: 'Muhasebe', icon: '🧮', roles: ['super_admin', 'admin'] },
+  accounting: { label: 'Muhasebe', icon: MENU_ICONS.accounting, roles: ['super_admin', 'admin'] },
   accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['super_admin', 'admin'], hidden: true },
   userApprovals: { label: 'Kullanıcı Onayları', icon: '✓', roles: ['super_admin'] },
   notifications: { label: 'Bildirimler', icon: '●', roles: ['super_admin', 'admin', 'staff', 'parent'] }
