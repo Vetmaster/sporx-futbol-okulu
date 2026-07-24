@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.73';
+const APP_VERSION = '2026.07.24.74';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -633,7 +633,8 @@ function render() {
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', state.role === 'parent');
-  globalBackButton.disabled = state.page === 'dashboard' && state.pageHistory.length === 0;
+  globalBackButton.classList.toggle('is-hidden', state.page === 'dashboard');
+  globalBackButton.disabled = state.page === 'dashboard';
   document.querySelector('.user-avatar').textContent = initials(state.userFullName || state.userEmail || 'SF');
   appContent.innerHTML = views[state.page]();
   appContent.focus({ preventScroll: true });
