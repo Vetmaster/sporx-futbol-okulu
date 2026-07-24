@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.91';
+const APP_VERSION = '2026.07.24.92';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -54,7 +54,7 @@ const state = {
 
 const MENU_ICONS = {
   student: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"></path></svg>',
-  training: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="14.5" cy="4.5" r="2"></circle><path d="m12 8-3 4 3 2 2.5 6M12 8l4 3 3-1M9 12l-4 5M12 14l4-1"></path></svg>',
+  training: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="15" cy="4" r="2"></circle><path d="m6 12 5-4 3 3 4-1M11 8l-1 6 3 2 3-5M10 14l-3 6M13 16l4 4"></path></svg>',
   accounting: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M8 6h8v4H8zM8.5 14h1M12 14h1M15.5 14h1M8.5 18h1M12 18h1M15.5 18h1"></path></svg>'
 };
 
