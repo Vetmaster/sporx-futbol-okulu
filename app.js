@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.79';
+const APP_VERSION = '2026.07.24.80';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -823,7 +823,7 @@ async function showAuthenticatedApp(user) {
   configureAuthForm('login');
   document.querySelector('#authEyebrow').textContent = 'GÜVENLİ BAĞLANTI';
   document.querySelector('#authTitle').textContent = 'Kulüp verileri yükleniyor';
-  document.querySelector('#authDescription').textContent = 'Öğrenci, aidat, antrenman ve muhasebe kayıtları Supabase’den alınıyor.';
+  document.querySelector('#authDescription').textContent = 'Öğrenci, aidat, antrenman ve muhasebe kayıtları yükleniyor.';
   document.querySelector('#authEmailField').classList.add('is-hidden');
   document.querySelector('#authPasswordField').classList.add('is-hidden');
   document.querySelector('#authSecondaryActions').classList.add('is-hidden');
