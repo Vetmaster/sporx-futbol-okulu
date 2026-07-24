@@ -67,7 +67,7 @@
         fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source'),
         fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date'),
         fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on'),
-        fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_at, created_at', 'created_at'),
+        fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_by, sent_at, created_at', 'created_at'),
         fetchAll(client, 'notification_reads', 'notification_id, read_at', 'notification_id'),
         fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at'),
         fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at')
@@ -151,6 +151,7 @@
             title: row.title,
             body: row.body,
             audience: row.audience,
+            sentBy: row.sent_by,
             time: new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp)),
             status: row.status === 'sent' ? 'Teslim edildi' : row.status === 'failed' ? 'Başarısız' : row.status === 'queued' ? 'Sırada' : 'Taslak',
             read: readNotificationIds.has(Number(row.id))

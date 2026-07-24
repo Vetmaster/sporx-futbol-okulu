@@ -243,6 +243,7 @@ tbody tr:hover { background: #f8fbf9; }
 .amount.expense { color: var(--danger); }
 .notification-compose { padding: 20px; display: grid; gap: 14px; }
 .compose-actions { display: flex; justify-content: flex-end; }
+.notification-list-row { align-items: start; }
 .notification-list-content { display: grid; gap: 5px; min-width: 0; }
 .notification-list-content p { margin: 0; color: var(--ink); line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
 .push-permission { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px; }

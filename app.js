@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.103';
+const APP_VERSION = '2026.07.24.104';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -610,7 +610,7 @@ function notificationsView() {
       : pushUnsupported
         ? 'iPhone kullanıyorsanız uygulamayı önce Ana Ekran’a ekleyip oradan açın.'
         : 'Antrenman, aidat ve kulüp duyurularını bu telefonda alın.';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div><section class="panel"><div class="panel-heading"><h3>Telefon bildirimleri</h3><span class="status ${pushEnabled ? '' : 'warning'}">${pushStatusLabel}</span></div><div class="push-permission"><div><strong>${pushEnabled ? 'Bildirimler açık' : 'Bu telefonda bildirimleri açın'}</strong><p class="muted">${pushDescription}</p></div><button class="${pushEnabled ? 'secondary-button' : 'primary-button'}" type="button" data-action="toggle-phone-notifications" ${state.pushBusy || pushUnsupported || pushDenied ? 'disabled' : ''}>${state.pushBusy ? 'Lütfen bekleyin…' : pushEnabled ? 'Bildirimleri kapat' : 'Bildirimleri aç'}</button></div></section>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div><span class="status">${escapeHtml(item.status)}</span></div>`).join('')}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div><section class="panel"><div class="panel-heading"><h3>Telefon bildirimleri</h3><span class="status ${pushEnabled ? '' : 'warning'}">${pushStatusLabel}</span></div><div class="push-permission"><div><strong>${pushEnabled ? 'Bildirimler açık' : 'Bu telefonda bildirimleri açın'}</strong><p class="muted">${pushDescription}</p></div><button class="${pushEnabled ? 'secondary-button' : 'primary-button'}" type="button" data-action="toggle-phone-notifications" ${state.pushBusy || pushUnsupported || pushDenied ? 'disabled' : ''}>${state.pushBusy ? 'Lütfen bekleyin…' : pushEnabled ? 'Bildirimleri kapat' : 'Bildirimleri aç'}</button></div></section>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => { const sentByCurrentUser = item.sentBy === state.userId; const recipientStatus = item.read ? 'Okundu' : 'Okunmadı'; const visibleStatus = sentByCurrentUser ? item.status : recipientStatus; return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div><span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span></div>`; }).join('')}</section></div>`;
 }
 
 function userApprovalsView() {
@@ -677,12 +677,14 @@ async function markAllNotificationsRead() {
   const unreadNotifications = state.notifications.filter(notification => !notification.read && notification.id);
   if (!unreadNotifications.length || !remoteDataStore) return;
   unreadNotifications.forEach(notification => { notification.read = true; });
-  updateNotificationUnreadBadge();
+  if (state.page === 'notifications') render();
+  else updateNotificationUnreadBadge();
   try {
     await remoteDataStore.markNotificationsRead(unreadNotifications.map(notification => notification.id));
   } catch (error) {
     unreadNotifications.forEach(notification => { notification.read = false; });
-    updateNotificationUnreadBadge();
+    if (state.page === 'notifications') render();
+    else updateNotificationUnreadBadge();
     showToast(`Bildirimler okundu olarak işaretlenemedi: ${error.message || 'Bağlantı hatası'}`);
   }
 }
@@ -1486,7 +1488,7 @@ appContent.addEventListener('submit', async event => {
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
   const data = new FormData(event.target);
-  const notification = { date: 'Bugün', title: data.get('title'), body: data.get('message'), audience: data.get('audience'), time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), status: 'Sırada' };
+  const notification = { date: 'Bugün', title: data.get('title'), body: data.get('message'), audience: data.get('audience'), sentBy: state.userId, time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), status: 'Sırada' };
   const saved = await runRemoteMutation(async () => {
     const result = await remoteDataStore.saveNotification(notification);
     notification.id = result.id;
