@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.128';
+const APP_VERSION = '2026.07.24.129';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1278,12 +1278,11 @@ function updateFeePaymentFields() {
 function openFeeDefinitionDialog() {
   const form = document.querySelector('#feeDefinitionForm');
   form.reset();
-  document.querySelector('#feeDefinitionStudentOptions').innerHTML = [...state.students]
-    .sort((left, right) => left.name.localeCompare(right.name, 'tr-TR'))
-    .map(student => `<option value="${escapeHtml(student.name)} · ${escapeHtml(student.group)} · ${escapeHtml(studentBirthYearLabel(student))}" data-id="${student.id}"></option>`)
-    .join('');
   form.elements.studentSearch.value = '';
   form.elements.studentId.value = '';
+  document.querySelector('#feeDefinitionStudentResults').classList.add('is-hidden');
+  document.querySelector('#feeDefinitionStudentResults').innerHTML = '';
+  form.elements.studentSearch.setAttribute('aria-expanded', 'false');
   form.elements.period.value = feeMonthKey();
   form.elements.amount.value = '1500';
   form.elements.status.value = 'late';
@@ -1293,12 +1292,20 @@ function openFeeDefinitionDialog() {
   document.querySelector('#feeDefinitionDialog').showModal();
 }
 
-function syncFeeDefinitionStudent() {
+function updateFeeDefinitionStudentResults() {
   const form = document.querySelector('#feeDefinitionForm');
-  const searchValue = form.elements.studentSearch.value.trim();
-  const selectedOption = [...document.querySelector('#feeDefinitionStudentOptions').options]
-    .find(option => option.value === searchValue);
-  form.elements.studentId.value = selectedOption?.dataset.id || '';
+  const searchValue = form.elements.studentSearch.value.trim().toLocaleLowerCase('tr-TR');
+  const results = document.querySelector('#feeDefinitionStudentResults');
+  form.elements.studentId.value = '';
+  const matches = searchValue
+    ? [...state.students]
+        .filter(student => `${student.name} ${student.group} ${studentBirthYearLabel(student)}`.toLocaleLowerCase('tr-TR').includes(searchValue))
+        .sort((left, right) => left.name.localeCompare(right.name, 'tr-TR'))
+        .slice(0, 8)
+    : [];
+  results.innerHTML = matches.map(student => `<button class="student-search-option" type="button" role="option" data-action="select-fee-student" data-id="${student.id}"><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.group)} · ${escapeHtml(studentBirthYearLabel(student))}</small></button>`).join('');
+  results.classList.toggle('is-hidden', matches.length === 0);
+  form.elements.studentSearch.setAttribute('aria-expanded', String(matches.length > 0));
 }
 
 function closeLedgerActions() {
@@ -1420,7 +1427,16 @@ document.addEventListener('click', async event => {
     return;
   }
   const action = actionButton.dataset.action;
-  if (action === 'add-student') openStudentDialog();
+  if (action === 'select-fee-student') {
+    const student = state.students.find(item => item.id === Number(actionButton.dataset.id));
+    if (!student) return;
+    const form = document.querySelector('#feeDefinitionForm');
+    form.elements.studentSearch.value = `${student.name} · ${student.group} · ${studentBirthYearLabel(student)}`;
+    form.elements.studentId.value = student.id;
+    document.querySelector('#feeDefinitionStudentResults').classList.add('is-hidden');
+    form.elements.studentSearch.setAttribute('aria-expanded', 'false');
+  }
+  else if (action === 'add-student') openStudentDialog();
   else if (action === 'edit-profile' && state.role !== 'parent') { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
   else if (action === 'new-training') openTrainingDialog();
   else if (action === 'edit-training' && isAdminRole()) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
@@ -1651,7 +1667,7 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
   showToast(wasEditing ? 'Antrenman Supabase’de güncellendi.' : 'Antrenman Supabase’e kaydedildi.');
 });
 document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
-document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', syncFeeDefinitionStudent);
+document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', updateFeeDefinitionStudentResults);
 document.querySelector('#feeDefinitionForm').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
