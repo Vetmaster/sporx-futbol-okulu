@@ -1,30 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <clipPath id="goal-net">
-      <path d="M76 112h360v286H76z"/>
-    </clipPath>
-    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
-      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#061d12" flood-opacity=".42"/>
-    </filter>
-  </defs>
-
   <rect width="512" height="512" rx="112" fill="#176b43"/>
-  <path d="M76 112h360v286H76z" fill="#0d4a2d" stroke="#d9ff47" stroke-width="18" stroke-linejoin="round"/>
-
-  <g clip-path="url(#goal-net)" fill="none" stroke="#72a885" stroke-width="7" opacity=".72">
-    <path d="M76 112l360 286M136 112l300 238M196 112l240 190M256 112l180 143M316 112l120 95M376 112l60 48"/>
-    <path d="M436 112L76 398M376 112L76 350M316 112L76 302M256 112L76 255M196 112L76 207M136 112l-60 48"/>
-    <path d="M76 170h360M76 228h360M76 286h360M76 344h360"/>
-  </g>
-
-  <g transform="translate(353 183) rotate(-13)" filter="url(#shadow)">
-    <circle r="70" fill="#f7f8ef" stroke="#d9ff47" stroke-width="9"/>
-    <path d="M0-27 27-8 17 24h-34L-27-8z" fill="#0d4a2d"/>
-    <g fill="none" stroke="#0d4a2d" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M0-27 0-66M27-8 61-21M17 24 38 57M-17 24-38 57M-27-8-61-21"/>
-      <path d="M0-66 37-56 61-21 60 23 38 57 0 68-38 57-60 23-61-21-37-56z"/>
-    </g>
-  </g>
-
-  <text x="244" y="344" text-anchor="middle" font-family="Arial, sans-serif" font-size="176" font-weight="900" letter-spacing="-14" fill="#d9ff47" stroke="#0b2f20" stroke-width="13" paint-order="stroke">SF</text>
+  <circle cx="256" cy="256" r="164" fill="#d9ff47"/>
+  <text x="256" y="294" text-anchor="middle" font-family="Arial, sans-serif" font-size="142" font-weight="900" fill="#0d4a2d">SF</text>
 </svg>
