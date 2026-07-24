@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.101';
+const APP_VERSION = '2026.07.24.102';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -148,6 +148,7 @@ function navigateToPage(page, updates = {}) {
   state.page = targetPage;
   document.querySelector('#sidebar').classList.remove('open');
   render();
+  if (targetPage === 'notifications') markAllNotificationsRead();
 }
 
 function goBack() {
@@ -652,11 +653,38 @@ function render() {
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', state.role === 'parent');
+  updateNotificationUnreadBadge();
   globalBackButton.classList.toggle('is-hidden', state.page === 'dashboard');
   globalBackButton.disabled = state.page === 'dashboard';
   document.querySelector('.user-avatar').textContent = initials(state.userFullName || state.userEmail || 'SF');
   appContent.innerHTML = views[state.page]();
   appContent.focus({ preventScroll: true });
+}
+
+function updateNotificationUnreadBadge() {
+  const unreadCount = state.notifications.filter(notification => !notification.read).length;
+  const badge = document.querySelector('#notificationUnreadBadge');
+  const button = badge?.closest('.topbar-notification-button');
+  if (!badge || !button) return;
+  badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+  badge.classList.toggle('is-hidden', unreadCount === 0);
+  button.setAttribute('aria-label', unreadCount
+    ? `Bildirimleri aç, ${unreadCount} okunmamış bildirim`
+    : 'Bildirimleri aç');
+}
+
+async function markAllNotificationsRead() {
+  const unreadNotifications = state.notifications.filter(notification => !notification.read && notification.id);
+  if (!unreadNotifications.length || !remoteDataStore) return;
+  unreadNotifications.forEach(notification => { notification.read = true; });
+  updateNotificationUnreadBadge();
+  try {
+    await remoteDataStore.markNotificationsRead(unreadNotifications.map(notification => notification.id));
+  } catch (error) {
+    unreadNotifications.forEach(notification => { notification.read = false; });
+    updateNotificationUnreadBadge();
+    showToast(`Bildirimler okundu olarak işaretlenemedi: ${error.message || 'Bağlantı hatası'}`);
+  }
 }
 
 function showAuthMessage(message = '', isError = false) {
@@ -739,6 +767,7 @@ const REALTIME_TABLES = [
   'trainings',
   'accounting_entries',
   'notifications',
+  'notification_reads',
   'attendance_sessions',
   'attendance_records',
   'access_requests'
@@ -767,6 +796,7 @@ async function refreshRemoteDataFromRealtime() {
     const remoteData = await remoteDataStore.load({ school_id: state.schoolId, user_id: state.userId });
     applyRemoteData(remoteData);
     render();
+    if (state.page === 'notifications') markAllNotificationsRead();
   } catch (error) {
     console.error('Realtime veri yenileme hatası:', error);
   } finally {
@@ -884,6 +914,7 @@ async function showAuthenticatedApp(user) {
   render();
   startRealtimeSync();
   refreshPushStatus(state.page === 'notifications');
+  if (state.page === 'notifications') markAllNotificationsRead();
   })();
   activeProfileLoad = { userId: user.id, promise: loadPromise };
   try {
@@ -1465,6 +1496,7 @@ appContent.addEventListener('submit', async event => {
   persistLocalData();
   event.target.reset();
   render();
+  markAllNotificationsRead();
   try {
     const { data: result, error } = await supabaseClient.functions.invoke('send-push-notification', {
       body: { action: 'send', notificationId: notification.id }

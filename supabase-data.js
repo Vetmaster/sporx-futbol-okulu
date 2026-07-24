@@ -58,6 +58,7 @@
         trainingRows,
         accountingRows,
         notificationRows,
+        notificationReadRows,
         attendanceRows,
         accessRequestRows
       ] = await Promise.all([
@@ -67,6 +68,7 @@
         fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date'),
         fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on'),
         fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_at, created_at', 'created_at'),
+        fetchAll(client, 'notification_reads', 'notification_id, read_at', 'notification_id'),
         fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at'),
         fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at')
       ]);
@@ -138,6 +140,7 @@
         feePeriodId: row.fee_period_id ? Number(row.fee_period_id) : null
       }));
 
+      const readNotificationIds = new Set(notificationReadRows.map(row => Number(row.notification_id)));
       const notifications = notificationRows
         .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))
         .map(row => {
@@ -149,7 +152,8 @@
             body: row.body,
             audience: row.audience,
             time: new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp)),
-            status: row.status === 'sent' ? 'Teslim edildi' : row.status === 'failed' ? 'Başarısız' : row.status === 'queued' ? 'Sırada' : 'Taslak'
+            status: row.status === 'sent' ? 'Teslim edildi' : row.status === 'failed' ? 'Başarısız' : row.status === 'queued' ? 'Sırada' : 'Taslak',
+            read: readNotificationIds.has(Number(row.id))
           };
         });
 
@@ -375,6 +379,19 @@
       return { id: Number(data.id), createdAt: data.created_at };
     }
 
+    async function markNotificationsRead(notificationIds) {
+      if (!userId || !notificationIds.length) return;
+      const { error } = await client.from('notification_reads').upsert(
+        notificationIds.map(notificationId => ({
+          notification_id: Number(notificationId),
+          user_id: userId,
+          read_at: new Date().toISOString()
+        })),
+        { onConflict: 'notification_id,user_id' }
+      );
+      if (error) throw error;
+    }
+
     async function approveAccessRequest(requestId, role) {
       const { error } = await client.rpc('approve_access_request', {
         target_request_id: requestId,
@@ -400,6 +417,7 @@
       saveFeeStatus,
       saveAttendance,
       saveNotification,
+      markNotificationsRead,
       approveAccessRequest,
       revokeAccessRequestApproval
     };
