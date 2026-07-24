@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.99';
+const APP_VERSION = '2026.07.24.100';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -47,6 +47,8 @@ const state = {
   feeFilter: 'all',
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
+  pushStatus: 'checking',
+  pushBusy: false,
   editingStudentId: null,
   editingTrainingId: null,
   editingAccountingEntryId: null
@@ -596,7 +598,18 @@ function accountingEntriesView() {
 
 function notificationsView() {
   const canSend = state.role !== 'parent';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Bildirim taslakları Supabase üzerinde saklanır</p></div></div>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Supabase taslağı · Push pasif</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi taslak olarak kaydet</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
+  const pushEnabled = state.pushStatus === 'enabled';
+  const pushUnsupported = state.pushStatus === 'unsupported';
+  const pushDenied = state.pushStatus === 'denied';
+  const pushStatusLabel = pushEnabled ? 'Açık' : pushDenied ? 'İzin kapalı' : pushUnsupported ? 'Desteklenmiyor' : state.pushStatus === 'checking' ? 'Kontrol ediliyor' : 'Kapalı';
+  const pushDescription = pushEnabled
+    ? 'Bu telefon SASA-F bildirimlerini almaya hazır.'
+    : pushDenied
+      ? 'Bildirim izni tarayıcı ayarlarından kapatılmış. Tekrar açmak için site izinlerini kullanın.'
+      : pushUnsupported
+        ? 'iPhone kullanıyorsanız uygulamayı önce Ana Ekran’a ekleyip oradan açın.'
+        : 'Antrenman, aidat ve kulüp duyurularını bu telefonda alın.';
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div><section class="panel"><div class="panel-heading"><h3>Telefon bildirimleri</h3><span class="status ${pushEnabled ? '' : 'warning'}">${pushStatusLabel}</span></div><div class="push-permission"><div><strong>${pushEnabled ? 'Bildirimler açık' : 'Bu telefonda bildirimleri açın'}</strong><p class="muted">${pushDescription}</p></div><button class="${pushEnabled ? 'secondary-button' : 'primary-button'}" type="button" data-action="toggle-phone-notifications" ${state.pushBusy || pushUnsupported || pushDenied ? 'disabled' : ''}>${state.pushBusy ? 'Lütfen bekleyin…' : pushEnabled ? 'Bildirimleri kapat' : 'Bildirimleri aç'}</button></div></section>${canSend ? `<section class="panel"><div class="panel-heading"><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span></div><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></section>` : ''}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${state.notifications.map(item => `<div class="list-row"><span class="time">${item.date}</span><div><strong>${item.title}</strong><small>${item.audience} · ${item.time}</small></div><span class="status">${item.status}</span></div>`).join('')}</section></div>`;
 }
 
 function userApprovalsView() {
@@ -864,6 +877,7 @@ async function showAuthenticatedApp(user) {
   setAuthPending(false);
   render();
   startRealtimeSync();
+  refreshPushStatus(state.page === 'notifications');
   })();
   activeProfileLoad = { userId: user.id, promise: loadPromise };
   try {
@@ -903,6 +917,87 @@ function friendlyAuthError(error) {
 }
 
 function showToast(message) { const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
+
+function pushSupported() {
+  return window.isSecureContext
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window
+    && 'Notification' in window;
+}
+
+async function getPushRegistration() {
+  if (!pushSupported()) return null;
+  return navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+}
+
+async function refreshPushStatus(shouldRender = false) {
+  if (!pushSupported()) {
+    state.pushStatus = 'unsupported';
+  } else if (Notification.permission === 'denied') {
+    state.pushStatus = 'denied';
+  } else {
+    try {
+      const registration = await getPushRegistration();
+      const subscription = await registration.pushManager.getSubscription();
+      state.pushStatus = subscription ? 'enabled' : 'disabled';
+    } catch (error) {
+      console.error('Bildirim durumu kontrol edilemedi:', error);
+      state.pushStatus = 'unsupported';
+    }
+  }
+  if (shouldRender && state.page === 'notifications') render();
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = '='.repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map(character => character.charCodeAt(0)));
+}
+
+async function enablePhoneNotifications() {
+  if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
+    throw new Error('Bildirim izni verilmedi.');
+  }
+  const registration = await getPushRegistration();
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    const { data, error } = await supabaseClient.functions.invoke('send-push-notification', {
+      body: { action: 'public-key' }
+    });
+    if (error || !data?.publicKey) throw new Error(error?.message || 'Bildirim anahtarı alınamadı.');
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(data.publicKey)
+    });
+  }
+  const serialized = subscription.toJSON();
+  const { error: saveError } = await supabaseClient.from('push_subscriptions').upsert({
+    user_id: state.userId,
+    endpoint: serialized.endpoint,
+    p256dh: serialized.keys?.p256dh,
+    auth_secret: serialized.keys?.auth,
+    user_agent: navigator.userAgent,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'endpoint' });
+  if (saveError) throw saveError;
+  state.pushStatus = 'enabled';
+}
+
+async function disablePhoneNotifications() {
+  const registration = await getPushRegistration();
+  const subscription = await registration?.pushManager.getSubscription();
+  if (subscription) {
+    const { error } = await supabaseClient.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
+    if (error) throw error;
+    await subscription.unsubscribe();
+  }
+  state.pushStatus = 'disabled';
+}
+
 async function runRemoteMutation(action) {
   try {
     await action();
@@ -1116,6 +1211,25 @@ document.addEventListener('click', async event => {
   else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
   else if (action === 'pending-fees') navigateToPage('fees', { feeFilter: 'pending' });
   else if (action === 'fee-filter') { state.feeFilter = actionButton.dataset.filter || 'all'; render(); }
+  else if (action === 'toggle-phone-notifications') {
+    state.pushBusy = true;
+    render();
+    try {
+      if (state.pushStatus === 'enabled') {
+        await disablePhoneNotifications();
+        showToast('Bu telefondaki bildirimler kapatıldı.');
+      } else {
+        await enablePhoneNotifications();
+        showToast('Telefon bildirimleri açıldı.');
+      }
+    } catch (error) {
+      await refreshPushStatus();
+      showToast(error.message || 'Bildirim ayarı tamamlanamadı.');
+    } finally {
+      state.pushBusy = false;
+      render();
+    }
+  }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'approve-user' && state.role === 'super_admin') {
     const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
@@ -1335,7 +1449,7 @@ appContent.addEventListener('submit', async event => {
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
   const data = new FormData(event.target);
-  const notification = { date: 'Bugün', title: data.get('title'), body: data.get('message'), audience: data.get('audience'), time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), status: 'Taslak' };
+  const notification = { date: 'Bugün', title: data.get('title'), body: data.get('message'), audience: data.get('audience'), time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), status: 'Sırada' };
   const saved = await runRemoteMutation(async () => {
     const result = await remoteDataStore.saveNotification(notification);
     notification.id = result.id;
@@ -1345,7 +1459,21 @@ appContent.addEventListener('submit', async event => {
   persistLocalData();
   event.target.reset();
   render();
-  showToast('Bildirim taslağı Supabase’e kaydedildi.');
+  try {
+    const { data: result, error } = await supabaseClient.functions.invoke('send-push-notification', {
+      body: { action: 'send', notificationId: notification.id }
+    });
+    if (error) throw error;
+    notification.status = result.sent > 0 ? 'Teslim edildi' : 'Başarısız';
+    render();
+    showToast(result.sent > 0
+      ? `Bildirim ${result.sent} telefona gönderildi.`
+      : 'Bildirim kaydedildi ancak açık bildirimi olan telefon bulunamadı.');
+  } catch (error) {
+    notification.status = 'Başarısız';
+    render();
+    showToast(`Bildirim gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
+  }
 });
 
 async function handleAuthStateChange(event, session) {

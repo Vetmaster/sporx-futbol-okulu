@@ -368,7 +368,7 @@
         audience: notification.audience,
         title: notification.title,
         body: notification.body,
-        status: 'draft',
+        status: 'queued',
         sent_by: userId
       }).select('id, created_at').single();
       if (error) throw error;

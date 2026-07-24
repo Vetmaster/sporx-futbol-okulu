@@ -46,3 +46,6 @@ sender_name = "Sasa Futbol"
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true
+
+[functions.send-push-notification]
+verify_jwt = false

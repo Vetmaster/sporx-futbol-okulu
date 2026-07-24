@@ -224,6 +224,10 @@ tbody tr:hover { background: #f8fbf9; }
 .amount.expense { color: var(--danger); }
 .notification-compose { padding: 20px; display: grid; gap: 14px; }
 .compose-actions { display: flex; justify-content: flex-end; }
+.push-permission { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px; }
+.push-permission strong { display: block; margin-bottom: 5px; }
+.push-permission p { margin: 0; }
+.push-permission button { flex: 0 0 auto; }
 .parent-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 18px; padding: 24px; color: white; background: linear-gradient(120deg, var(--brand-dark), var(--brand)); border: 0; }
 .parent-hero .profile-avatar { width: 62px; height: 62px; background: var(--lime); color: var(--brand-dark); font-size: 21px; }
 .parent-hero h2 { margin: 0 0 5px; }
@@ -315,6 +319,8 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
   .global-back-button { width: 38px; justify-content: center; padding: 0; }
   .topbar p, .topbar select { display: none; }
   .topbar h1 { font-size: 18px; }
+  .push-permission { align-items: stretch; flex-direction: column; }
+  .push-permission button { width: 100%; }
   .stats-grid, .card-grid, .form-grid { grid-template-columns: 1fr; }
   .club-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .club-summary-grid .stat-card { padding: 15px; }
