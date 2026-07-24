@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.71';
+const APP_VERSION = '2026.07.24.72';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -31,6 +31,7 @@ const state = {
   userFullName: '',
   userEmail: '',
   page: 'dashboard',
+  pageHistory: [],
   students: localData.students,
   trainings: localData.trainings,
   accountingEntries: localData.accountingEntries,
@@ -120,11 +121,44 @@ function restoreNavigationState(userId) {
   }
 }
 
+function navigationSnapshot() {
+  return {
+    page: state.page,
+    selectedStudentId: state.selectedStudentId,
+    feeFilter: state.feeFilter,
+    accountingFilter: state.accountingFilter
+  };
+}
+
+function navigateToPage(page, updates = {}) {
+  const targetPage = navItems[page]?.roles.includes(state.role) ? page : 'dashboard';
+  if (targetPage !== state.page) {
+    state.pageHistory.push(navigationSnapshot());
+    if (state.pageHistory.length > 30) state.pageHistory.shift();
+  }
+  Object.assign(state, updates);
+  state.page = targetPage;
+  document.querySelector('#sidebar').classList.remove('open');
+  render();
+}
+
+function goBack() {
+  const previous = state.pageHistory.pop();
+  if (previous && navItems[previous.page]?.roles.includes(state.role)) {
+    Object.assign(state, previous);
+  } else {
+    state.page = 'dashboard';
+  }
+  document.querySelector('#sidebar').classList.remove('open');
+  render();
+}
+
 const appShell = document.querySelector('#appShell');
 const authScreen = document.querySelector('#authScreen');
 const appContent = document.querySelector('#appContent');
 const mainNav = document.querySelector('#mainNav');
 const bottomNav = document.querySelector('#bottomNav');
+const globalBackButton = document.querySelector('#globalBackButton');
 const loginForm = document.querySelector('#loginForm');
 const loginEmail = document.querySelector('#loginEmail');
 const loginPassword = document.querySelector('#loginPassword');
@@ -472,7 +506,7 @@ function studentProfileView() {
   const feeSummaryTitle = unpaidFees.length === 0 ? currentFee === 'none' ? 'Aidat yok' : 'Güncel' : unpaidFees.length > 1 ? `${unpaidFees.length} aidat ödenmedi` : 'Ödenmedi';
   const feeSummaryDetail = unpaidFees.length ? unpaidFees.map(formatFeeMonth).join(' · ') : currentFee === 'none' ? 'Bu dönem için aidat tanımlanmadı' : 'Borç bulunmuyor';
   return `<div class="page-stack">
-    <div class="section-heading"><div><button class="back-button" type="button" data-page="${state.role === 'parent' ? 'child' : 'students'}">← Geri</button></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : ''}</div>
+    <div class="section-heading"><div></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : ''}</div>
     <section class="panel student-profile-hero"><span class="profile-avatar">${initials(student.name)}</span><div>${activeStudent ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${student.birth} doğumlu · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
     <section class="stats-grid profile-stats-grid"><article class="stat-card"><span class="label">Devam oranı</span><strong>%${student.attendance}</strong><button class="stat-link" type="button" data-page="studentAttendanceHistory">${attendanceCount} kayıtlı yoklama</button></article><article class="stat-card"><span class="label">Aidat durumu</span><strong>${feeSummaryTitle}</strong><small>${feeSummaryDetail}</small></article><article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article></section>
     <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Antrenman Grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position || 'Bilgi girilmedi'}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent || 'Bilgi girilmedi'}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd>${student.email ? `<a href="mailto:${student.email}">${student.email}</a>` : 'Bilgi girilmedi'}</dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
@@ -489,7 +523,7 @@ function studentAttendanceHistoryView() {
   const entries = attendanceEntriesForStudent(student);
   const presentCount = entries.filter(entry => entry.present).length;
   const absentCount = entries.length - presentCount;
-  return `<div class="page-stack"><div class="section-heading"><div><button class="back-button" type="button" data-page="studentProfile">← Öğrenci profiline dön</button><h2>${student.name} · Yoklama geçmişi</h2><p>Kayıtlı antrenman katılım sonuçları</p></div></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam yoklama</span><strong>${entries.length}</strong><small>Kayıtlı antrenman</small></article><article class="stat-card"><span class="label">Geldi</span><strong>${presentCount}</strong><small>Katıldığı antrenman</small></article><article class="stat-card"><span class="label">Gelmedi</span><strong>${absentCount}</strong><small>Katılmadığı antrenman</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Tarih / Saat</th><th>Antrenman</th><th>Antrenör / Saha</th><th>Durum</th></tr></thead><tbody>${entries.map(entry => `<tr><td><strong>${formatTrainingDate(entry.training.date)}</strong><br><small class="muted">${entry.training.time}</small></td><td>${entry.training.title}<br><small class="muted">${entry.training.group}</small></td><td>${entry.training.coach}<br><small class="muted">${entry.training.field}</small></td><td><span class="status ${entry.present ? '' : 'danger'}">${entry.present ? 'Geldi' : 'Gelmedi'}</span></td></tr>`).join('') || '<tr><td colspan="4"><div class="empty-state">Bu öğrenci için henüz kayıtlı yoklama bulunmuyor.</div></td></tr>'}</tbody></table></section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${student.name} · Yoklama geçmişi</h2><p>Kayıtlı antrenman katılım sonuçları</p></div></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam yoklama</span><strong>${entries.length}</strong><small>Kayıtlı antrenman</small></article><article class="stat-card"><span class="label">Geldi</span><strong>${presentCount}</strong><small>Katıldığı antrenman</small></article><article class="stat-card"><span class="label">Gelmedi</span><strong>${absentCount}</strong><small>Katılmadığı antrenman</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Tarih / Saat</th><th>Antrenman</th><th>Antrenör / Saha</th><th>Durum</th></tr></thead><tbody>${entries.map(entry => `<tr><td><strong>${formatTrainingDate(entry.training.date)}</strong><br><small class="muted">${entry.training.time}</small></td><td>${entry.training.title}<br><small class="muted">${entry.training.group}</small></td><td>${entry.training.coach}<br><small class="muted">${entry.training.field}</small></td><td><span class="status ${entry.present ? '' : 'danger'}">${entry.present ? 'Geldi' : 'Gelmedi'}</span></td></tr>`).join('') || '<tr><td colspan="4"><div class="empty-state">Bu öğrenci için henüz kayıtlı yoklama bulunmuyor.</div></td></tr>'}</tbody></table></section></div>`;
 }
 
 function trainingsView() {
@@ -551,7 +585,7 @@ function accountingEntriesView() {
   const periodEntries = accountingPeriodEntries();
   const filteredEntries = state.accountingFilter === 'all' ? periodEntries : periodEntries.filter(entry => entry.kind === state.accountingFilter);
   const filterLabel = state.accountingFilter === 'income' ? 'Gelir işlemleri' : state.accountingFilter === 'expense' ? 'Gider işlemleri' : 'Tüm işlemler';
-  return `<div class="page-stack"><div class="section-heading"><div><button class="back-button" type="button" data-page="accounting">← Muhasebeye dön</button><h2>${filterLabel}</h2><p>${filteredEntries.length} kayıt · ${accountingPeriodLabel()}</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<div class="toolbar accounting-filters"><button class="${state.accountingFilter === 'all' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="all">Tümü</button><button class="${state.accountingFilter === 'income' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="income">Gelir</button><button class="${state.accountingFilter === 'expense' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="expense">Gider</button></div><section class="panel">${accountingEntryRows(filteredEntries)}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${filterLabel}</h2><p>${filteredEntries.length} kayıt · ${accountingPeriodLabel()}</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<div class="toolbar accounting-filters"><button class="${state.accountingFilter === 'all' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="all">Tümü</button><button class="${state.accountingFilter === 'income' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="income">Gelir</button><button class="${state.accountingFilter === 'expense' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-entries" data-kind="expense">Gider</button></div><section class="panel">${accountingEntryRows(filteredEntries)}</section></div>`;
 }
 
 function notificationsView() {
@@ -599,6 +633,7 @@ function render() {
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', state.role === 'parent');
+  globalBackButton.disabled = state.page === 'dashboard' && state.pageHistory.length === 0;
   document.querySelector('.user-avatar').textContent = initials(state.userFullName || state.userEmail || 'SF');
   appContent.innerHTML = views[state.page]();
   appContent.focus({ preventScroll: true });
@@ -807,6 +842,7 @@ async function showAuthenticatedApp(user) {
   state.userFullName = profile.full_name || user.user_metadata?.full_name || '';
   state.userEmail = user.email || '';
   state.page = 'dashboard';
+  state.pageHistory = [];
   applyRemoteData(remoteData);
   if (openDashboardAfterPasswordLogin) {
     window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
@@ -1034,6 +1070,7 @@ document.querySelector('#createAccountButton').addEventListener('click', () => c
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
 
 document.querySelector('#logoutButton').addEventListener('click', logout);
+globalBackButton.addEventListener('click', goBack);
 document.querySelector('#menuButton').addEventListener('click', () => document.querySelector('#sidebar').classList.add('open'));
 document.querySelector('#sidebarScrim').addEventListener('click', () => document.querySelector('#sidebar').classList.remove('open'));
 
@@ -1041,7 +1078,7 @@ document.addEventListener('click', async event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
   if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
   const pageButton = event.target.closest('[data-page]');
-  if (pageButton && appShell.contains(pageButton)) { state.page = pageButton.dataset.page; if (state.page === 'fees') state.feeFilter = 'all'; document.querySelector('#sidebar').classList.remove('open'); render(); return; }
+  if (pageButton && appShell.contains(pageButton)) { navigateToPage(pageButton.dataset.page, pageButton.dataset.page === 'fees' ? { feeFilter: 'all' } : {}); return; }
   const actionButton = event.target.closest('[data-action]');
   if (!actionButton) {
     closeLedgerActions();
@@ -1054,8 +1091,8 @@ document.addEventListener('click', async event => {
   else if (action === 'edit-training' && isAdminRole()) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
   else if (action === 'new-entry') openAccountingDialog();
   else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
-  else if (action === 'accounting-entries') { state.accountingFilter = actionButton.dataset.kind || 'all'; state.page = 'accountingEntries'; render(); }
-  else if (action === 'pending-fees') { state.feeFilter = 'pending'; state.page = 'fees'; render(); }
+  else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
+  else if (action === 'pending-fees') navigateToPage('fees', { feeFilter: 'pending' });
   else if (action === 'fee-filter') { state.feeFilter = actionButton.dataset.filter || 'all'; render(); }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'approve-user' && state.role === 'super_admin') {
@@ -1118,7 +1155,7 @@ document.addEventListener('click', async event => {
       showToast('Aidat Supabase’e kaydedildi; tahsilat muhasebeye eklendi.');
     }
   }
-  else if (action === 'profile') { state.selectedStudentId = Number(actionButton.dataset.id); state.page = 'studentProfile'; const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); render(); }
+  else if (action === 'profile') { const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); navigateToPage('studentProfile', { selectedStudentId: Number(actionButton.dataset.id) }); }
   else if (action === 'calendar-added') showToast('Antrenman takvime eklendi.');
   else showToast('Bu işlem sonraki geliştirme adımında açılacak.');
 });

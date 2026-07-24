@@ -73,6 +73,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .topbar { min-height: 82px; position: sticky; top: 74px; z-index: 20; display: flex; align-items: center; gap: 16px; padding: 12px clamp(18px, 4vw, 46px); background: rgba(244,247,245,.92); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
 .topbar h1 { margin: 0; font-size: 22px; }
 .topbar p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.global-back-button { min-height: 38px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--brand); background: white; font-weight: 800; }
+.global-back-button:hover:not(:disabled) { background: var(--brand-soft); }
+.global-back-button:disabled { color: var(--muted); opacity: .45; cursor: default; }
 .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 9px; }
 .topbar select { width: auto; padding: 9px 34px 9px 11px; background-color: white; }
 .session-role { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--brand); background: white; font-size: 12px; font-weight: 900; }
@@ -275,6 +278,8 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
   .app-banner-build { min-height: 21px; padding-inline: 6px; font-size: 9px; }
   .app-version-label { top: 8px; font-size: 9px; }
   .topbar { top: 64px; }
+  .global-back-button span { display: none; }
+  .global-back-button { width: 38px; justify-content: center; padding: 0; }
   .topbar p, .topbar select { display: none; }
   .topbar h1 { font-size: 18px; }
   .stats-grid, .card-grid, .form-grid { grid-template-columns: 1fr; }
