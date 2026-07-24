@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.86';
+const APP_VERSION = '2026.07.24.87';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -67,14 +67,14 @@ function persistLocalData() {
 
 const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'staff', 'parent'] },
-  students: { label: 'Öğrenciler', icon: '◎', roles: ['super_admin', 'admin', 'staff'] },
+  students: { label: 'Öğrenciler', icon: '👤', roles: ['super_admin', 'admin', 'staff'] },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   child: { label: 'Çocuğum', icon: '◎', roles: ['parent'] },
   trainings: { label: 'Antrenman', icon: '▦', roles: ['super_admin', 'admin', 'staff', 'parent'] },
   attendance: { label: 'Yoklama', icon: '✓', roles: ['super_admin', 'admin', 'staff'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'staff', 'parent'] },
-  accounting: { label: 'Muhasebe', icon: '↗', roles: ['super_admin', 'admin'] },
+  accounting: { label: 'Muhasebe', icon: '🧮', roles: ['super_admin', 'admin'] },
   accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['super_admin', 'admin'], hidden: true },
   userApprovals: { label: 'Kullanıcı Onayları', icon: '✓', roles: ['super_admin'] },
   notifications: { label: 'Bildirimler', icon: '●', roles: ['super_admin', 'admin', 'staff', 'parent'] }
