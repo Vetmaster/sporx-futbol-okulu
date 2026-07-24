@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.133';
+const APP_VERSION = '2026.07.24.134';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -597,7 +597,7 @@ function studentSortHeader(key, label) {
   return `<th aria-sort="${direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}"><button class="table-sort-button" type="button" data-action="student-sort" data-sort-key="${key}"><span>${label}</span><span class="sort-indicator" aria-hidden="true">${indicator}</span></button></th>`;
 }
 function studentSortValue(student, key) {
-  if (key === 'fee') return hasHistoricalFeeDebt(student) ? 'Borç var' : { none: 'Aidat yok', late: 'Ödenmedi', paid: 'Borç yok', exempt: 'Muaf', unknown: 'Kaynak notu' }[studentListFeeStatus(student)] || '';
+  if (key === 'fee') return studentHasFeeDebt(student) ? 'Borç var' : 'Borç yok';
   if (key === 'attendance') return Number(student.attendance) || 0;
   return key === 'group' ? `${student.group || ''} ${student.position || ''}` : student[key] || '';
 }
@@ -615,7 +615,7 @@ function sortStudentList(list) {
 function filteredAndSortedStudents() {
   const query = (document.querySelector('#studentSearch')?.value || '').toLocaleLowerCase('tr');
   const group = document.querySelector('#groupFilter')?.value || '';
-  const filtered = state.students.filter(student => (!state.activeStudentsOnly || isActiveStudent(student)) && (!state.debtStudentsOnly || unpaidFeePeriods(student).length > 0) && (!query || `${student.name} ${student.parent}`.toLocaleLowerCase('tr').includes(query)) && (!group || student.group === group));
+  const filtered = state.students.filter(student => (!state.activeStudentsOnly || isActiveStudent(student)) && (!state.debtStudentsOnly || studentHasFeeDebt(student)) && (!query || `${student.name} ${student.parent}`.toLocaleLowerCase('tr').includes(query)) && (!group || student.group === group));
   return sortStudentList(filtered);
 }
 function updateStudentsTable() {
@@ -632,13 +632,8 @@ function updateStudentSortHeaders() {
     button.closest('th')?.setAttribute('aria-sort', active ? state.studentSortDirection === 'asc' ? 'ascending' : 'descending' : 'none');
   });
 }
-function studentListFeeStatus(student) { return unpaidFeePeriods(student).length > 0 ? 'late' : currentFeeStatus(student); }
-function hasHistoricalFeeDebt(student) { return unpaidFeePeriods(student).some(month => month < feeMonthKey()); }
-function studentListFeeLabel(student) {
-  if (hasHistoricalFeeDebt(student)) return '<span class="status danger">Borç var</span>';
-  const status = studentListFeeStatus(student);
-  return status === 'paid' ? '<span class="status">Borç yok</span>' : statusLabel(status);
-}
+function studentHasFeeDebt(student) { return unpaidFeePeriods(student).length > 0; }
+function studentListFeeLabel(student) { return studentHasFeeDebt(student) ? '<span class="status danger">Borç var</span>' : '<span class="status">Borç yok</span>'; }
 function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${s.group}${s.position ? ` · ${s.position}` : ''}</td><td>${s.parent || '—'}<br><small class="muted">${s.phone}</small></td><td>${studentListFeeLabel(s)}</td><td>%${s.attendance}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
 
 function childView() {
