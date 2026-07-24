@@ -27,7 +27,7 @@ button { cursor: pointer; }
 .auth-brand { display: flex; align-items: center; gap: 22px; color: white; }
 .auth-brand p { margin: 8px 0 0; opacity: .76; font-size: clamp(16px, 2vw, 22px); }
 .brand-name { font-family: "Anta", var(--font); font-size: clamp(40px, 6vw, 76px); letter-spacing: -.02em; line-height: .9; }
-.brand-mark { width: 96px; aspect-ratio: 1; border-radius: 24px; display: grid; place-items: center; background: var(--lime); color: var(--brand-dark); font: 900 42px/1 "Anta", sans-serif; letter-spacing: -.08em; transform: skew(-6deg); box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+.brand-mark { width: 96px; aspect-ratio: 1; border-radius: 24px; display: grid; place-items: center; background: var(--lime) url("sasa-f-icon.svg?v=2026.07.24.117") center/cover no-repeat; color: transparent; font: 900 42px/1 "Anta", sans-serif; letter-spacing: -.08em; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
 .brand-mark.small { width: 38px; border-radius: 10px; font-size: 17px; box-shadow: none; }
 .auth-card { background: var(--panel); border-radius: 22px; padding: clamp(24px, 5vw, 44px); display: grid; gap: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.2); }
 .auth-card h1 { margin: 8px 0 6px; font-size: clamp(28px, 4vw, 42px); }
@@ -296,7 +296,7 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 100; max-width: 360px; padding: 13px 17px; border-radius: 11px; color: white; background: var(--ink); box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
 .install-prompt { position: fixed; right: 22px; bottom: 22px; z-index: 90; display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px 14px; width: min(470px, calc(100% - 32px)); padding: 18px; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; color: white; background: linear-gradient(135deg, #0b1510, #123a27); box-shadow: 0 22px 60px rgba(4,22,13,.34); }
-.install-prompt-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; color: var(--brand-dark); background: var(--lime); font-family: "Anta", sans-serif; font-size: 18px; }
+.install-prompt-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; color: transparent; background: var(--lime) url("sasa-f-icon.svg?v=2026.07.24.117") center/cover no-repeat; font-family: "Anta", sans-serif; font-size: 18px; }
 .install-prompt-copy { display: grid; gap: 4px; align-content: center; }
 .install-prompt-copy strong { font-size: 16px; }
 .install-prompt-copy span { color: rgba(255,255,255,.7); font-size: 13px; line-height: 1.4; }
