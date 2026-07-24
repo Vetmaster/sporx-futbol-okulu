@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.114';
+const APP_VERSION = '2026.07.24.115';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -654,6 +654,11 @@ function attendanceView() {
 function feesView() {
   const isParent = state.role === 'parent';
   const allStudents = isParent ? state.students.slice(0,1) : state.students;
+  const parentStudent = isParent ? allStudents[0] : null;
+  const parentUnpaidMonths = parentStudent ? unpaidFeePeriods(parentStudent) : [];
+  const parentDebtBalance = parentStudent
+    ? parentUnpaidMonths.reduce((total, month) => total + monthlyFeeAmount(parentStudent, month), 0)
+    : 0;
   const pendingStudents = allStudents.filter(student => currentFeeStatus(student) === 'late');
   const list = state.feeFilter === 'pending' ? pendingStudents : allStudents;
   const currentMonth = feeMonthKey();
@@ -664,7 +669,14 @@ function feesView() {
   const pending = pendingStudents.length * 1500;
   const title = state.feeFilter === 'pending' && !isParent ? 'Ödemesi yapılmamış öğrenciler' : isParent ? 'Aidat bilgilerim' : 'Aidat takip listesi';
   const headerAction = state.feeFilter === 'pending' && !isParent ? '<button class="secondary-button" data-action="fee-filter" data-filter="all">Tüm aidatları göster</button>' : !isParent ? '<button class="primary-button" data-action="collect-fee">+ Tahsilat gir</button>' : '';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci</p></div>${headerAction}</div><section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${list.map(s => { const status = currentFeeStatus(s); const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>${status === 'none' ? '—' : '₺1.500'}</td><td>${formatFeeDueDate(currentMonth)}</td><td>${statusLabel(status)}</td>${!isParent ? `<td>${paymentAction}</td>` : ''}</tr>`; }).join('')}</tbody></table></section></div>`;
+  const summaryMarkup = isParent
+    ? `<section class="stats-grid"><article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${parentDebtBalance ? `${formatCurrency(parentDebtBalance)} borç bakiyesi` : 'Aidat borcunuz yoktur.'}</strong><small>${parentDebtBalance ? `${parentUnpaidMonths.length} ödenmemiş dönem` : 'Ödenmemiş aidat bulunmuyor'}</small></article></section>`
+    : `<section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section>`;
+  const tableRows = isParent
+    ? parentUnpaidMonths.map(month => `<tr><td>${studentNameLink(parentStudent)}</td><td>${formatFeeMonth(month)}</td><td>${formatCurrency(monthlyFeeAmount(parentStudent, month))}</td><td>${formatFeeDueDate(month)}</td><td>${statusLabel('late')}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty-state">Aidat borcunuz bulunmuyor.</div></td></tr>'
+    : list.map(s => { const status = currentFeeStatus(s); const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>${status === 'none' ? '—' : '₺1.500'}</td><td>${formatFeeDueDate(currentMonth)}</td><td>${statusLabel(status)}</td><td>${paymentAction}</td></tr>`; }).join('');
+  const subtitle = isParent ? `${parentUnpaidMonths.length} ödenmemiş dönem` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}<section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
 }
 
 function accountingPeriodFiltersMarkup() {
