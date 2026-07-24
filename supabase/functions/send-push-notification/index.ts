@@ -66,7 +66,36 @@ Deno.serve(async request => {
   await admin.from('notifications').update({ status: 'queued' }).eq('id', notification.id);
 
   let recipientIds: string[] = [];
-  if (notification.audience.endsWith(' velileri') && notification.audience !== 'Tüm veliler') {
+  if (['Aidat borcu olanlar', 'Aidat borcu olmayanlar'].includes(notification.audience)) {
+    const { data: students, error: studentsError } = await admin
+      .from('students')
+      .select('id, guardian_user_id')
+      .eq('school_id', notification.school_id)
+      .not('guardian_user_id', 'is', null);
+    if (studentsError) return json({ error: 'Students could not be loaded' }, 500);
+
+    const studentIds = (students || []).map(student => student.id);
+    const { data: unpaidFees, error: feeError } = studentIds.length
+      ? await admin
+        .from('fee_periods')
+        .select('student_id')
+        .eq('school_id', notification.school_id)
+        .eq('status', 'late')
+        .in('student_id', studentIds)
+      : { data: [], error: null };
+    if (feeError) return json({ error: 'Fee periods could not be loaded' }, 500);
+
+    const debtorStudentIds = new Set((unpaidFees || []).map(fee => Number(fee.student_id)));
+    const allGuardianIds = new Set((students || []).map(student => student.guardian_user_id));
+    const debtorGuardianIds = new Set(
+      (students || [])
+        .filter(student => debtorStudentIds.has(Number(student.id)))
+        .map(student => student.guardian_user_id)
+    );
+    recipientIds = notification.audience === 'Aidat borcu olanlar'
+      ? [...debtorGuardianIds]
+      : [...allGuardianIds].filter(guardianId => !debtorGuardianIds.has(guardianId));
+  } else if (notification.audience.endsWith(' velileri') && notification.audience !== 'Tüm veliler') {
     const groupName = notification.audience.slice(0, -' velileri'.length);
     const { data: group } = await admin
       .from('training_groups')
