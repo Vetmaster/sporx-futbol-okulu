@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.66';
+const APP_VERSION = '2026.07.24.67';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -162,6 +162,10 @@ function studentBirthInputValue(value) {
   return match ? `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}` : '';
 }
 function formatStudentBirthDate(value) { const [year, month, day] = String(value).split('-'); return year && month && day ? `${day}.${month}.${year}` : value; }
+function studentBirthYearLabel(student) {
+  const year = String(student?.birth || '').match(/(?:19|20)\d{2}/)?.[0];
+  return year ? `${year} doğumlu` : 'Doğum yılı belirtilmedi';
+}
 function feeMonthKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function formatFeeMonth(key) { const [year, month] = String(key).split('-').map(Number); return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)); }
 function formatFeeDueDate(key) {
@@ -374,7 +378,7 @@ function parentDashboard() {
   const feeStatus = currentFeeStatus(student);
   const feeText = feeStatus === 'paid' ? 'Ödendi' : feeStatus === 'late' ? 'Ödenmedi' : feeStatus === 'none' ? 'Aidat yok' : 'Bekliyor';
   return `<div class="page-stack">
-    <section class="panel parent-hero"><span class="profile-avatar">${initials(student.name)}</span><div><h2>Veli paneli</h2><p>${studentNameLink(student, true)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></section>
+    <section class="panel parent-hero"><span class="profile-avatar">${initials(student.name)}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></section>
     <section class="stats-grid">
       <article class="stat-card"><span class="label">Sıradaki antrenman</span><strong>Salı 18:00</strong><small>Ana saha</small></article>
       <article class="stat-card"><span class="label">${formatFeeMonth(feeMonthKey())} aidatı</span><strong>${feeText}</strong><small>Güncel ödeme durumu</small></article>
@@ -580,7 +584,9 @@ function render() {
   document.querySelector('#pageSubtitle').textContent = subtitle;
   document.querySelector('#sidebarRole').textContent = roleNames[state.role];
   document.querySelector('#sidebarUser').textContent = state.userFullName || state.userEmail || 'Sasa Futbol Kullanıcısı';
-  document.querySelector('#topbarSessionRole').textContent = roleNames[state.role];
+  const topbarSessionRole = document.querySelector('#topbarSessionRole');
+  topbarSessionRole.textContent = roleNames[state.role];
+  topbarSessionRole.classList.toggle('is-hidden', state.role === 'parent');
   document.querySelector('.user-avatar').textContent = initials(state.userFullName || state.userEmail || 'SF');
   appContent.innerHTML = views[state.page]();
   appContent.focus({ preventScroll: true });
