@@ -1,4 +1,6 @@
-const APP_VERSION = '2026.07.24.104';
+const APP_VERSION = '2026.07.24.105';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.0-beta/SASA-F-v1.0-beta.apk';
+const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -175,6 +177,55 @@ const loginPasswordConfirm = document.querySelector('#loginPasswordConfirm');
 const signupFullName = document.querySelector('#signupFullName');
 const loginSubmitButton = document.querySelector('#loginSubmitButton');
 const authMessage = document.querySelector('#authMessage');
+const installPrompt = document.querySelector('#installPrompt');
+const installAppButton = document.querySelector('#installAppButton');
+let deferredInstallPrompt = null;
+
+function runsAsInstalledApp() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function shouldOfferAndroidInstall() {
+  return /Android/i.test(window.navigator.userAgent)
+    && !runsAsInstalledApp()
+    && !window.localStorage.getItem(INSTALL_PROMPT_DISMISS_KEY);
+}
+
+function showAndroidInstallPrompt() {
+  if (shouldOfferAndroidInstall()) installPrompt.classList.remove('is-hidden');
+}
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  installAppButton.classList.remove('is-hidden');
+  showAndroidInstallPrompt();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  installPrompt.classList.add('is-hidden');
+});
+
+installAppButton.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installAppButton.classList.add('is-hidden');
+  installPrompt.classList.add('is-hidden');
+});
+
+document.querySelector('#downloadApkButton').addEventListener('click', () => {
+  window.location.assign(ANDROID_APK_URL);
+});
+
+document.querySelector('#dismissInstallPrompt').addEventListener('click', () => {
+  window.localStorage.setItem(INSTALL_PROMPT_DISMISS_KEY, '1');
+  installPrompt.classList.add('is-hidden');
+});
+
+window.setTimeout(showAndroidInstallPrompt, 1200);
 function syncGroupOptions() {
   document.querySelectorAll('select[name="group"]').forEach(select => {
     const existingGroups = new Set([...select.options].map(option => option.value));

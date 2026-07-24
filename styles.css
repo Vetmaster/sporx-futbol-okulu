@@ -292,6 +292,15 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
 .empty-state { padding: 24px; color: var(--muted); text-align: center; }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 100; max-width: 360px; padding: 13px 17px; border-radius: 11px; color: white; background: var(--ink); box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
+.install-prompt { position: fixed; right: 22px; bottom: 22px; z-index: 90; display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px 14px; width: min(470px, calc(100% - 32px)); padding: 18px; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; color: white; background: linear-gradient(135deg, #0b1510, #123a27); box-shadow: 0 22px 60px rgba(4,22,13,.34); }
+.install-prompt-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; color: var(--brand-dark); background: var(--lime); font-family: "Anta", sans-serif; font-size: 18px; }
+.install-prompt-copy { display: grid; gap: 4px; align-content: center; }
+.install-prompt-copy strong { font-size: 16px; }
+.install-prompt-copy span { color: rgba(255,255,255,.7); font-size: 13px; line-height: 1.4; }
+.install-prompt-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.install-prompt-actions .primary-button, .install-prompt-actions .secondary-button { min-height: 38px; padding: 8px 13px; }
+.install-prompt-actions .secondary-button { color: white; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
+.install-prompt-dismiss { min-height: 38px; padding: 7px 10px; border: 0; color: rgba(255,255,255,.72); background: transparent; font-weight: 700; cursor: pointer; }
 .bottom-nav, .sidebar-scrim { display: none; }
 @media (min-width: 821px) {
   .sidebar { padding-top: 96px; }
@@ -364,4 +373,8 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
   .dialog-actions button { flex: 1; }
   .training-sort-control { width: 100%; justify-content: flex-end; }
   .training-sort-control select { min-width: 0; max-width: 230px; }
+  .install-prompt { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .install-prompt-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .install-prompt-actions .primary-button, .install-prompt-actions .secondary-button { width: 100%; }
+  .install-prompt-dismiss { grid-column: 1 / -1; }
 }
