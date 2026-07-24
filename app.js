@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.121';
+const APP_VERSION = '2026.07.24.122';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -423,6 +423,9 @@ function accountingPeriodEntries() {
     const [year, month, day] = accountingDateInputValue(entry.date).split('-').map(Number);
     const entryDate = new Date(year, month - 1, day);
     return entryDate >= start && entryDate <= end;
+  }).sort((left, right) => {
+    const dateOrder = accountingDateInputValue(right.date).localeCompare(accountingDateInputValue(left.date));
+    return dateOrder || (Number(right.id) || 0) - (Number(left.id) || 0);
   });
 }
 function studentsForTraining(training) { return state.students.filter(student => student.group === training.group); }
