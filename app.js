@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.105';
+const APP_VERSION = '2026.07.24.106';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.0-beta/SASA-F-v1.0-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
@@ -1020,6 +1020,15 @@ async function getPushRegistration() {
   return navigator.serviceWorker.register('./service-worker.js', { scope: './' });
 }
 
+async function invokePushFunction(body) {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  return supabaseClient.functions.invoke('send-push-notification', {
+    body,
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+  });
+}
+
 async function refreshPushStatus(shouldRender = false) {
   if (!pushSupported()) {
     state.pushStatus = 'unsupported';
@@ -1055,9 +1064,7 @@ async function enablePhoneNotifications() {
   const registration = await getPushRegistration();
   let subscription = await registration.pushManager.getSubscription();
   if (!subscription) {
-    const { data, error } = await supabaseClient.functions.invoke('send-push-notification', {
-      body: { action: 'public-key' }
-    });
+    const { data, error } = await invokePushFunction({ action: 'public-key' });
     if (error || !data?.publicKey) throw new Error(error?.message || 'Bildirim anahtarı alınamadı.');
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
@@ -1551,9 +1558,7 @@ appContent.addEventListener('submit', async event => {
   render();
   markAllNotificationsRead();
   try {
-    const { data: result, error } = await supabaseClient.functions.invoke('send-push-notification', {
-      body: { action: 'send', notificationId: notification.id }
-    });
+    const { data: result, error } = await invokePushFunction({ action: 'send', notificationId: notification.id });
     if (error) throw error;
     notification.status = result.sent > 0 ? 'Teslim edildi' : 'Başarısız';
     render();

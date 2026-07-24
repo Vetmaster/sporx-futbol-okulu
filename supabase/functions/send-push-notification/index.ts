@@ -18,9 +18,16 @@ Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
+  const body = await request.json().catch(() => ({}));
+  const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
+  if (body.action === 'public-key') {
+    return vapidPublicKey
+      ? json({ publicKey: vapidPublicKey })
+      : json({ error: 'Push service is not configured' }, 503);
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
   if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
     return json({ error: 'Push service is not configured' }, 503);
@@ -43,8 +50,6 @@ Deno.serve(async request => {
     .maybeSingle();
   if (profileError || !callerProfile) return json({ error: 'Profile not found' }, 403);
 
-  const body = await request.json().catch(() => ({}));
-  if (body.action === 'public-key') return json({ publicKey: vapidPublicKey });
   if (body.action !== 'send' || !body.notificationId) return json({ error: 'Invalid request' }, 400);
   if (!['super_admin', 'admin', 'staff'].includes(callerProfile.role)) {
     return json({ error: 'Forbidden' }, 403);
