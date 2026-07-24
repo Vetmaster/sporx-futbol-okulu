@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.127';
+const APP_VERSION = '2026.07.24.128';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1278,10 +1278,12 @@ function updateFeePaymentFields() {
 function openFeeDefinitionDialog() {
   const form = document.querySelector('#feeDefinitionForm');
   form.reset();
-  document.querySelector('#feeDefinitionStudent').innerHTML = `<option value="">Öğrenci seçiniz</option>${[...state.students]
+  document.querySelector('#feeDefinitionStudentOptions').innerHTML = [...state.students]
     .sort((left, right) => left.name.localeCompare(right.name, 'tr-TR'))
-    .map(student => `<option value="${student.id}">${escapeHtml(student.name)} · ${escapeHtml(student.group)}</option>`)
-    .join('')}`;
+    .map(student => `<option value="${escapeHtml(student.name)} · ${escapeHtml(student.group)} · ${escapeHtml(studentBirthYearLabel(student))}" data-id="${student.id}"></option>`)
+    .join('');
+  form.elements.studentSearch.value = '';
+  form.elements.studentId.value = '';
   form.elements.period.value = feeMonthKey();
   form.elements.amount.value = '1500';
   form.elements.status.value = 'late';
@@ -1289,6 +1291,14 @@ function openFeeDefinitionDialog() {
   form.elements.paymentMethod.value = 'cash';
   updateFeePaymentFields();
   document.querySelector('#feeDefinitionDialog').showModal();
+}
+
+function syncFeeDefinitionStudent() {
+  const form = document.querySelector('#feeDefinitionForm');
+  const searchValue = form.elements.studentSearch.value.trim();
+  const selectedOption = [...document.querySelector('#feeDefinitionStudentOptions').options]
+    .find(option => option.value === searchValue);
+  form.elements.studentId.value = selectedOption?.dataset.id || '';
 }
 
 function closeLedgerActions() {
@@ -1641,6 +1651,7 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
   showToast(wasEditing ? 'Antrenman Supabase’de güncellendi.' : 'Antrenman Supabase’e kaydedildi.');
 });
 document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
+document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', syncFeeDefinitionStudent);
 document.querySelector('#feeDefinitionForm').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1649,8 +1660,12 @@ document.querySelector('#feeDefinitionForm').addEventListener('submit', async ev
   const month = String(data.get('period') || '');
   const status = data.get('status') === 'paid' ? 'paid' : 'late';
   const amount = Number(data.get('amount'));
-  if (!student || !/^\d{4}-\d{2}$/.test(month) || !Number.isFinite(amount) || amount <= 0) {
-    showToast('Öğrenci, dönem ve aidat tutarı bilgilerini kontrol edin.');
+  if (!student) {
+    showToast('Arama sonuçlarından geçerli bir öğrenci seçin.');
+    return;
+  }
+  if (!/^\d{4}-\d{2}$/.test(month) || !Number.isFinite(amount) || amount <= 0) {
+    showToast('Dönem ve aidat tutarı bilgilerini kontrol edin.');
     return;
   }
   const paymentDetails = status === 'paid'

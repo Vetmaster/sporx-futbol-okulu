@@ -192,7 +192,11 @@
         <button class="icon-button" type="button" data-dialog-close="feeDefinitionDialog" aria-label="Kapat">×</button>
       </div>
       <div class="form-grid">
-        <label class="full-field">Öğrenci<select name="studentId" id="feeDefinitionStudent" required><option value="">Öğrenci seçiniz</option></select></label>
+        <label class="full-field">Öğrenci
+          <input name="studentSearch" id="feeDefinitionStudentSearch" type="search" list="feeDefinitionStudentOptions" placeholder="İsim veya grup yazarak arayın" autocomplete="off" required>
+          <input name="studentId" id="feeDefinitionStudentId" type="hidden">
+          <datalist id="feeDefinitionStudentOptions"></datalist>
+        </label>
         <label>Dönem<input name="period" type="month" required></label>
         <label>Aidat tutarı (₺)<input name="amount" type="number" min="1" step="1" inputmode="numeric" value="1500" required></label>
         <label class="full-field">Aidat durumu<select name="status" id="feeDefinitionStatus" required><option value="late">Ödenmedi</option><option value="paid">Ödendi</option></select></label>
@@ -208,6 +212,6 @@
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
   <script src="supabase-data.js?v=2026.07.24.127"></script>
-  <script src="app.js?v=2026.07.24.127"></script>
+  <script src="app.js?v=2026.07.24.128"></script>
 </body>
 </html>
