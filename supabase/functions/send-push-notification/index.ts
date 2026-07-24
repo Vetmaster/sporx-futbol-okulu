@@ -104,7 +104,7 @@ Deno.serve(async request => {
     title: notification.title,
     body: notification.body,
     tag: `sasa-f-${notification.id}`,
-    url: 'https://vetmaster.github.io/sporx-futbol-okulu/'
+    url: 'https://vetmaster.github.io/sporx-futbol-okulu/?open=notifications'
   });
 
   const results = await Promise.allSettled(subscriptions.map(async subscription => {

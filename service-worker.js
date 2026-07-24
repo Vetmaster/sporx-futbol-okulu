@@ -1,4 +1,7 @@
-const NOTIFICATION_URL = new URL('./', self.registration.scope).href;
+const NOTIFICATION_URL = new URL('./?open=notifications', self.registration.scope).href;
+
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', event => event.waitUntil(clients.claim()));
 
 self.addEventListener('push', event => {
   let payload = {};

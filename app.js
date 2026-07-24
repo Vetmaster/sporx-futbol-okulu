@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.100';
+const APP_VERSION = '2026.07.24.101';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -869,6 +869,12 @@ async function showAuthenticatedApp(user) {
     openDashboardAfterPasswordLogin = false;
   } else {
     restoreNavigationState(user.id);
+  }
+  const requestedPage = new URLSearchParams(window.location.search).get('open');
+  if (requestedPage === 'notifications' && navItems.notifications.roles.includes(state.role)) {
+    state.page = 'notifications';
+    state.pageHistory = [];
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
   }
   document.querySelector('#authPasswordField').classList.remove('is-hidden');
   loginSubmitButton.classList.remove('is-hidden');
