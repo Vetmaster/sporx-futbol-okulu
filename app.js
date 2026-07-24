@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.23.64';
+const APP_VERSION = '2026.07.24.65';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -808,6 +808,7 @@ async function showAuthenticatedApp(user) {
 
 async function logout() {
   if (!supabaseClient) return;
+  persistNavigationState();
   signedOutMessage = 'Oturumunuz güvenli biçimde kapatıldı.';
   const { error } = await supabaseClient.auth.signOut();
   if (error) {
@@ -819,7 +820,6 @@ async function logout() {
   state.userEmail = '';
   state.userId = null;
   stopRealtimeSync();
-  window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
 }
 
 function friendlyAuthError(error) {
