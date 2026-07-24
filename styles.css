@@ -240,6 +240,10 @@ dialog::backdrop { background: rgba(8,23,14,.62); backdrop-filter: blur(3px); }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 100; max-width: 360px; padding: 13px 17px; border-radius: 11px; color: white; background: var(--ink); box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
 .bottom-nav, .sidebar-scrim { display: none; }
+@media (min-width: 821px) {
+  .sidebar { padding-top: 96px; }
+  .app-banner { width: calc(100% + 248px); margin-left: -248px; z-index: 31; }
+}
 @media (max-width: 1080px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .card-grid { grid-template-columns: repeat(2, 1fr); }
