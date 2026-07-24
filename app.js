@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.129';
+const APP_VERSION = '2026.07.24.130';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -45,6 +45,7 @@ const state = {
   activeTrainingId: null,
   selectedStudentId: null,
   activeStudentsOnly: true,
+  debtStudentsOnly: false,
   studentSortKey: null,
   studentSortDirection: 'asc',
   trainingSortDirection: 'asc',
@@ -584,7 +585,7 @@ function studentsView() {
   const visibleStudents = filteredAndSortedStudents();
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kayıtlı öğrenciler</h2><p>Öğrenci kayıtları ve profilleri</p></div><button class="primary-button" data-action="add-student">+ Yeni öğrenci</button></div>
     <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="Öğrenci veya veli ara"><select id="groupFilter"><option value="">Tüm gruplar</option>${GROUPS.map(group => `<option>${group}</option>`).join('')}</select></div>
-    <label class="students-active-filter"><input id="activeStudentsOnlyFilter" type="checkbox" ${state.activeStudentsOnly ? 'checked' : ''}><span>Sadece aktif öğrenciler</span></label>
+    <div class="students-checkbox-filters"><label class="students-active-filter"><input id="activeStudentsOnlyFilter" type="checkbox" ${state.activeStudentsOnly ? 'checked' : ''}><span>Sadece aktif öğrenciler</span></label><label class="students-active-filter"><input id="debtStudentsOnlyFilter" type="checkbox" ${state.debtStudentsOnly ? 'checked' : ''}><span>Aidat borcu olanlar</span></label></div>
     <div class="student-list-summary" aria-live="polite"><span>Listelenen öğrenci sayısı</span><strong><span id="studentsCountSummary">${visibleStudents.length}</span> / ${state.students.length}</strong></div>
     <section class="panel table-wrap"><table><thead><tr>${studentSortHeader('name', 'Öğrenci')}${studentSortHeader('birth', 'Doğum tarihi')}${studentSortHeader('group', 'Grup / Mevki')}${studentSortHeader('parent', 'Veli')}${studentSortHeader('fee', 'Aidat')}${studentSortHeader('attendance', 'Devam')}<th></th></tr></thead><tbody id="studentsBody">${studentRows(visibleStudents)}</tbody></table></section></div>`;
 }
@@ -614,7 +615,7 @@ function sortStudentList(list) {
 function filteredAndSortedStudents() {
   const query = (document.querySelector('#studentSearch')?.value || '').toLocaleLowerCase('tr');
   const group = document.querySelector('#groupFilter')?.value || '';
-  const filtered = state.students.filter(student => (!state.activeStudentsOnly || isActiveStudent(student)) && (!query || `${student.name} ${student.parent}`.toLocaleLowerCase('tr').includes(query)) && (!group || student.group === group));
+  const filtered = state.students.filter(student => (!state.activeStudentsOnly || isActiveStudent(student)) && (!state.debtStudentsOnly || unpaidFeePeriods(student).length > 0) && (!query || `${student.name} ${student.parent}`.toLocaleLowerCase('tr').includes(query)) && (!group || student.group === group));
   return sortStudentList(filtered);
 }
 function updateStudentsTable() {
@@ -1546,8 +1547,9 @@ document.addEventListener('click', async event => {
 });
 
 appContent.addEventListener('input', event => {
-  if (!['studentSearch', 'groupFilter', 'activeStudentsOnlyFilter'].includes(event.target.id)) return;
+  if (!['studentSearch', 'groupFilter', 'activeStudentsOnlyFilter', 'debtStudentsOnlyFilter'].includes(event.target.id)) return;
   if (event.target.id === 'activeStudentsOnlyFilter') state.activeStudentsOnly = event.target.checked;
+  if (event.target.id === 'debtStudentsOnlyFilter') state.debtStudentsOnly = event.target.checked;
   updateStudentsTable();
 });
 
