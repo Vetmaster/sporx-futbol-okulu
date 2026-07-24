@@ -1,6 +1,8 @@
 const APP_VERSION = '2026.07.24.108';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.1-beta/SASA-F-v1.0.1-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
+const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
+const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -179,6 +181,9 @@ const loginSubmitButton = document.querySelector('#loginSubmitButton');
 const authMessage = document.querySelector('#authMessage');
 const installPrompt = document.querySelector('#installPrompt');
 const installAppButton = document.querySelector('#installAppButton');
+const appUpdatePrompt = document.querySelector('#appUpdatePrompt');
+const appUpdatePromptDescription = document.querySelector('#appUpdatePromptDescription');
+let pendingUpdateUrl = ANDROID_APK_URL;
 let deferredInstallPrompt = null;
 
 function runsAsInstalledApp() {
@@ -226,6 +231,51 @@ document.querySelector('#dismissInstallPrompt').addEventListener('click', () => 
 });
 
 window.setTimeout(showAndroidInstallPrompt, 1200);
+
+function androidShellVersion() {
+  const versionFromLaunchUrl = Number(new URLSearchParams(window.location.search).get('nativeVersion'));
+  if (versionFromLaunchUrl > 0) {
+    window.localStorage.setItem(NATIVE_VERSION_STORAGE_KEY, String(versionFromLaunchUrl));
+    return versionFromLaunchUrl;
+  }
+  return Number(window.localStorage.getItem(NATIVE_VERSION_STORAGE_KEY)) || 1;
+}
+
+function runsInAndroidAppShell() {
+  const launchedWithVersion = new URLSearchParams(window.location.search).has('nativeVersion');
+  return launchedWithVersion || document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
+}
+
+async function checkForAndroidUpdate() {
+  if (!runsInAndroidAppShell()) return;
+  try {
+    const response = await fetch(`android-version.json?check=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const release = await response.json();
+    const latestVersionCode = Number(release.versionCode);
+    if (!latestVersionCode || latestVersionCode <= androidShellVersion()) return;
+    if (window.sessionStorage.getItem(`sasa_update_dismissed_${latestVersionCode}`)) return;
+    pendingUpdateUrl = release.apkUrl || ANDROID_APK_URL;
+    appUpdatePrompt.dataset.versionCode = String(latestVersionCode);
+    appUpdatePromptDescription.textContent = `${release.versionName || 'Yeni sürüm'} hazır. Güncel özellikler ve yeni logo için uygulamayı güncelleyin.`;
+    appUpdatePrompt.classList.remove('is-hidden');
+  } catch (error) {
+    console.warn('Android sürüm kontrolü yapılamadı:', error);
+  }
+}
+
+document.querySelector('#updateAppButton').addEventListener('click', () => {
+  window.location.assign(pendingUpdateUrl);
+});
+
+document.querySelector('#dismissUpdatePrompt').addEventListener('click', () => {
+  const versionCode = appUpdatePrompt.dataset.versionCode;
+  if (versionCode) window.sessionStorage.setItem(`sasa_update_dismissed_${versionCode}`, '1');
+  appUpdatePrompt.classList.add('is-hidden');
+});
+
+window.setTimeout(checkForAndroidUpdate, 1500);
+
 function syncGroupOptions() {
   document.querySelectorAll('select[name="group"]').forEach(select => {
     const existingGroups = new Set([...select.options].map(option => option.value));

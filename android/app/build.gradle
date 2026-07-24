@@ -23,7 +23,7 @@ plugins {
 def twaManifest = [
     applicationId: 'com.sasafutbol.yonetim',
     hostName: 'vetmaster.github.io', // The domain being opened in the TWA.
-    launchUrl: '/sporx-futbol-okulu/', // The start path for the TWA. Must be relative to the domain.
+    launchUrl: '/sporx-futbol-okulu/?nativeVersion=2', // The start path for the TWA. Must be relative to the domain.
     name: 'SASA-F Futbol Okulu Yönetim Sistemi', // The application name.
     launcherName: 'SASA-F', // The name shown on the Android Launcher.
     themeColor: '#176B43', // The color used for the status bar.
