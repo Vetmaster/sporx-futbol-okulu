@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.67';
+const APP_VERSION = '2026.07.24.68';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -248,6 +248,7 @@ function monthlyFeeRows(student) {
   }).join('');
 }
 function formatTrainingDate(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
+function formatTrainingDateLong(value) { return value ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }).format(new Date(`${value}T00:00:00`)) : 'Tarih belirtilmedi'; }
 function sortedTrainings(list, direction = 'asc') {
   const multiplier = direction === 'desc' ? -1 : 1;
   return [...list].sort((left, right) => `${left.date || ''}T${left.time || ''}`.localeCompare(`${right.date || ''}T${right.time || ''}`) * multiplier);
@@ -377,10 +378,17 @@ function parentDashboard() {
   const student = state.students[0];
   const feeStatus = currentFeeStatus(student);
   const feeText = feeStatus === 'paid' ? 'Ödendi' : feeStatus === 'late' ? 'Ödenmedi' : feeStatus === 'none' ? 'Aidat yok' : 'Bekliyor';
+  const now = new Date();
+  const currentDateTime = `${localDateValue(now)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const nextTraining = sortedTrainings(state.trainings.filter(training => training.group === student.group))
+    .find(training => `${training.date || ''}T${training.time || ''}` >= currentDateTime);
+  const nextTrainingCard = nextTraining
+    ? `<article class="stat-card next-training-card"><span class="label">Sıradaki antrenman</span><strong>${formatTrainingDateLong(nextTraining.date)} · ${nextTraining.time}</strong><div class="next-training-details"><span><b>Tür:</b> ${nextTraining.title}</span><span><b>Süre:</b> ${nextTraining.duration || 90} dakika</span><span><b>Hoca:</b> ${nextTraining.coach}</span></div></article>`
+    : '<article class="stat-card next-training-card"><span class="label">Sıradaki antrenman</span><strong>Planlanmış antrenman yok</strong><small>Öğrencinin grubu için yaklaşan kayıt bulunmuyor.</small></article>';
   return `<div class="page-stack">
     <section class="panel parent-hero"><span class="profile-avatar">${initials(student.name)}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></section>
     <section class="stats-grid">
-      <article class="stat-card"><span class="label">Sıradaki antrenman</span><strong>Salı 18:00</strong><small>Ana saha</small></article>
+      ${nextTrainingCard}
       <article class="stat-card"><span class="label">${formatFeeMonth(feeMonthKey())} aidatı</span><strong>${feeText}</strong><small>Güncel ödeme durumu</small></article>
       <article class="stat-card"><span class="label">Katılım oranı</span><strong>%${student.attendance}</strong><small>Son 30 gün</small></article>
       <article class="stat-card"><span class="label">Yeni duyuru</span><strong>2</strong><small>Okunmayı bekliyor</small></article>
