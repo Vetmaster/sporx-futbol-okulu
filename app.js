@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.87';
+const APP_VERSION = '2026.07.24.88';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -71,7 +71,7 @@ const navItems = {
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   child: { label: 'Çocuğum', icon: '◎', roles: ['parent'] },
-  trainings: { label: 'Antrenman', icon: '▦', roles: ['super_admin', 'admin', 'staff', 'parent'] },
+  trainings: { label: 'Antrenman', icon: '🏃', roles: ['super_admin', 'admin', 'staff', 'parent'] },
   attendance: { label: 'Yoklama', icon: '✓', roles: ['super_admin', 'admin', 'staff'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'staff', 'parent'] },
   accounting: { label: 'Muhasebe', icon: '🧮', roles: ['super_admin', 'admin'] },
