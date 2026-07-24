@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.94';
+const APP_VERSION = '2026.07.24.95';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -828,7 +828,7 @@ async function showAuthenticatedApp(user) {
   appShell.classList.add('is-hidden');
   configureAuthForm('login');
   document.querySelector('#authEyebrow').textContent = 'SASA-F.COM';
-  document.querySelector('#authTitle').textContent = 'Kulüp verileri yükleniyor';
+  document.querySelector('#authTitle').textContent = 'Kulüp verileri yükleniyor..';
   document.querySelector('#authDescription').textContent = 'Öğrenci, aidat, antrenman ve muhasebe kayıtları yükleniyor.';
   document.querySelector('#authEmailField').classList.add('is-hidden');
   document.querySelector('#authPasswordField').classList.add('is-hidden');
