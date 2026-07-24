@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.68';
+const APP_VERSION = '2026.07.24.69';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -376,8 +376,12 @@ function progress(label, value) { return `<div><div class="progress-label"><span
 
 function parentDashboard() {
   const student = state.students[0];
-  const feeStatus = currentFeeStatus(student);
-  const feeText = feeStatus === 'paid' ? 'Ödendi' : feeStatus === 'late' ? 'Ödenmedi' : feeStatus === 'none' ? 'Aidat yok' : 'Bekliyor';
+  const unpaidMonths = unpaidFeePeriods(student);
+  const feeDebtText = unpaidMonths.length === 0
+    ? 'Aidat borcunuz yoktur.'
+    : unpaidMonths.length === 1
+      ? `${formatFeeMonth(unpaidMonths[0])} ayına ait aidat borcunuz mevcuttur.`
+      : `${unpaidMonths.map(formatFeeMonth).join(', ')} aylarına ait aidat borcunuz mevcuttur.`;
   const now = new Date();
   const currentDateTime = `${localDateValue(now)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const nextTraining = sortedTrainings(state.trainings.filter(training => training.group === student.group))
@@ -389,7 +393,7 @@ function parentDashboard() {
     <section class="panel parent-hero"><span class="profile-avatar">${initials(student.name)}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></section>
     <section class="stats-grid">
       ${nextTrainingCard}
-      <article class="stat-card"><span class="label">${formatFeeMonth(feeMonthKey())} aidatı</span><strong>${feeText}</strong><small>Güncel ödeme durumu</small></article>
+      <article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${feeDebtText}</strong></article>
       <article class="stat-card"><span class="label">Katılım oranı</span><strong>%${student.attendance}</strong><small>Son 30 gün</small></article>
       <article class="stat-card"><span class="label">Yeni duyuru</span><strong>2</strong><small>Okunmayı bekliyor</small></article>
     </section>

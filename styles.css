@@ -95,6 +95,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .next-training-card strong { font-size: 18px; line-height: 1.35; }
 .next-training-details { display: grid; gap: 4px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .next-training-details b { color: var(--ink); }
+.parent-fee-card strong { font-size: 18px; line-height: 1.4; }
 .stat-link { border: 0; padding: 0; color: var(--brand); background: none; font-size: 13px; font-weight: 700; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
 .stat-link:hover, .stat-link:focus-visible { text-decoration-color: currentColor; }
 .stat-card-breakdown { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
