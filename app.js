@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.112';
+const APP_VERSION = '2026.07.24.113';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -222,6 +222,8 @@ installAppButton.addEventListener('click', async () => {
 });
 
 document.querySelector('#downloadApkButton').addEventListener('click', () => {
+  window.localStorage.setItem(INSTALL_PROMPT_DISMISS_KEY, '1');
+  installPrompt.classList.add('is-hidden');
   window.location.assign(ANDROID_APK_URL);
 });
 
