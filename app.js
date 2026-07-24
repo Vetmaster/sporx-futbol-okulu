@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.135';
+const APP_VERSION = '2026.07.24.136';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -50,6 +50,7 @@ const state = {
   studentSortDirection: 'asc',
   monthlyFeeSortKey: 'period',
   monthlyFeeSortDirection: 'desc',
+  monthlyFeeUnpaidOnly: false,
   trainingSortDirection: 'asc',
   feeFilter: 'all',
   accountingFilter: 'all',
@@ -429,7 +430,10 @@ function monthlyFeeSortValue(student, month, key) {
 }
 function sortedMonthlyFeePeriods(student) {
   const direction = state.monthlyFeeSortDirection === 'desc' ? -1 : 1;
-  return [...monthlyFeePeriods(student)].sort((left, right) => {
+  const periods = state.monthlyFeeUnpaidOnly
+    ? monthlyFeePeriods(student).filter(month => monthlyFeeStatus(student, month) === 'late')
+    : monthlyFeePeriods(student);
+  return [...periods].sort((left, right) => {
     const leftValue = monthlyFeeSortValue(student, left, state.monthlyFeeSortKey);
     const rightValue = monthlyFeeSortValue(student, right, state.monthlyFeeSortKey);
     return typeof leftValue === 'number' && typeof rightValue === 'number'
@@ -439,7 +443,9 @@ function sortedMonthlyFeePeriods(student) {
 }
 function monthlyFeeRows(student) {
   const canEdit = state.role !== 'parent';
-  return sortedMonthlyFeePeriods(student).map(month => {
+  const periods = sortedMonthlyFeePeriods(student);
+  if (!periods.length) return `<tr><td colspan="${canEdit ? 5 : 4}"><div class="empty-state">${state.monthlyFeeUnpaidOnly ? 'Ödenmemiş aidat bulunmuyor.' : 'Aidat dönemi bulunmuyor.'}</div></td></tr>`;
+  return periods.map(month => {
     const status = monthlyFeeStatus(student, month);
     const history = student.feeHistory?.[month];
     const amount = history?.amount !== null && history?.amount !== undefined ? formatCurrency(history.amount) : history?.note === 'Yıllık ödeme' ? 'Yıllık' : history || status === 'none' ? '—' : '₺1.500';
@@ -688,7 +694,7 @@ function studentProfileView() {
     <section class="panel student-profile-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div>${activeStudent ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
     <section class="stats-grid profile-stats-grid"><article class="stat-card"><span class="label">Devam oranı</span><strong>%${student.attendance}</strong><button class="stat-link" type="button" data-page="studentAttendanceHistory">${attendanceCount} kayıtlı yoklama</button></article>${feeSummaryCard}<article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article></section>
     <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Antrenman Grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position || 'Bilgi girilmedi'}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent || 'Bilgi girilmedi'}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd>${student.email ? `<a href="mailto:${student.email}">${student.email}</a>` : 'Bilgi girilmedi'}</dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
-    <section class="panel" id="monthlyFeeSection"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr>${monthlyFeeSortHeader('period', 'Dönem')}${monthlyFeeSortHeader('amount', 'Tutar')}${monthlyFeeSortHeader('due', 'Son ödeme')}${monthlyFeeSortHeader('status', 'Durum')}${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>
+    <section class="panel" id="monthlyFeeSection"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="students-checkbox-filters monthly-fee-filter"><label class="students-active-filter"><input id="monthlyFeeUnpaidOnlyFilter" type="checkbox" ${state.monthlyFeeUnpaidOnly ? 'checked' : ''}><span>Sadece ödenmemiş aidatları göster</span></label></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr>${monthlyFeeSortHeader('period', 'Dönem')}${monthlyFeeSortHeader('amount', 'Tutar')}${monthlyFeeSortHeader('due', 'Son ödeme')}${monthlyFeeSortHeader('status', 'Durum')}${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>
     <section class="panel"><div class="panel-heading"><h3>Yaklaşan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${sortedTrainings(state.trainings.filter(training => training.group === student.group)).map(training => `<div class="list-row"><span class="time">${training.time}</span><div><strong>${training.title}</strong><small>${formatTrainingDate(training.date)} · ${training.coach} · ${training.field}</small></div><span class="status">${training.group}</span></div>`).join('') || '<div class="empty-state">Bu grup için planlanmış antrenman bulunmuyor.</div>'}</section>
     ${studentTimelineMarkup(student)}
   </div>`;
@@ -1591,6 +1597,11 @@ appContent.addEventListener('input', event => {
 });
 
 appContent.addEventListener('change', async event => {
+  if (event.target.id === 'monthlyFeeUnpaidOnlyFilter') {
+    state.monthlyFeeUnpaidOnly = event.target.checked;
+    render();
+    return;
+  }
   if (event.target.id === 'trainingSortSelect') {
     state.trainingSortDirection = event.target.value === 'desc' ? 'desc' : 'asc';
     render();

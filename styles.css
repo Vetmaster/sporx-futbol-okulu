@@ -203,6 +203,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .students-active-filter { display: inline-flex; width: max-content; align-items: center; gap: 9px; color: var(--brand-dark); font-size: 13px; font-weight: 800; cursor: pointer; }
 .students-active-filter input { width: 18px; height: 18px; accent-color: var(--brand); }
 .students-checkbox-filters { display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; }
+.monthly-fee-filter { padding: 12px 20px; border-bottom: 1px solid var(--line); }
 .student-list-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -14px; padding: 11px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); background: var(--panel); font-size: 13px; }
 .student-list-summary strong { color: var(--brand-dark); font-size: 15px; }
 .training-list-block { display: grid; gap: 12px; }
