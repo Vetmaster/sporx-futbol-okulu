@@ -137,6 +137,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .profile-stats-grid .stat-card > :last-child { margin-top: auto; }
 .profile-fee-summary-card { width: 100%; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .profile-fee-summary-card:hover, .profile-fee-summary-card:focus-visible { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(15, 103, 63, .1), var(--shadow); }
+.profile-fee-summary-card small.fee-debt-present { color: #9f1239; }
+.profile-fee-summary-card small.fee-debt-clear { color: var(--brand); }
 #monthlyFeeSection { scroll-margin-top: 176px; }
 .stat-card, .panel { border: 1px solid var(--line); border-radius: 15px; background: var(--panel); box-shadow: var(--shadow); }
 .stat-card { padding: 19px; }
