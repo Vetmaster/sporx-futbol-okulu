@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.65';
+const APP_VERSION = '2026.07.24.66';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -10,6 +10,7 @@ const authCallbackType = new URLSearchParams(window.location.hash.slice(1)).get(
 let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
 let signedOutMessage = '';
+let openDashboardAfterPasswordLogin = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
@@ -789,7 +790,12 @@ async function showAuthenticatedApp(user) {
   state.userEmail = user.email || '';
   state.page = 'dashboard';
   applyRemoteData(remoteData);
-  restoreNavigationState(user.id);
+  if (openDashboardAfterPasswordLogin) {
+    window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
+    openDashboardAfterPasswordLogin = false;
+  } else {
+    restoreNavigationState(user.id);
+  }
   document.querySelector('#authPasswordField').classList.remove('is-hidden');
   loginSubmitButton.classList.remove('is-hidden');
   authScreen.classList.add('is-hidden');
@@ -991,11 +997,13 @@ loginForm.addEventListener('submit', async event => {
     return;
   }
 
+  openDashboardAfterPasswordLogin = true;
   const { data, error } = await supabaseClient.auth.signInWithPassword({
     email: loginEmail.value.trim(),
     password: loginPassword.value
   });
   if (error) {
+    openDashboardAfterPasswordLogin = false;
     setAuthPending(false);
     showAuthMessage(friendlyAuthError(error), true);
     return;
