@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.89';
+const APP_VERSION = '2026.07.24.90';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
@@ -76,7 +76,7 @@ const navItems = {
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'staff'] },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
-  child: { label: 'Çocuğum', icon: '◎', roles: ['parent'] },
+  child: { label: 'Öğrenci', icon: '◎', roles: ['parent'] },
   trainings: { label: 'Antrenman', icon: MENU_ICONS.training, roles: ['super_admin', 'admin', 'staff', 'parent'] },
   attendance: { label: 'Yoklama', icon: '✓', roles: ['super_admin', 'admin', 'staff'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'staff', 'parent'] },
@@ -88,7 +88,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Çocuğum', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
