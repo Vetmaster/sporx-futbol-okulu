@@ -258,6 +258,14 @@ tbody tr:hover { background: #f5f1eb; }
 .amount { font-weight: 900; }
 .amount.income { color: var(--brand); }
 .amount.expense { color: var(--danger); }
+.notification-compose-disclosure > summary { min-height: 62px; display: flex; align-items: center; gap: 12px; padding: 16px 20px; list-style: none; cursor: pointer; }
+.notification-compose-disclosure > summary::-webkit-details-marker { display: none; }
+.notification-compose-disclosure > summary h3 { margin: 0; font-size: 16px; }
+.notification-compose-disclosure > summary .status { margin-left: auto; }
+.disclosure-chevron { color: var(--brand); font-size: 22px; font-weight: 900; line-height: 1; transform: rotate(0); transition: transform .2s ease; }
+.notification-compose-disclosure[open] > summary { border-bottom: 1px solid var(--line); }
+.notification-compose-disclosure[open] .disclosure-chevron { transform: rotate(180deg); }
+.notification-compose-disclosure > summary:focus-visible { outline: 3px solid rgba(57, 117, 143, .2); outline-offset: -3px; }
 .notification-compose { padding: 20px; display: grid; gap: 14px; }
 .compose-actions { display: flex; justify-content: flex-end; }
 .notification-list-row { align-items: start; }
