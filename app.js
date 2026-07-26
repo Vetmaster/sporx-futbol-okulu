@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.147';
+const APP_VERSION = '2026.07.26.148';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -710,15 +710,10 @@ function studentProfileView() {
   const student = allowedStudent || state.students[0];
   if (!student) return `<div class="page-stack"><section class="panel empty-state"><h2>Öğrenci bulunamadı</h2><button class="secondary-button" data-page="${state.role === 'parent' ? 'dashboard' : 'students'}">Geri dön</button></section></div>`;
   const attendanceCount = attendanceEntriesForStudent(student).length;
-  const currentFee = currentFeeStatus(student);
   const activeStudent = isActiveStudent(student);
   const unpaidFees = unpaidFeePeriods(student);
   const feeDebtBalance = unpaidFees.reduce((total, month) => total + monthlyFeeAmount(student, month), 0);
-  const feeSummaryTitle = unpaidFees.length === 0 ? currentFee === 'none' ? 'Aidat yok' : 'Güncel' : unpaidFees.length > 1 ? `${unpaidFees.length} aidat ödenmedi` : 'Ödenmedi';
-  const feeSummaryDetail = unpaidFees.length ? unpaidFees.map(formatFeeMonth).join(' · ') : currentFee === 'none' ? 'Bu dönem için aidat tanımlanmadı' : 'Borç bulunmuyor';
-  const feeSummaryCard = isAdminRole()
-    ? `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${formatCurrency(feeDebtBalance)}</strong><small class="${feeDebtBalance ? 'fee-debt-present' : 'fee-debt-clear'}">${feeDebtBalance ? 'Borç bakiye mevcut' : 'Borç bulunmuyor'}</small></button>`
-    : `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${feeSummaryTitle}</strong><small>${feeSummaryDetail}</small></button>`;
+  const feeSummaryCard = `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${formatCurrency(feeDebtBalance)}</strong><small class="${feeDebtBalance ? 'fee-debt-present' : 'fee-debt-clear'}">${feeDebtBalance ? 'Borç bakiye mevcut' : 'Borç bulunmuyor'}</small></button>`;
   return `<div class="page-stack">
     <div class="section-heading"><div></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : parentStudentSwitcherMarkup()}</div>
     <section class="panel student-profile-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div>${activeStudent ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
