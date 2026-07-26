@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.144';
+const APP_VERSION = '2026.07.26.145';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -44,6 +44,7 @@ const state = {
   accessRequests: [],
   activeTrainingId: null,
   selectedStudentId: null,
+  selectedParentStudentId: null,
   activeStudentsOnly: true,
   debtStudentsOnly: false,
   studentSortKey: null,
@@ -109,6 +110,7 @@ function persistNavigationState() {
     userId: state.userId,
     page: state.page,
     selectedStudentId: state.selectedStudentId,
+    selectedParentStudentId: state.selectedParentStudentId,
     feeFilter: state.feeFilter,
     accountingFilter: state.accountingFilter,
     trainingSortDirection: state.trainingSortDirection
@@ -127,6 +129,7 @@ function restoreNavigationState(userId) {
 
   state.page = navItems[savedState.page]?.roles.includes(state.role) ? savedState.page : 'dashboard';
   state.selectedStudentId = Number(savedState.selectedStudentId) || null;
+  state.selectedParentStudentId = Number(savedState.selectedParentStudentId) || state.students[0]?.id || null;
   state.feeFilter = ['all', 'pending'].includes(savedState.feeFilter) ? savedState.feeFilter : 'all';
   state.accountingFilter = ['all', 'income', 'expense'].includes(savedState.accountingFilter) ? savedState.accountingFilter : 'all';
   state.trainingSortDirection = savedState.trainingSortDirection === 'desc' ? 'desc' : 'asc';
@@ -141,6 +144,7 @@ function navigationSnapshot() {
   return {
     page: state.page,
     selectedStudentId: state.selectedStudentId,
+    selectedParentStudentId: state.selectedParentStudentId,
     feeFilter: state.feeFilter,
     accountingFilter: state.accountingFilter
   };
@@ -586,8 +590,19 @@ function dashboardView() {
 
 function progress(label, value) { return `<div><div class="progress-label"><span>${label}</span><strong>%${value}</strong></div><div class="progress-track"><div class="progress-fill" style="width:${value}%"></div></div></div>`; }
 
+function currentParentStudent() {
+  return state.students.find(student => Number(student.id) === Number(state.selectedParentStudentId)) || state.students[0] || null;
+}
+
+function parentStudentSwitcherMarkup() {
+  if (state.role !== 'parent' || state.students.length < 2) return '';
+  const currentStudent = currentParentStudent();
+  return `<label class="parent-student-switcher"><span>Öğrenci</span><select id="parentStudentSelect" aria-label="Görüntülenecek öğrenciyi seçin">${state.students.map(student => `<option value="${student.id}" ${Number(student.id) === Number(currentStudent?.id) ? 'selected' : ''}>${escapeHtml(student.name)}</option>`).join('')}</select></label>`;
+}
+
 function parentDashboard() {
-  const student = state.students[0];
+  const student = currentParentStudent();
+  if (!student) return '<div class="page-stack"><section class="panel empty-state">Bu veli hesabına bağlı öğrenci bulunmuyor.</section></div>';
   const unpaidMonths = unpaidFeePeriods(student);
   const feeDebtText = unpaidMonths.length === 0
     ? 'Aidat borcunuz yoktur.'
@@ -603,7 +618,7 @@ function parentDashboard() {
     : '<article class="stat-card next-training-card"><span class="label">Sıradaki antrenman</span><strong>Planlanmış antrenman yok</strong><small>Öğrencinin grubu için yaklaşan kayıt bulunmuyor.</small></article>';
   const newsfeedItems = state.notifications.slice(0, 5).map(item => `<button class="newsfeed-item ${item.read ? '' : 'is-unread'}" type="button" data-page="notifications"><span class="newsfeed-marker" aria-hidden="true"></span><span class="newsfeed-content"><span class="newsfeed-meta"><span>${escapeHtml(item.date)} · ${escapeHtml(item.time)}</span>${item.read ? '' : '<span class="status warning">Yeni</span>'}</span><strong>${escapeHtml(item.title)}</strong>${item.body ? `<span class="newsfeed-message">${escapeHtml(item.body)}</span>` : ''}</span></button>`).join('');
   return `<div class="page-stack">
-    <section class="panel parent-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></section>
+    <section class="panel parent-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><div class="parent-hero-actions">${parentStudentSwitcherMarkup()}<button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></div></section>
     <section class="stats-grid parent-dashboard-stats">
       ${nextTrainingCard}
       <article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${feeDebtText}</strong></article>
@@ -669,14 +684,15 @@ function studentListFeeLabel(student) { return studentHasFeeDebt(student) ? '<sp
 function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${s.group}${s.position ? ` · ${s.position}` : ''}</td><td>${s.parent || '—'}<br><small class="muted">${s.phone}</small></td><td>${studentListFeeLabel(s)}</td><td>%${s.attendance}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
 
 function childView() {
-  const s = state.students[0];
+  const s = currentParentStudent();
+  if (!s) return '<div class="page-stack"><section class="panel empty-state">Bu veli hesabına bağlı öğrenci bulunmuyor.</section></div>';
   const feeStatus = currentFeeStatus(s);
   const feeText = feeStatus === 'paid' ? 'Ödendi' : feeStatus === 'late' ? 'Ödenmedi' : feeStatus === 'none' ? 'Aidat yok' : 'Bekliyor';
   return `<div class="page-stack"><section class="panel parent-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div><h2>${studentNameLink(s, true)}</h2><p>${s.birth} · ${s.group}${s.position ? ` · ${s.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${s.id}">Tam profili aç</button></section><section class="stats-grid"><article class="stat-card"><span class="label">Katılım</span><strong>%${s.attendance}</strong><small>Henüz yoklama yok</small></article><article class="stat-card"><span class="label">Aidat</span><strong>${feeText}</strong><small>${formatFeeMonth(feeMonthKey())}</small></article><article class="stat-card"><span class="label">Antrenman grubu</span><strong>${s.group}</strong><small>Güncel grup</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${s.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article></section><section class="panel"><div class="panel-heading"><h3>İletişim bilgileri</h3></div><div class="progress-group"><span><strong>Veli:</strong> ${s.parent || 'Bilgi girilmedi'}</span><span><strong>Telefon:</strong> ${s.phone}</span><span><strong>E-posta:</strong> ${s.email || 'Bilgi girilmedi'}</span></div></section></div>`;
 }
 
 function studentProfileView() {
-  const allowedStudent = state.role === 'parent' ? state.students[0] : state.students.find(student => student.id === Number(state.selectedStudentId));
+  const allowedStudent = state.role === 'parent' ? currentParentStudent() : state.students.find(student => student.id === Number(state.selectedStudentId));
   const student = allowedStudent || state.students[0];
   if (!student) return `<div class="page-stack"><section class="panel empty-state"><h2>Öğrenci bulunamadı</h2><button class="secondary-button" data-page="${state.role === 'parent' ? 'dashboard' : 'students'}">Geri dön</button></section></div>`;
   const attendanceCount = attendanceEntriesForStudent(student).length;
@@ -690,7 +706,7 @@ function studentProfileView() {
     ? `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${formatCurrency(feeDebtBalance)}</strong><small class="${feeDebtBalance ? 'fee-debt-present' : 'fee-debt-clear'}">${feeDebtBalance ? 'Borç bakiye mevcut' : 'Borç bulunmuyor'}</small></button>`
     : `<article class="stat-card"><span class="label">Aidat durumu</span><strong>${feeSummaryTitle}</strong><small>${feeSummaryDetail}</small></article>`;
   return `<div class="page-stack">
-    <div class="section-heading"><div></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : ''}</div>
+    <div class="section-heading"><div></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : parentStudentSwitcherMarkup()}</div>
     <section class="panel student-profile-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div>${activeStudent ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
     <section class="stats-grid profile-stats-grid"><article class="stat-card"><span class="label">Devam oranı</span><strong>%${student.attendance}</strong><button class="stat-link" type="button" data-page="studentAttendanceHistory">${attendanceCount} kayıtlı yoklama</button></article>${feeSummaryCard}<article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article></section>
     <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Antrenman Grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position || 'Bilgi girilmedi'}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent || 'Bilgi girilmedi'}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd>${student.email ? `<a href="mailto:${student.email}">${student.email}</a>` : 'Bilgi girilmedi'}</dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
@@ -701,7 +717,7 @@ function studentProfileView() {
 }
 
 function studentAttendanceHistoryView() {
-  const allowedStudent = state.role === 'parent' ? state.students[0] : state.students.find(student => student.id === Number(state.selectedStudentId));
+  const allowedStudent = state.role === 'parent' ? currentParentStudent() : state.students.find(student => student.id === Number(state.selectedStudentId));
   const student = allowedStudent || state.students[0];
   if (!student) return `<div class="page-stack"><section class="panel empty-state"><h2>Öğrenci bulunamadı</h2><button class="secondary-button" data-page="dashboard">Geri dön</button></section></div>`;
   const entries = attendanceEntriesForStudent(student);
@@ -721,7 +737,8 @@ function attendanceView() {
 
 function feesView() {
   const isParent = state.role === 'parent';
-  const allStudents = isParent ? state.students.slice(0,1) : state.students;
+  const selectedParentStudent = isParent ? currentParentStudent() : null;
+  const allStudents = isParent ? (selectedParentStudent ? [selectedParentStudent] : []) : state.students;
   const parentStudent = isParent ? allStudents[0] : null;
   const parentUnpaidMonths = parentStudent ? unpaidFeePeriods(parentStudent) : [];
   const parentDebtBalance = parentStudent
@@ -949,6 +966,9 @@ function applyRemoteData(remoteData) {
   state.notifications = remoteData.notifications;
   state.attendanceRecords = remoteData.attendanceRecords;
   state.accessRequests = remoteData.accessRequests || [];
+  if (state.role === 'parent' && !state.students.some(student => Number(student.id) === Number(state.selectedParentStudentId))) {
+    state.selectedParentStudentId = state.students[0]?.id || null;
+  }
   GROUPS = [...new Set([...BASE_GROUPS, ...remoteData.groups.map(group => group.name)])];
   syncGroupOptions();
   persistLocalData();
@@ -1272,6 +1292,7 @@ function openStudentDialog(student = null) {
   document.querySelector('#studentEyebrow').textContent = student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
   document.querySelector('#studentDialogTitle').textContent = student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
   document.querySelector('#studentSubmitButton').textContent = student ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet';
+  document.querySelector('#guardianInviteHint').classList.toggle('is-hidden', Boolean(student));
   document.querySelector('#studentDialog').showModal();
 }
 
@@ -1603,6 +1624,12 @@ appContent.addEventListener('input', event => {
 });
 
 appContent.addEventListener('change', async event => {
+  if (event.target.id === 'parentStudentSelect') {
+    state.selectedParentStudentId = Number(event.target.value) || null;
+    persistNavigationState();
+    render();
+    return;
+  }
   if (event.target.id === 'monthlyFeeUnpaidOnlyFilter') {
     state.monthlyFeeUnpaidOnly = event.target.checked;
     render();
@@ -1664,13 +1691,30 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   } else {
     state.students.unshift(studentRecord);
   }
+  let guardianInviteResult = null;
+  let guardianInviteError = null;
+  if (!wasEditing) {
+    try {
+      guardianInviteResult = await remoteDataStore.inviteGuardian(studentRecord.id);
+    } catch (error) {
+      guardianInviteError = error;
+    }
+  }
   state.editingStudentId = null;
   persistLocalData();
   document.querySelector('#studentDialog').close();
   event.currentTarget.reset();
   state.page = wasEditing ? 'studentProfile' : 'students';
   render();
-  showToast(wasEditing ? 'Öğrenci profili Supabase’de güncellendi.' : 'Öğrenci Supabase’e kaydedildi.');
+  if (wasEditing) {
+    showToast('Öğrenci profili Supabase’de güncellendi.');
+  } else if (guardianInviteError) {
+    showToast(`Öğrenci kaydedildi; veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
+  } else if (guardianInviteResult?.status === 'invited') {
+    showToast(`Öğrenci kaydedildi. Veli daveti ${studentRecord.email} adresine gönderildi.`);
+  } else {
+    showToast('Öğrenci kaydedildi ve mevcut veli hesabına bağlandı.');
+  }
 });
 document.querySelector('#attendanceForm').addEventListener('submit', async event => {
   event.preventDefault();

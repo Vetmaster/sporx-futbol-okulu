@@ -221,6 +221,25 @@
       return Number(data.id);
     }
 
+    async function inviteGuardian(studentId) {
+      requireContext();
+      const { data, error } = await client.functions.invoke('invite-guardian', {
+        body: { studentId: Number(studentId) }
+      });
+      if (error) {
+        let responseMessage = '';
+        try {
+          const responseBody = await error.context?.clone().json();
+          responseMessage = responseBody?.error || '';
+        } catch {
+          responseMessage = '';
+        }
+        throw new Error(responseMessage || data?.error || error.message || 'Veli daveti gönderilemedi.');
+      }
+      if (data?.error) throw new Error(data.error);
+      return data;
+    }
+
     async function saveTraining(training, isNew) {
       requireContext();
       const payload = {
@@ -418,6 +437,7 @@
     return {
       load,
       saveStudent,
+      inviteGuardian,
       saveTraining,
       deleteTraining,
       saveAccounting,

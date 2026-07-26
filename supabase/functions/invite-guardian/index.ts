@@ -1,0 +1,159 @@
+import { createClient, type User } from '@supabase/supabase-js';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+
+const inviteRedirectUrl = 'https://vetmaster.github.io/sporx-futbol-okulu/';
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+function normalizedEmail(value: unknown) {
+  return String(value || '').trim().toLocaleLowerCase('en-US');
+}
+
+function validEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+async function findUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
+  const perPage = 1000;
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const match = data.users.find(user => normalizedEmail(user.email) === email);
+    if (match) return match;
+    if (data.users.length < perPage) return null;
+  }
+  throw new Error('Kullanıcı listesi güvenli biçimde taranamadı.');
+}
+
+Deno.serve(async request => {
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) return json({ error: 'Davet hizmeti yapılandırılmamış.' }, 503);
+
+  const authorization = request.headers.get('Authorization') || '';
+  const accessToken = authorization.replace(/^Bearer\s+/i, '');
+  if (!accessToken) return json({ error: 'Oturum doğrulanamadı.' }, 401);
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+  const { data: callerResult, error: callerError } = await admin.auth.getUser(accessToken);
+  if (callerError || !callerResult.user) return json({ error: 'Oturum doğrulanamadı.' }, 401);
+
+  const { data: callerProfile, error: callerProfileError } = await admin
+    .from('profiles')
+    .select('school_id, role')
+    .eq('id', callerResult.user.id)
+    .maybeSingle();
+  if (callerProfileError || !callerProfile) return json({ error: 'Yetkili kullanıcı profili bulunamadı.' }, 403);
+  if (!['super_admin', 'admin', 'staff'].includes(callerProfile.role)) {
+    return json({ error: 'Veli daveti göndermek için yetkiniz bulunmuyor.' }, 403);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const studentId = Number(body.studentId);
+  if (!Number.isInteger(studentId) || studentId <= 0) return json({ error: 'Geçersiz öğrenci kaydı.' }, 400);
+
+  const { data: student, error: studentError } = await admin
+    .from('students')
+    .select('id, school_id, full_name, guardian_name, email, guardian_user_id')
+    .eq('id', studentId)
+    .eq('school_id', callerProfile.school_id)
+    .maybeSingle();
+  if (studentError || !student) return json({ error: 'Öğrenci kaydı bulunamadı.' }, 404);
+
+  const email = normalizedEmail(student.email);
+  if (!validEmail(email)) return json({ error: 'Geçerli bir veli e-posta adresi bulunamadı.' }, 400);
+  if (student.guardian_user_id) {
+    return json({ status: 'already_linked', email, userId: student.guardian_user_id });
+  }
+
+  let guardianUser: User | null = null;
+  let invited = false;
+  try {
+    guardianUser = await findUserByEmail(admin, email);
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : 'Kullanıcı hesabı kontrol edilemedi.' }, 500);
+  }
+
+  if (!guardianUser) {
+    const { data: inviteResult, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: inviteRedirectUrl,
+      data: {
+        full_name: student.guardian_name || student.full_name,
+        role: 'parent',
+        access_request: false,
+        invited_student_id: String(student.id)
+      }
+    });
+    if (inviteError || !inviteResult.user) {
+      return json({ error: inviteError?.message || 'Veli davet e-postası gönderilemedi.' }, 502);
+    }
+    guardianUser = inviteResult.user;
+    invited = true;
+  }
+
+  const { data: existingProfile, error: existingProfileError } = await admin
+    .from('profiles')
+    .select('school_id, role')
+    .eq('id', guardianUser.id)
+    .maybeSingle();
+  if (existingProfileError) return json({ error: 'Mevcut kullanıcı profili kontrol edilemedi.' }, 500);
+  if (existingProfile && (
+    existingProfile.school_id !== callerProfile.school_id ||
+    existingProfile.role !== 'parent'
+  )) {
+    return json({ error: 'Bu e-posta adresi farklı okul veya kullanıcı rolüne ait.' }, 409);
+  }
+
+  const fullName = String(student.guardian_name || '').trim() || email.split('@')[0];
+  const { error: profileError } = await admin
+    .from('profiles')
+    .upsert({
+      id: guardianUser.id,
+      school_id: callerProfile.school_id,
+      full_name: fullName,
+      role: 'parent'
+    }, { onConflict: 'id' });
+  if (profileError) return json({ error: 'Veli profili oluşturulamadı.' }, 500);
+
+  const { error: accessRequestError } = await admin
+    .from('access_requests')
+    .upsert({
+      user_id: guardianUser.id,
+      school_id: callerProfile.school_id,
+      email,
+      full_name: fullName,
+      requested_role: 'parent',
+      status: 'approved',
+      reviewed_by: callerResult.user.id,
+      reviewed_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  if (accessRequestError) return json({ error: 'Veli erişim kaydı oluşturulamadı.' }, 500);
+
+  const { error: linkError } = await admin
+    .from('students')
+    .update({ guardian_user_id: guardianUser.id })
+    .eq('id', student.id)
+    .eq('school_id', callerProfile.school_id);
+  if (linkError) return json({ error: 'Öğrenci veli hesabına bağlanamadı.' }, 500);
+
+  return json({
+    status: invited ? 'invited' : 'linked',
+    email,
+    userId: guardianUser.id
+  });
+});
