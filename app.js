@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.154';
+const APP_VERSION = '2026.07.26.155';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -161,7 +161,10 @@ function navigateToPage(page, updates = {}) {
   state.page = targetPage;
   document.querySelector('#sidebar').classList.remove('open');
   render();
-  if (targetPage === 'notifications') markAllNotificationsRead();
+  if (targetPage === 'notifications') {
+    refreshPushStatus(true);
+    markAllNotificationsRead();
+  }
 }
 
 function goBack() {
@@ -1256,13 +1259,17 @@ async function refreshPushStatus(shouldRender = false) {
           window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
         }
       }
+      if (subscription && state.userId) {
+        await savePushSubscription(subscription);
+        window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+      }
       state.pushStatus = subscription ? 'enabled' : 'disabled';
     } catch (error) {
       console.error('Bildirim durumu kontrol edilemedi:', error);
       state.pushStatus = 'unsupported';
     }
   }
-  if (shouldRender && state.page === 'notifications') render();
+  if ((shouldRender || state.page === 'notifications') && !appShell.classList.contains('is-hidden')) render();
 }
 
 function urlBase64ToUint8Array(value) {
@@ -1985,6 +1992,12 @@ async function handleAuthStateChange(event, session) {
 
   await showAuthenticatedApp(session.user);
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.userId && !appShell.classList.contains('is-hidden')) {
+    refreshPushStatus(state.page === 'notifications');
+  }
+});
 
 configureAuthForm(authMode);
 if (!supabaseClient) {
