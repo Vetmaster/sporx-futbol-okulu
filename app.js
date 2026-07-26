@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.143';
+const APP_VERSION = '2026.07.26.144';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.2-beta/SASA-F-v1.0.2-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -601,15 +601,15 @@ function parentDashboard() {
   const nextTrainingCard = nextTraining
     ? `<article class="stat-card next-training-card"><span class="label">Sıradaki antrenman</span><strong>${formatTrainingDateLong(nextTraining.date)} · ${nextTraining.time}</strong><div class="next-training-details"><span><b>Tür:</b> ${nextTraining.title}</span><span><b>Süre:</b> ${nextTraining.duration || 90} dakika</span><span><b>Hoca:</b> ${nextTraining.coach}</span></div></article>`
     : '<article class="stat-card next-training-card"><span class="label">Sıradaki antrenman</span><strong>Planlanmış antrenman yok</strong><small>Öğrencinin grubu için yaklaşan kayıt bulunmuyor.</small></article>';
+  const newsfeedItems = state.notifications.slice(0, 5).map(item => `<button class="newsfeed-item ${item.read ? '' : 'is-unread'}" type="button" data-page="notifications"><span class="newsfeed-marker" aria-hidden="true"></span><span class="newsfeed-content"><span class="newsfeed-meta"><span>${escapeHtml(item.date)} · ${escapeHtml(item.time)}</span>${item.read ? '' : '<span class="status warning">Yeni</span>'}</span><strong>${escapeHtml(item.title)}</strong>${item.body ? `<span class="newsfeed-message">${escapeHtml(item.body)}</span>` : ''}</span></button>`).join('');
   return `<div class="page-stack">
     <section class="panel parent-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></section>
-    <section class="stats-grid">
+    <section class="stats-grid parent-dashboard-stats">
       ${nextTrainingCard}
       <article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${feeDebtText}</strong></article>
       <article class="stat-card"><span class="label">Katılım oranı</span><strong>%${student.attendance}</strong><small>Son 30 gün</small></article>
-      <article class="stat-card"><span class="label">Yeni duyuru</span><strong>2</strong><small>Okunmayı bekliyor</small></article>
     </section>
-    <section class="dashboard-grid"><article class="panel"><div class="panel-heading"><h3>Yaklaşan program</h3><button class="text-button" data-page="trainings">Takvim</button></div>${sortedTrainings(state.trainings).slice(0,2).map(t => `<div class="list-row"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${formatTrainingDate(t.date)} · ${t.field}</small></div><span class="status">Planlandı</span></div>`).join('')}</article><article class="panel"><div class="panel-heading"><h3>Son duyuru</h3></div><div class="progress-group"><strong>Hafta sonu hazırlık maçı</strong><span class="muted">U12 grubumuz cumartesi 10:30'da hazırlık maçında buluşuyor.</span><button class="secondary-button" data-page="notifications">Duyuruları aç</button></div></article></section>
+    <section class="dashboard-grid"><article class="panel"><div class="panel-heading"><h3>Yaklaşan program</h3><button class="text-button" data-page="trainings">Takvim</button></div>${sortedTrainings(state.trainings).slice(0,2).map(t => `<div class="list-row"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${formatTrainingDate(t.date)} · ${t.field}</small></div><span class="status">Planlandı</span></div>`).join('')}</article><article class="panel parent-newsfeed-panel"><div class="panel-heading"><h3>Duyurular</h3><button class="text-button" data-page="notifications">Tümünü gör</button></div><div class="parent-newsfeed">${newsfeedItems || '<div class="empty-state">Henüz yayınlanmış duyuru bulunmuyor.</div>'}</div></article></section>
   </div>`;
 }
 
