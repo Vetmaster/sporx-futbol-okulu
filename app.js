@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.151';
+const APP_VERSION = '2026.07.26.152';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1207,6 +1207,37 @@ async function invokePushFunction(body) {
   });
 }
 
+async function saveAndSendNotification({ audience, title, body }) {
+  const notification = {
+    date: 'Bugün',
+    title,
+    body,
+    audience,
+    sentBy: state.userId,
+    time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    status: 'Sırada'
+  };
+  const notificationResult = await remoteDataStore.saveNotification(notification);
+  notification.id = notificationResult.id;
+  state.notifications.unshift(notification);
+  persistLocalData();
+
+  try {
+    const { data: pushResult, error: pushError } = await invokePushFunction({
+      action: 'send',
+      notificationId: notification.id
+    });
+    if (pushError) throw pushError;
+    notification.status = pushResult.sent > 0 ? 'Teslim edildi' : 'Başarısız';
+    persistLocalData();
+    return { notification, sent: Number(pushResult.sent || 0) };
+  } catch (error) {
+    notification.status = 'Başarısız';
+    persistLocalData();
+    throw error;
+  }
+}
+
 async function refreshPushStatus(shouldRender = false) {
   if (!pushSupported()) {
     state.pushStatus = 'unsupported';
@@ -1528,7 +1559,20 @@ document.addEventListener('click', async event => {
       persistLocalData();
       document.querySelector('#trainingDialog').close();
       render();
-      showToast('Antrenman ve ilgili yoklama kayıtları Supabase’den silindi.');
+      try {
+        const pushResult = await saveAndSendNotification({
+          audience: `${training.group} velileri`,
+          title: `${training.group} grubu · Antrenman iptal edildi`,
+          body: `${formatTrainingDateLong(training.date)} saat ${training.time}’de yapılması planlanan ${training.title} antrenmanı iptal edilmiştir. Saha: ${training.field}.`
+        });
+        render();
+        showToast(pushResult.sent > 0
+          ? `Antrenman silindi ve ${pushResult.sent} telefona iptal bildirimi gönderildi.`
+          : 'Antrenman silindi; bu grupta bildirimi açık telefon bulunamadı.');
+      } catch (error) {
+        render();
+        showToast(`Antrenman silindi ancak iptal bildirimi gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
+      }
     }
   }
   else if (action === 'new-entry') openAccountingDialog();
@@ -1779,7 +1823,25 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
   event.currentTarget.reset();
   state.page = 'trainings';
   render();
-  showToast(wasEditing ? 'Antrenman Supabase’de güncellendi.' : 'Antrenman Supabase’e kaydedildi.');
+  if (wasEditing) {
+    showToast('Antrenman Supabase’de güncellendi.');
+    return;
+  }
+
+  try {
+    const pushResult = await saveAndSendNotification({
+      audience: `${trainingRecord.group} velileri`,
+      title: `${trainingRecord.group} grubu · Yeni antrenman`,
+      body: `${formatTrainingDateLong(trainingRecord.date)} saat ${trainingRecord.time}’de ${trainingRecord.title} antrenmanı yapılacaktır. Süre: ${trainingRecord.duration} dakika. Saha: ${trainingRecord.field}. Antrenör: ${trainingRecord.coach}.`
+    });
+    render();
+    showToast(pushResult.sent > 0
+      ? `Antrenman kaydedildi ve ${pushResult.sent} telefona bildirim gönderildi.`
+      : 'Antrenman kaydedildi; bu grupta bildirimi açık telefon bulunamadı.');
+  } catch (error) {
+    render();
+    showToast(`Antrenman kaydedildi ancak bildirim gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
+  }
 });
 document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
 document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', updateFeeDefinitionStudentResults);
