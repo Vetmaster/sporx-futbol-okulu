@@ -64,7 +64,7 @@
       ] = await Promise.all([
         client.from('training_groups').select('id, name, sort_order').order('sort_order'),
         fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, training_groups(name)'),
-        fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source'),
+        fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at'),
         fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date'),
         fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on'),
         fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_by, sent_at, created_at', 'created_at'),
@@ -93,7 +93,8 @@
           note: fee.note,
           source: fee.source,
           paymentMethod: fee.payment_method,
-          paidAt: fee.paid_at
+          paidAt: fee.paid_at,
+          createdAt: fee.created_at
         }]));
         return {
           id: Number(row.id),
