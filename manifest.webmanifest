@@ -7,11 +7,11 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b1510",
-  "theme_color": "#176b43",
+  "background_color": "#f1eee8",
+  "theme_color": "#39758f",
   "icons": [
     {
-      "src": "sasa-f-icon.svg?v=2026.07.24.117",
+      "src": "sasa-f-icon.svg?v=2026.07.26.142",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
