@@ -50,15 +50,41 @@ Deno.serve(async request => {
     .maybeSingle();
   if (profileError || !callerProfile) return json({ error: 'Profile not found' }, 403);
 
-  if (body.action !== 'send' || !body.notificationId) return json({ error: 'Invalid request' }, 400);
   if (!['super_admin', 'admin', 'staff'].includes(callerProfile.role)) {
     return json({ error: 'Forbidden' }, 403);
+  }
+
+  let notificationId = Number(body.notificationId || 0);
+  if (body.action === 'create-and-send') {
+    const audience = String(body.notification?.audience || '').trim();
+    const title = String(body.notification?.title || '').trim();
+    const notificationBody = String(body.notification?.body || '').trim();
+    if (!audience || !title || !notificationBody) return json({ error: 'Invalid notification' }, 400);
+
+    const { data: createdNotification, error: createError } = await admin
+      .from('notifications')
+      .insert({
+        school_id: callerProfile.school_id,
+        audience,
+        title,
+        body: notificationBody,
+        status: 'queued',
+        sent_by: userResult.user.id
+      })
+      .select('id')
+      .single();
+    if (createError || !createdNotification) {
+      return json({ error: createError?.message || 'Notification could not be created' }, 500);
+    }
+    notificationId = Number(createdNotification.id);
+  } else if (body.action !== 'send' || !notificationId) {
+    return json({ error: 'Invalid request' }, 400);
   }
 
   const { data: notification, error: notificationError } = await admin
     .from('notifications')
     .select('id, school_id, audience, title, body')
-    .eq('id', body.notificationId)
+    .eq('id', notificationId)
     .eq('school_id', callerProfile.school_id)
     .maybeSingle();
   if (notificationError || !notification) return json({ error: 'Notification not found' }, 404);
@@ -164,5 +190,5 @@ Deno.serve(async request => {
     sent_at: new Date().toISOString()
   }).eq('id', notification.id);
 
-  return json({ sent, failed, recipients: recipientIds.length });
+  return json({ notificationId: notification.id, sent, failed, recipients: recipientIds.length });
 });

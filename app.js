@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.152';
+const APP_VERSION = '2026.07.26.153';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1217,23 +1217,19 @@ async function saveAndSendNotification({ audience, title, body }) {
     time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
     status: 'Sırada'
   };
-  const notificationResult = await remoteDataStore.saveNotification(notification);
-  notification.id = notificationResult.id;
-  state.notifications.unshift(notification);
-  persistLocalData();
 
   try {
     const { data: pushResult, error: pushError } = await invokePushFunction({
-      action: 'send',
-      notificationId: notification.id
+      action: 'create-and-send',
+      notification: { audience, title, body }
     });
     if (pushError) throw pushError;
+    notification.id = Number(pushResult.notificationId);
     notification.status = pushResult.sent > 0 ? 'Teslim edildi' : 'Başarısız';
+    state.notifications.unshift(notification);
     persistLocalData();
     return { notification, sent: Number(pushResult.sent || 0) };
   } catch (error) {
-    notification.status = 'Başarısız';
-    persistLocalData();
     throw error;
   }
 }
