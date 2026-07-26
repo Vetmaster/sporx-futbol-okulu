@@ -8,6 +8,7 @@ android/build/
 android/app/build/
 android/local.properties
 android/android.keystore
+android/signing-backup/
 android/*.apk
 android/*.aab
 android/*.idsig
