@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.156';
+const APP_VERSION = '2026.07.26.157';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -831,8 +831,25 @@ function notificationsView() {
   const pushEnabled = state.pushStatus === 'enabled';
   const pushUnsupported = state.pushStatus === 'unsupported';
   const pushDenied = state.pushStatus === 'denied';
-  const pushStatusLabel = pushEnabled ? 'Açık' : pushDenied ? 'İzin kapalı' : pushUnsupported ? 'Desteklenmiyor' : state.pushStatus === 'checking' ? 'Kontrol ediliyor' : 'Kapalı';
-  const pushToggleDisabled = state.pushBusy || pushUnsupported || pushDenied || state.pushStatus === 'checking';
+  const pushChecking = state.pushStatus === 'checking';
+  const pushButtonLabel = state.pushBusy
+    ? 'İşleniyor…'
+    : pushEnabled
+      ? 'Telefon bildirimlerini kapat'
+      : pushDenied
+        ? 'Bildirim izni engellendi'
+        : pushUnsupported
+          ? 'Bildirimler desteklenmiyor'
+          : pushChecking
+            ? 'Bildirimler kontrol ediliyor…'
+            : 'Telefon bildirimlerine izin ver';
+  const pushButtonDisabled = state.pushBusy || pushUnsupported || pushDenied || pushChecking;
+  const pushDescription = pushEnabled
+    ? 'Bu cihaz sistem bildirimlerini alacak.'
+    : pushDenied
+      ? 'Android uygulama ayarlarından bildirim iznini açın.'
+      : 'Yeni duyuruları telefonunuzun bildirim alanında görün.';
+  const pushPermissionCard = `<section class="panel push-permission-card"><div class="push-permission-row"><div class="push-permission-copy"><strong>Telefon bildirimleri</strong><small>${pushDescription}</small></div><button class="${pushEnabled ? 'secondary-button' : 'primary-button'} push-permission-button" type="button" data-action="toggle-phone-notifications" ${pushButtonDisabled ? 'disabled' : ''}>${pushButtonLabel}</button></div></section>`;
   const composePanel = canSend ? `<section class="panel"><details class="notification-compose-disclosure"><summary><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option><option>Aidat borcu olanlar</option><option>Aidat borcu olmayanlar</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></details></section>` : '';
   const notificationRows = state.notifications.map(item => {
     const sentByCurrentUser = item.sentBy === state.userId;
@@ -840,7 +857,7 @@ function notificationsView() {
     const visibleStatus = sentByCurrentUser ? item.status : recipientStatus;
     return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div><span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span></div>`;
   }).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div><section class="panel push-toggle-card"><div class="push-toggle-row"><strong>Telefon bildirimleri</strong><button class="push-toggle-control ${pushEnabled ? 'is-on' : ''}" type="button" role="switch" aria-checked="${pushEnabled}" aria-label="Telefon bildirimlerini ${pushEnabled ? 'kapat' : 'aç'}" data-action="toggle-phone-notifications" ${pushToggleDisabled ? 'disabled' : ''}><span class="push-toggle-label">${state.pushBusy ? 'İşleniyor…' : pushStatusLabel}</span><span class="push-toggle-track" aria-hidden="true"><span class="push-toggle-thumb"></span></span></button></div></section>${composePanel}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${notificationRows}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div>${pushPermissionCard}${composePanel}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${notificationRows}</section></div>`;
 }
 
 function userApprovalsView() {
