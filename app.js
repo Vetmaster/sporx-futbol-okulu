@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.155';
+const APP_VERSION = '2026.07.26.156';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1238,36 +1238,50 @@ async function saveAndSendNotification({ audience, title, body }) {
   }
 }
 
+let pushStatusRefreshPromise = null;
+
 async function refreshPushStatus(shouldRender = false) {
-  if (!pushSupported()) {
-    state.pushStatus = 'unsupported';
-  } else if (Notification.permission === 'denied') {
-    state.pushStatus = 'denied';
-  } else {
-    try {
-      const registration = await getPushRegistration();
-      let subscription = await registration.pushManager.getSubscription();
-      const pushPreference = window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY);
-      if (!subscription && pushPreference !== 'disabled' && Notification.permission === 'granted' && state.userId) {
-        const { count, error: countError } = await supabaseClient
-          .from('push_subscriptions')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', state.userId);
-        if (countError) throw countError;
-        if (Number(count || 0) > 0) {
-          subscription = await createAndSavePushSubscription(registration);
+  if (!pushStatusRefreshPromise) {
+    pushStatusRefreshPromise = (async () => {
+      if (!pushSupported()) {
+        state.pushStatus = 'unsupported';
+        return;
+      }
+      if (Notification.permission === 'denied') {
+        state.pushStatus = 'denied';
+        return;
+      }
+      try {
+        const registration = await getPushRegistration();
+        let subscription = await registration.pushManager.getSubscription();
+        const pushPreference = window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY);
+        if (!subscription && pushPreference !== 'disabled' && Notification.permission === 'granted' && state.userId) {
+          const { count, error: countError } = await supabaseClient
+            .from('push_subscriptions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', state.userId);
+          if (countError) throw countError;
+          if (Number(count || 0) > 0) {
+            subscription = await createAndSavePushSubscription(registration);
+            window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+          }
+        }
+        if (subscription && state.userId) {
+          await savePushSubscription(subscription);
           window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
         }
+        state.pushStatus = subscription ? 'enabled' : 'disabled';
+      } catch (error) {
+        console.error('Bildirim durumu kontrol edilemedi:', error);
+        state.pushStatus = 'unsupported';
       }
-      if (subscription && state.userId) {
-        await savePushSubscription(subscription);
-        window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
-      }
-      state.pushStatus = subscription ? 'enabled' : 'disabled';
-    } catch (error) {
-      console.error('Bildirim durumu kontrol edilemedi:', error);
-      state.pushStatus = 'unsupported';
-    }
+    })();
+  }
+  const activeRefresh = pushStatusRefreshPromise;
+  try {
+    await activeRefresh;
+  } finally {
+    if (pushStatusRefreshPromise === activeRefresh) pushStatusRefreshPromise = null;
   }
   if ((shouldRender || state.page === 'notifications') && !appShell.classList.contains('is-hidden')) render();
 }
