@@ -26,7 +26,9 @@ button { cursor: pointer; }
 .auth-build-label { min-height: 22px; position: fixed; top: 34px; right: 20px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; color: white; background: var(--lime); font-size: 10px; font-weight: 900; }
 .auth-brand { display: flex; align-items: center; gap: 22px; color: white; }
 .auth-brand p { margin: 8px 0 0; opacity: .76; font-size: clamp(16px, 2vw, 22px); }
-.brand-name { font-family: "Anta", var(--font); font-size: clamp(40px, 6vw, 76px); letter-spacing: -.02em; line-height: .9; }
+.brand-name { display: flex; align-items: center; gap: .18em; font-family: "Anta", var(--font); font-size: clamp(40px, 6vw, 76px); letter-spacing: -.02em; line-height: .9; }
+.brand-title-row { display: flex !important; align-items: center; gap: .3em; }
+.brand-football { display: inline-flex; flex: 0 0 auto; align-items: center; font-family: system-ui, sans-serif; font-size: .72em; line-height: 1; }
 .brand-mark { width: 96px; aspect-ratio: 1; border-radius: 24px; display: grid; place-items: center; background: var(--lime) url("sasa-f-icon.svg?v=2026.07.26.146") center/cover no-repeat; color: transparent; font: 900 42px/1 "Anta", sans-serif; letter-spacing: -.08em; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
 .brand-mark.small { width: 38px; border-radius: 10px; font-size: 17px; box-shadow: none; }
 .auth-card { background: var(--panel); border-radius: 22px; padding: clamp(24px, 5vw, 44px); display: grid; gap: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.2); }

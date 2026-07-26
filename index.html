@@ -7,12 +7,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SASA-F Futbol Okulu Yönetim Sistemi</title>
-  <link rel="manifest" href="manifest.webmanifest?v=2026.07.26.150">
-  <link rel="icon" href="sasa-f-icon.svg?v=2026.07.26.150" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest?v=2026.07.26.151">
+  <link rel="icon" href="sasa-f-icon.svg?v=2026.07.26.151" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.07.26.150">
+  <link rel="stylesheet" href="styles.css?v=2026.07.26.151">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -21,7 +21,7 @@
     <div class="auth-brand">
       <div class="brand-mark" aria-hidden="true">SF</div>
       <div>
-        <div class="brand-name">SASA-F</div>
+        <div class="brand-name"><span>SASA-F</span><span class="brand-football" aria-hidden="true">⚽</span></div>
         <p>Futbol Okulu Yönetim Sistemi</p>
       </div>
     </div>
@@ -48,7 +48,7 @@
     <aside class="sidebar" id="sidebar">
       <button class="sidebar-brand" type="button" data-page="dashboard">
         <span class="brand-mark small" aria-hidden="true">SF</span>
-        <span><strong>SASA-F</strong><small>Futbol Okulu Yönetim Sistemi</small></span>
+        <span><strong class="brand-title-row"><span>SASA-F</span><span class="brand-football" aria-hidden="true">⚽</span></strong><small>Futbol Okulu Yönetim Sistemi</small></span>
       </button>
       <nav class="main-nav" id="mainNav" aria-label="Ana menü"></nav>
       <div class="sidebar-footer">
@@ -63,7 +63,7 @@
         <button class="app-banner-home" type="button" data-page="dashboard" aria-label="SASA-F ana sayfasına git">
           <span class="brand-mark banner-mark" aria-hidden="true">SF</span>
           <span class="app-banner-brand-copy">
-            <strong>SASA-F</strong>
+            <strong class="brand-title-row"><span>SASA-F</span><span class="brand-football" aria-hidden="true">⚽</span></strong>
             <small>Futbol Okulu Yönetim Sistemi</small>
           </span>
         </button>
@@ -210,7 +210,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.07.26.150"></script>
-  <script src="app.js?v=2026.07.26.150"></script>
+  <script src="supabase-data.js?v=2026.07.26.151"></script>
+  <script src="app.js?v=2026.07.26.151"></script>
 </body>
 </html>
