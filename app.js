@@ -1,7 +1,8 @@
-const APP_VERSION = '2026.07.26.153';
+const APP_VERSION = '2026.07.26.154';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
+const PUSH_PREFERENCE_STORAGE_KEY = 'sasa_phone_notifications';
 const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
@@ -1242,7 +1243,19 @@ async function refreshPushStatus(shouldRender = false) {
   } else {
     try {
       const registration = await getPushRegistration();
-      const subscription = await registration.pushManager.getSubscription();
+      let subscription = await registration.pushManager.getSubscription();
+      const pushPreference = window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY);
+      if (!subscription && pushPreference !== 'disabled' && Notification.permission === 'granted' && state.userId) {
+        const { count, error: countError } = await supabaseClient
+          .from('push_subscriptions')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', state.userId);
+        if (countError) throw countError;
+        if (Number(count || 0) > 0) {
+          subscription = await createAndSavePushSubscription(registration);
+          window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+        }
+      }
       state.pushStatus = subscription ? 'enabled' : 'disabled';
     } catch (error) {
       console.error('Bildirim durumu kontrol edilemedi:', error);
@@ -1259,6 +1272,30 @@ function urlBase64ToUint8Array(value) {
   return Uint8Array.from([...raw].map(character => character.charCodeAt(0)));
 }
 
+async function savePushSubscription(subscription) {
+  const serialized = subscription.toJSON();
+  const { error } = await supabaseClient.from('push_subscriptions').upsert({
+    user_id: state.userId,
+    endpoint: serialized.endpoint,
+    p256dh: serialized.keys?.p256dh,
+    auth_secret: serialized.keys?.auth,
+    user_agent: navigator.userAgent,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'endpoint' });
+  if (error) throw error;
+}
+
+async function createAndSavePushSubscription(registration) {
+  const { data, error } = await invokePushFunction({ action: 'public-key' });
+  if (error || !data?.publicKey) throw new Error(error?.message || 'Bildirim anahtarı alınamadı.');
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(data.publicKey)
+  });
+  await savePushSubscription(subscription);
+  return subscription;
+}
+
 async function enablePhoneNotifications() {
   if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
   const permission = await Notification.requestPermission();
@@ -1269,23 +1306,11 @@ async function enablePhoneNotifications() {
   const registration = await getPushRegistration();
   let subscription = await registration.pushManager.getSubscription();
   if (!subscription) {
-    const { data, error } = await invokePushFunction({ action: 'public-key' });
-    if (error || !data?.publicKey) throw new Error(error?.message || 'Bildirim anahtarı alınamadı.');
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(data.publicKey)
-    });
+    subscription = await createAndSavePushSubscription(registration);
+  } else {
+    await savePushSubscription(subscription);
   }
-  const serialized = subscription.toJSON();
-  const { error: saveError } = await supabaseClient.from('push_subscriptions').upsert({
-    user_id: state.userId,
-    endpoint: serialized.endpoint,
-    p256dh: serialized.keys?.p256dh,
-    auth_secret: serialized.keys?.auth,
-    user_agent: navigator.userAgent,
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'endpoint' });
-  if (saveError) throw saveError;
+  window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
   state.pushStatus = 'enabled';
 }
 
@@ -1297,6 +1322,7 @@ async function disablePhoneNotifications() {
     if (error) throw error;
     await subscription.unsubscribe();
   }
+  window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'disabled');
   state.pushStatus = 'disabled';
 }
 
