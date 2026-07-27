@@ -57,7 +57,71 @@ Deno.serve(async request => {
   }
 
   let notificationId = Number(body.notificationId || 0);
-  if (body.action === 'create-and-send') {
+  let trainingId: number | null = null;
+  if (body.action === 'create-training-and-send') {
+    const training = body.training || {};
+    const groupName = String(training.group || '').trim();
+    const trainingDate = String(training.date || '').trim();
+    const startTime = String(training.time || '').trim();
+    const duration = Number(training.duration || 0);
+    const title = String(training.title || '').trim();
+    const coach = String(training.coach || '').trim();
+    const field = String(training.field || '').trim();
+    if (!groupName || !trainingDate || !startTime || !duration || !title || !coach || !field) {
+      return json({ error: 'Invalid training' }, 400);
+    }
+
+    const { data: group, error: groupError } = await admin
+      .from('training_groups')
+      .select('id, name')
+      .eq('school_id', callerProfile.school_id)
+      .eq('name', groupName)
+      .maybeSingle();
+    if (groupError || !group) return json({ error: 'Training group not found' }, 404);
+
+    const { data: createdTraining, error: trainingError } = await admin
+      .from('trainings')
+      .insert({
+        school_id: callerProfile.school_id,
+        group_id: group.id,
+        training_date: trainingDate,
+        start_time: startTime,
+        duration_minutes: duration,
+        title,
+        coach,
+        field
+      })
+      .select('id')
+      .single();
+    if (trainingError || !createdTraining) {
+      return json({ error: trainingError?.message || 'Training could not be created' }, 500);
+    }
+    trainingId = Number(createdTraining.id);
+
+    const formattedDate = new Intl.DateTimeFormat('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Europe/Istanbul'
+    }).format(new Date(`${trainingDate}T12:00:00+03:00`));
+    const { data: createdNotification, error: createError } = await admin
+      .from('notifications')
+      .insert({
+        school_id: callerProfile.school_id,
+        audience: `${group.name} velileri`,
+        title: `${group.name} grubu · Yeni antrenman`,
+        body: `${formattedDate} saat ${startTime.slice(0, 5)}’de ${title} antrenmanı yapılacaktır. Süre: ${duration} dakika. Saha: ${field}. Antrenör: ${coach}.`,
+        status: 'queued',
+        sent_by: userResult.user.id
+      })
+      .select('id')
+      .single();
+    if (createError || !createdNotification) {
+      await admin.from('trainings').delete().eq('id', trainingId);
+      return json({ error: createError?.message || 'Notification could not be created' }, 500);
+    }
+    notificationId = Number(createdNotification.id);
+  } else if (body.action === 'create-and-send') {
     const audience = String(body.notification?.audience || '').trim();
     const title = String(body.notification?.title || '').trim();
     const notificationBody = String(body.notification?.body || '').trim();
@@ -197,5 +261,5 @@ Deno.serve(async request => {
     sent_at: new Date().toISOString()
   }).eq('id', notification.id);
 
-  return json({ notificationId: notification.id, sent, failed, recipients: recipientIds.length });
+  return json({ trainingId, notificationId: notification.id, sent, failed, recipients: recipientIds.length });
 });

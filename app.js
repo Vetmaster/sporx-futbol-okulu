@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.27.158';
+const APP_VERSION = '2026.07.27.159';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1255,6 +1255,33 @@ async function saveAndSendNotification({ audience, title, body }) {
   }
 }
 
+async function createTrainingAndSendNotification(training) {
+  const { data: result, error } = await invokePushFunction({
+    action: 'create-training-and-send',
+    training
+  });
+  if (error) throw error;
+  if (!result?.trainingId) throw new Error(result?.error || 'Antrenman oluşturulamadı.');
+
+  const notification = {
+    id: Number(result.notificationId),
+    date: 'Bugün',
+    title: `${training.group} grubu · Yeni antrenman`,
+    body: `${formatTrainingDateLong(training.date)} saat ${training.time}’de ${training.title} antrenmanı yapılacaktır. Süre: ${training.duration} dakika. Saha: ${training.field}. Antrenör: ${training.coach}.`,
+    audience: `${training.group} velileri`,
+    sentBy: state.userId,
+    time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    status: Number(result.sent || 0) > 0 ? 'Teslim edildi' : 'Başarısız'
+  };
+  state.notifications.unshift(notification);
+  persistLocalData();
+  return {
+    trainingId: Number(result.trainingId),
+    sent: Number(result.sent || 0),
+    recipients: Number(result.recipients || 0)
+  };
+}
+
 let pushStatusRefreshPromise = null;
 
 async function refreshPushStatus(shouldRender = false) {
@@ -1868,8 +1895,14 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
   const wasEditing = Boolean(state.editingTrainingId);
   const existingTraining = wasEditing ? state.trainings.find(item => item.id === Number(state.editingTrainingId)) : null;
   const trainingRecord = { ...(existingTraining || {}), ...trainingData };
+  let pushResult = null;
   const saved = await runRemoteMutation(async () => {
-    trainingRecord.id = await remoteDataStore.saveTraining(trainingRecord, !wasEditing);
+    if (wasEditing) {
+      trainingRecord.id = await remoteDataStore.saveTraining(trainingRecord, false);
+    } else {
+      pushResult = await createTrainingAndSendNotification(trainingRecord);
+      trainingRecord.id = pushResult.trainingId;
+    }
   });
   if (!saved) return;
   if (wasEditing) {
@@ -1887,21 +1920,11 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
     showToast('Antrenman Supabase’de güncellendi.');
     return;
   }
-
-  try {
-    const pushResult = await saveAndSendNotification({
-      audience: `${trainingRecord.group} velileri`,
-      title: `${trainingRecord.group} grubu · Yeni antrenman`,
-      body: `${formatTrainingDateLong(trainingRecord.date)} saat ${trainingRecord.time}’de ${trainingRecord.title} antrenmanı yapılacaktır. Süre: ${trainingRecord.duration} dakika. Saha: ${trainingRecord.field}. Antrenör: ${trainingRecord.coach}.`
-    });
-    render();
-    showToast(pushResult.sent > 0
-      ? `Antrenman kaydedildi ve ${pushResult.sent} telefona bildirim gönderildi.`
-      : 'Antrenman kaydedildi; bu grupta bildirimi açık telefon bulunamadı.');
-  } catch (error) {
-    render();
-    showToast(`Antrenman kaydedildi ancak bildirim gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
-  }
+  showToast(pushResult.sent > 0
+    ? `Antrenman kaydedildi ve ${pushResult.sent} telefona bildirim gönderildi.`
+    : pushResult.recipients > 0
+      ? 'Antrenman kaydedildi ancak gruptaki telefonlara bildirim ulaştırılamadı.'
+      : 'Antrenman kaydedildi; bu grupta bildirimi açık veli hesabı bulunamadı.');
 });
 document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
 document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', updateFeeDefinitionStudentResults);
