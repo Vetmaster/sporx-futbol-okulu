@@ -421,7 +421,7 @@
           user_id: userId,
           read_at: new Date().toISOString()
         })),
-        { onConflict: 'notification_id,user_id' }
+        { onConflict: 'notification_id,user_id', ignoreDuplicates: true }
       );
       if (error) throw error;
     }

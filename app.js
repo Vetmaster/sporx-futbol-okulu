@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.27.161';
+const APP_VERSION = '2026.07.27.162';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -63,6 +63,7 @@ const state = {
   editingTrainingId: null,
   editingAccountingEntryId: null
 };
+const notificationReadIdsInFlight = new Set();
 
 const MENU_ICONS = {
   student: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"></path></svg>',
@@ -921,18 +922,26 @@ function updateNotificationUnreadBadge() {
 }
 
 async function markAllNotificationsRead() {
-  const unreadNotifications = state.notifications.filter(notification => !notification.read && notification.id);
+  const unreadNotifications = state.notifications.filter(notification =>
+    !notification.read
+    && notification.id
+    && !notificationReadIdsInFlight.has(Number(notification.id))
+  );
   if (!unreadNotifications.length || !remoteDataStore) return;
+  const notificationIds = unreadNotifications.map(notification => Number(notification.id));
+  notificationIds.forEach(notificationId => notificationReadIdsInFlight.add(notificationId));
   unreadNotifications.forEach(notification => { notification.read = true; });
   if (state.page === 'notifications') render();
   else updateNotificationUnreadBadge();
   try {
-    await remoteDataStore.markNotificationsRead(unreadNotifications.map(notification => notification.id));
+    await remoteDataStore.markNotificationsRead(notificationIds);
   } catch (error) {
     unreadNotifications.forEach(notification => { notification.read = false; });
     if (state.page === 'notifications') render();
     else updateNotificationUnreadBadge();
     showToast(`Bildirimler okundu olarak işaretlenemedi: ${error.message || 'Bağlantı hatası'}`);
+  } finally {
+    notificationIds.forEach(notificationId => notificationReadIdsInFlight.delete(notificationId));
   }
 }
 
