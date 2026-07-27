@@ -110,7 +110,7 @@ Deno.serve(async request => {
         school_id: callerProfile.school_id,
         audience: `${group.name} velileri`,
         title: `${group.name} grubu · Yeni antrenman`,
-        body: `${formattedDate} saat ${startTime.slice(0, 5)}’de ${title} antrenmanı yapılacaktır. Süre: ${duration} dakika. Saha: ${field}. Antrenör: ${coach}.`,
+        body: `${formattedDate} saat ${startTime.slice(0, 5)}’de ${title} antrenmanı yapılacaktır.`,
         status: 'queued',
         sent_by: userResult.user.id
       })

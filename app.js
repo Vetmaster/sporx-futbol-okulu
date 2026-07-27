@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.27.159';
+const APP_VERSION = '2026.07.27.160';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1267,7 +1267,7 @@ async function createTrainingAndSendNotification(training) {
     id: Number(result.notificationId),
     date: 'Bugün',
     title: `${training.group} grubu · Yeni antrenman`,
-    body: `${formatTrainingDateLong(training.date)} saat ${training.time}’de ${training.title} antrenmanı yapılacaktır. Süre: ${training.duration} dakika. Saha: ${training.field}. Antrenör: ${training.coach}.`,
+    body: `${formatTrainingDateLong(training.date)} saat ${training.time}’de ${training.title} antrenmanı yapılacaktır.`,
     audience: `${training.group} velileri`,
     sentBy: state.userId,
     time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
