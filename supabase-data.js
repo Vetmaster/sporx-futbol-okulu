@@ -154,7 +154,13 @@
             audience: row.audience,
             sentBy: row.sent_by,
             time: new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp)),
-            status: row.status === 'sent' ? 'Teslim edildi' : row.status === 'failed' ? 'Başarısız' : row.status === 'queued' ? 'Sırada' : 'Taslak',
+            status: row.status === 'sent'
+              ? 'Teslim edildi'
+              : row.status === 'failed' || (row.status === 'queued' && Date.now() - new Date(timestamp).getTime() > 120000)
+                ? 'Başarısız'
+                : row.status === 'queued'
+                  ? 'Sırada'
+                  : 'Taslak',
             read: readNotificationIds.has(Number(row.id))
           };
         });

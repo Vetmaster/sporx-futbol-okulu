@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.26.157';
+const APP_VERSION = '2026.07.27.158';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1974,28 +1974,19 @@ appContent.addEventListener('submit', async event => {
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
   const data = new FormData(event.target);
-  const notification = { date: 'Bugün', title: data.get('title'), body: data.get('message'), audience: data.get('audience'), sentBy: state.userId, time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), status: 'Sırada' };
-  const saved = await runRemoteMutation(async () => {
-    const result = await remoteDataStore.saveNotification(notification);
-    notification.id = result.id;
-  });
-  if (!saved) return;
-  state.notifications.unshift(notification);
-  persistLocalData();
-  event.target.reset();
-  render();
-  markAllNotificationsRead();
   try {
-    const { data: result, error } = await invokePushFunction({ action: 'send', notificationId: notification.id });
-    if (error) throw error;
-    notification.status = result.sent > 0 ? 'Teslim edildi' : 'Başarısız';
+    const result = await saveAndSendNotification({
+      audience: data.get('audience'),
+      title: data.get('title'),
+      body: data.get('message')
+    });
+    event.target.reset();
     render();
+    markAllNotificationsRead();
     showToast(result.sent > 0
-      ? `Bildirim ${result.sent} telefona gönderildi.`
+      ? `Bildirim ${result.sent} telefona yüksek öncelikle gönderildi.`
       : 'Bildirim kaydedildi ancak açık bildirimi olan telefon bulunamadı.');
   } catch (error) {
-    notification.status = 'Başarısız';
-    render();
     showToast(`Bildirim gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
   }
 });

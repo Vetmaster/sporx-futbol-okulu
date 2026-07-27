@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
 
+const PUSH_TIMEOUT_MS = 12000;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
@@ -169,10 +171,15 @@ Deno.serve(async request => {
 
   const results = await Promise.allSettled(subscriptions.map(async subscription => {
     try {
-      await webpush.sendNotification({
-        endpoint: subscription.endpoint,
-        keys: { p256dh: subscription.p256dh, auth: subscription.auth_secret }
-      }, payload, { TTL: 3600, urgency: 'normal', topic: `sasa-f-${notification.id}` });
+      await Promise.race([
+        webpush.sendNotification({
+          endpoint: subscription.endpoint,
+          keys: { p256dh: subscription.p256dh, auth: subscription.auth_secret }
+        }, payload, { TTL: 3600, urgency: 'high', topic: `sasa-f-${notification.id}` }),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Push delivery request timed out')), PUSH_TIMEOUT_MS);
+        })
+      ]);
       return { id: subscription.id, sent: true };
     } catch (error) {
       const statusCode = Number((error as { statusCode?: number }).statusCode || 0);
