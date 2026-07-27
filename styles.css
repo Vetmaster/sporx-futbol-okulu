@@ -291,7 +291,15 @@ tbody tr:hover { background: #f5f1eb; }
 .push-permission-copy { display: grid; gap: 4px; }
 .push-permission-copy strong { color: var(--ink); font-size: 15px; }
 .push-permission-copy small { color: var(--muted); line-height: 1.4; }
-.push-permission-button { flex: 0 0 auto; white-space: nowrap; }
+.push-switch-control { position: relative; display: inline-flex; align-items: center; gap: 9px; flex: 0 0 auto; color: var(--brand-dark); font-size: 13px; font-weight: 800; cursor: pointer; }
+.push-switch-control input { position: absolute; right: 0; width: 48px; height: 26px; margin: 0; padding: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.push-switch-control input:disabled { cursor: wait; }
+.push-switch-track { position: relative; display: inline-flex; width: 48px; height: 26px; padding: 3px; border-radius: 999px; background: #c8d0cc; transition: background .2s ease; }
+.push-switch-thumb { width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 2px 5px rgba(0, 0, 0, .22); transform: translateX(0); transition: transform .2s ease; }
+.push-switch-control input:checked + .push-switch-track { background: var(--brand); }
+.push-switch-control input:checked + .push-switch-track .push-switch-thumb { transform: translateX(22px); }
+.push-switch-control input:focus-visible + .push-switch-track { outline: 3px solid rgba(57, 117, 143, .22); outline-offset: 2px; }
+.push-switch-control input:disabled + .push-switch-track { opacity: .58; }
 .parent-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 18px; padding: 24px; color: white; background: linear-gradient(120deg, var(--brand-dark), var(--brand)); border: 0; }
 .parent-hero .profile-avatar { width: 62px; height: 62px; background: var(--lime); color: white; font-size: 21px; }
 .parent-hero h2 { margin: 0 0 5px; }
@@ -421,8 +429,8 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .dialog-actions button { flex: 1; }
   .training-sort-control { width: 100%; justify-content: flex-end; }
   .training-sort-control select { min-width: 0; max-width: 230px; }
-  .push-permission-row { align-items: stretch; flex-direction: column; }
-  .push-permission-button { width: 100%; white-space: normal; }
+  .push-permission-row { gap: 12px; }
+  .push-permission-copy small { max-width: 220px; }
   .install-prompt { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
   .install-prompt-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .install-prompt-actions .primary-button, .install-prompt-actions .secondary-button { width: 100%; }

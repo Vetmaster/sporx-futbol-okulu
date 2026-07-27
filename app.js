@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.27.160';
+const APP_VERSION = '2026.07.27.161';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.3-beta/SASA-F-v1.0.3-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -832,24 +832,24 @@ function notificationsView() {
   const pushUnsupported = state.pushStatus === 'unsupported';
   const pushDenied = state.pushStatus === 'denied';
   const pushChecking = state.pushStatus === 'checking';
-  const pushButtonLabel = state.pushBusy
+  const pushStatusLabel = state.pushBusy
     ? 'İşleniyor…'
     : pushEnabled
-      ? 'Telefon bildirimlerini kapat'
+      ? 'Açık'
       : pushDenied
-        ? 'Bildirim izni engellendi'
+        ? 'Engellendi'
         : pushUnsupported
-          ? 'Bildirimler desteklenmiyor'
+          ? 'Desteklenmiyor'
           : pushChecking
-            ? 'Bildirimler kontrol ediliyor…'
-            : 'Telefon bildirimlerine izin ver';
-  const pushButtonDisabled = state.pushBusy || pushUnsupported || pushDenied || pushChecking;
+            ? 'Kontrol ediliyor…'
+            : 'Kapalı';
+  const pushSwitchDisabled = state.pushBusy || pushUnsupported || pushDenied || pushChecking;
   const pushDescription = pushEnabled
     ? 'Bu cihaz sistem bildirimlerini alacak.'
     : pushDenied
       ? 'Android uygulama ayarlarından bildirim iznini açın.'
       : 'Yeni duyuruları telefonunuzun bildirim alanında görün.';
-  const pushPermissionCard = `<section class="panel push-permission-card"><div class="push-permission-row"><div class="push-permission-copy"><strong>Telefon bildirimleri</strong><small>${pushDescription}</small></div><button class="${pushEnabled ? 'secondary-button' : 'primary-button'} push-permission-button" type="button" data-action="toggle-phone-notifications" ${pushButtonDisabled ? 'disabled' : ''}>${pushButtonLabel}</button></div></section>`;
+  const pushPermissionCard = `<section class="panel push-permission-card"><div class="push-permission-row"><div class="push-permission-copy"><strong>Telefon bildirimleri</strong><small>${pushDescription}</small></div><label class="push-switch-control"><span>${pushStatusLabel}</span><input type="checkbox" role="switch" data-action="toggle-phone-notifications" aria-label="Telefon bildirimlerini ${pushEnabled ? 'kapat' : 'aç'}" ${pushEnabled ? 'checked' : ''} ${pushSwitchDisabled ? 'disabled' : ''}><span class="push-switch-track" aria-hidden="true"><span class="push-switch-thumb"></span></span></label></div></section>`;
   const composePanel = canSend ? `<section class="panel"><details class="notification-compose-disclosure"><summary><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option><option>Aidat borcu olanlar</option><option>Aidat borcu olmayanlar</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></details></section>` : '';
   const notificationRows = state.notifications.map(item => {
     const sentByCurrentUser = item.sentBy === state.userId;
