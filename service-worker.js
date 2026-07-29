@@ -13,8 +13,8 @@ self.addEventListener('push', event => {
 
   event.waitUntil(self.registration.showNotification(payload.title || 'SASA-F', {
     body: payload.body || 'Yeni bir bildiriminiz var.',
-    icon: './sasa-f-icon.svg?v=2026.07.27.161',
-    badge: './sasa-f-icon.svg?v=2026.07.27.161',
+    icon: './sasa-f-icon.svg?v=2026.07.29.164',
+    badge: './sasa-f-icon.svg?v=2026.07.29.164',
     tag: payload.tag || 'sasa-f-notification',
     renotify: true,
     data: { url: payload.url || NOTIFICATION_URL }
