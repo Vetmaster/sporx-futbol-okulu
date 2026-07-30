@@ -30,6 +30,7 @@ button { cursor: pointer; }
 .brand-title-row { display: flex !important; align-items: center; gap: .3em; }
 .brand-football { display: inline-flex; flex: 0 0 auto; align-items: center; font-family: system-ui, sans-serif; font-size: .72em; line-height: 1; }
 .brand-mark { width: 96px; aspect-ratio: 1; border-radius: 24px; display: grid; place-items: center; background: var(--lime) url("sasa-f-icon.svg?v=2026.07.26.146") center/cover no-repeat; color: transparent; font: 900 42px/1 "Anta", sans-serif; letter-spacing: -.08em; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+.auth-brand .brand-mark { background: #fff url("sasa-f-banner-icon.svg?v=2026.07.30.173") center/cover no-repeat; }
 .brand-mark.small { width: 38px; border-radius: 10px; font-size: 17px; box-shadow: none; }
 .auth-card { background: var(--panel); border-radius: 22px; padding: clamp(24px, 5vw, 44px); display: grid; gap: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.2); }
 .auth-card h1 { margin: 8px 0 6px; font-size: clamp(28px, 4vw, 42px); }
@@ -70,7 +71,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .content-shell { min-width: 0; }
 .app-banner { min-height: 74px; position: sticky; top: 0; z-index: 21; display: flex; align-items: center; padding: 10px clamp(18px, 4vw, 46px) 10px 18px; background: var(--brand-dark); border-bottom: 1px solid rgba(255,255,255,.12); box-shadow: 0 8px 24px rgba(52,61,62,.16); }
 .app-banner-home { min-width: 0; display: flex; align-items: center; gap: 9px; padding: 0 110px 0 0; color: white; border: 0; background: transparent; text-align: left; }
-.banner-mark { width: 42px; flex: 0 0 42px; border-radius: 11px; font-size: 18px; box-shadow: none; }
+.banner-mark { width: 42px; height: auto; flex: 0 0 42px; display: block; border-radius: 11px; background: #fff; object-fit: cover; }
 .app-banner-brand-copy { width: min(280px, 52vw); min-width: 0; display: grid; gap: 2px; }
 .app-banner-brand-copy strong { overflow: hidden; font-family: "Anta", var(--font); font-size: 23px; letter-spacing: .04em; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
 .app-banner-brand-copy small { overflow: hidden; color: rgba(255,255,255,.64); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
