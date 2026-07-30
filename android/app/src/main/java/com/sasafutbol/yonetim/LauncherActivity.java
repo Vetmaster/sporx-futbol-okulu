@@ -19,18 +19,26 @@ import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 
 
 
 public class LauncherActivity
         extends com.google.androidbrowserhelper.trusted.LauncherActivity {
-    
+    private static final long SPLASH_DISPLAY_DURATION_MILLIS = 3000L;
+    private final Handler splashHandler = new Handler(Looper.getMainLooper());
+    private final Runnable launchTwaTask = this::launchTwa;
 
-    
+    @Override
+    protected boolean shouldLaunchImmediately() {
+        return false;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        splashHandler.postDelayed(launchTwaTask, SPLASH_DISPLAY_DURATION_MILLIS);
         // Setting an orientation crashes the app due to the transparent background on Android 8.0
         // Oreo and below. We only set the orientation on Oreo and above. This only affects the
         // splash screen and Chrome will still respect the orientation.
@@ -40,6 +48,12 @@ public class LauncherActivity
         } else {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        splashHandler.removeCallbacks(launchTwaTask);
+        super.onDestroy();
     }
 
     @Override

@@ -12,16 +12,16 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#F7F7F7",
   "enableNotifications": true,
-  "startUrl": "/sporx-futbol-okulu/?nativeVersion=8",
+  "startUrl": "/sporx-futbol-okulu/?nativeVersion=9",
   "iconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon.svg?v=2026.07.29.164",
   "maskableIconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon.svg?v=2026.07.29.164",
-  "splashScreenFadeOutDuration": 3000,
+  "splashScreenFadeOutDuration": 0,
   "signingKey": {
     "path": "android.keystore",
     "alias": "sasaf"
   },
-  "appVersionName": "1.0.7-beta",
-  "appVersionCode": 8,
+  "appVersionName": "1.0.8-beta",
+  "appVersionCode": 9,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://vetmaster.github.io/sporx-futbol-okulu/manifest.webmanifest",
@@ -43,5 +43,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1.0.7-beta"
+  "appVersion": "1.0.8-beta"
 }

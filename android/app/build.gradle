@@ -23,7 +23,7 @@ plugins {
 def twaManifest = [
     applicationId: 'com.sasafutbol.yonetim',
     hostName: 'vetmaster.github.io', // The domain being opened in the TWA.
-    launchUrl: '/sporx-futbol-okulu/?nativeVersion=8', // The start path for the TWA. Must be relative to the domain.
+    launchUrl: '/sporx-futbol-okulu/?nativeVersion=9', // The start path for the TWA. Must be relative to the domain.
     name: 'SASA-F Futbol Okulu Yönetim Sistemi', // The application name.
     launcherName: 'SASA-F', // The name shown on the Android Launcher.
     themeColor: '#39758F', // The color used for the status bar.
@@ -41,7 +41,7 @@ def twaManifest = [
     // - icon: Name of the resource in the drawable folder to use as an icon.
     shortcuts: [],
     // The duration of fade out animation in milliseconds to be played when removing splash screen.
-    splashScreenFadeOutDuration: 3000,
+    splashScreenFadeOutDuration: 0,
     generatorApp: 'bubblewrap-cli', // Application that generated the Android Project
     // The fallback strategy for when Trusted Web Activity is not available. Possible values are
     // 'customtabs' and 'webview'.
@@ -57,8 +57,8 @@ android {
         applicationId "com.sasafutbol.yonetim"
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 8
-        versionName "1.0.7-beta"
+        versionCode 9
+        versionName "1.0.8-beta"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
