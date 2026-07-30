@@ -23,7 +23,7 @@ plugins {
 def twaManifest = [
     applicationId: 'com.sasafutbol.yonetim',
     hostName: 'vetmaster.github.io', // The domain being opened in the TWA.
-    launchUrl: '/sporx-futbol-okulu/?nativeVersion=6', // The start path for the TWA. Must be relative to the domain.
+    launchUrl: '/sporx-futbol-okulu/?nativeVersion=7', // The start path for the TWA. Must be relative to the domain.
     name: 'SASA-F Futbol Okulu Yönetim Sistemi', // The application name.
     launcherName: 'SASA-F', // The name shown on the Android Launcher.
     themeColor: '#39758F', // The color used for the status bar.
@@ -32,7 +32,7 @@ def twaManifest = [
     navigationColorDark: '#000000', // The color used for the dark navbar.
     navigationDividerColor: '#000000', // The navbar divider color.
     navigationDividerColorDark: '#000000', // The dark navbar divider color.
-    backgroundColor: '#F1EEE8', // The color used for the splash screen background.
+    backgroundColor: '#F7F7F7', // Matches the light frame of the 3D splash logo.
     enableNotifications: true, // Set to true to enable notification delegation.
     // Every shortcut must include the following fields:
     // - name: String that will show up in the shortcut.
@@ -57,8 +57,8 @@ android {
         applicationId "com.sasafutbol.yonetim"
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 6
-        versionName "1.0.5-beta"
+        versionCode 7
+        versionName "1.0.6-beta"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
