@@ -21,6 +21,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+
+import androidx.core.content.ContextCompat;
 
 
 
@@ -38,6 +42,7 @@ public class LauncherActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        showSplashScreen();
         splashHandler.postDelayed(launchTwaTask, SPLASH_DISPLAY_DURATION_MILLIS);
         // Setting an orientation crashes the app due to the transparent background on Android 8.0
         // Oreo and below. We only set the orientation on Oreo and above. This only affects the
@@ -48,6 +53,18 @@ public class LauncherActivity
         } else {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         }
+    }
+
+    private void showSplashScreen() {
+        ImageView splashView = new ImageView(this);
+        splashView.setBackgroundColor(ContextCompat.getColor(this, R.color.backgroundColor));
+        splashView.setImageResource(R.drawable.splash);
+        splashView.setScaleType(ImageView.ScaleType.CENTER);
+        setContentView(
+                splashView,
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
     @Override
