@@ -18,7 +18,13 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "sasa-f-icon.svg?v=2026.08.02.188",
+      "src": "sasa-f-favicon-v2.png?v=2026.08.02.191",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "sasa-f-icon-v2.svg?v=2026.08.02.190",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

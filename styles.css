@@ -29,7 +29,7 @@ button { cursor: pointer; }
 .brand-name { display: flex; align-items: center; gap: .18em; font-family: "Anta", var(--font); font-size: clamp(40px, 6vw, 76px); letter-spacing: -.02em; line-height: .9; }
 .brand-title-row { display: flex !important; align-items: center; gap: .3em; }
 .brand-football { display: inline-flex; flex: 0 0 auto; align-items: center; font-family: system-ui, sans-serif; font-size: .72em; line-height: 1; }
-.brand-mark { width: 96px; aspect-ratio: 1; border-radius: 24px; display: grid; place-items: center; background: var(--lime) url("sasa-f-icon.svg?v=2026.07.26.146") center/cover no-repeat; color: transparent; font: 900 42px/1 "Anta", sans-serif; letter-spacing: -.08em; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+.brand-mark { width: 96px; aspect-ratio: 1; border-radius: 24px; display: grid; place-items: center; background: #27576b url("sasa-f-icon-v2.svg?v=2026.08.02.190") center/cover no-repeat; color: transparent; font: 900 42px/1 "Anta", sans-serif; letter-spacing: -.08em; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
 .auth-brand .brand-mark { background: #fff url("sasa-f-banner-icon.svg?v=2026.07.30.173") center/cover no-repeat; }
 .brand-mark.small { width: 38px; border-radius: 10px; font-size: 17px; box-shadow: none; }
 .auth-card { background: var(--panel); border-radius: 22px; padding: clamp(24px, 5vw, 44px); display: grid; gap: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.2); }
@@ -349,7 +349,7 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 100; max-width: 360px; padding: 13px 17px; border-radius: 11px; color: white; background: var(--ink); box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }
 .install-prompt { position: fixed; right: 22px; bottom: 22px; z-index: 90; display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px 14px; width: min(470px, calc(100% - 32px)); padding: 18px; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; color: white; background: linear-gradient(135deg, #564f46, #27576b); box-shadow: 0 22px 60px rgba(56,47,39,.34); }
-.install-prompt-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; color: transparent; background: var(--lime) url("sasa-f-icon.svg?v=2026.07.26.146") center/cover no-repeat; font-family: "Anta", sans-serif; font-size: 18px; }
+.install-prompt-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; color: transparent; background: #27576b url("sasa-f-icon-v2.svg?v=2026.08.02.190") center/cover no-repeat; font-family: "Anta", sans-serif; font-size: 18px; }
 .install-prompt-copy { display: grid; gap: 4px; align-content: center; }
 .install-prompt-copy strong { font-size: 16px; }
 .install-prompt-copy span { color: rgba(255,255,255,.7); font-size: 13px; line-height: 1.4; }

@@ -1,5 +1,5 @@
 const NOTIFICATION_URL = new URL('./?open=notifications', self.registration.scope).href;
-const NOTIFICATION_ICON_URL = new URL('./sasa-f-icon.svg?v=2026.08.02.188', self.registration.scope).href;
+const NOTIFICATION_ICON_URL = new URL('./sasa-f-icon-v2.svg?v=2026.08.02.190', self.registration.scope).href;
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(clients.claim()));

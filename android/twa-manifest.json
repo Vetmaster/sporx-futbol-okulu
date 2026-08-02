@@ -13,8 +13,8 @@
   "backgroundColor": "#F7F7F7",
   "enableNotifications": true,
   "startUrl": "/sporx-futbol-okulu/?nativeVersion=15",
-  "iconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon.svg?v=2026.08.02.188",
-  "maskableIconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon.svg?v=2026.08.02.188",
+  "iconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon-v2.svg?v=2026.08.02.190",
+  "maskableIconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon-v2.svg?v=2026.08.02.190",
   "splashScreenFadeOutDuration": 0,
   "signingKey": {
     "path": "android.keystore",
