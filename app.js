@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.200';
+const APP_VERSION = '2026.08.02.201';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.18-beta/SASA-F-v1.0.18-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1310,7 +1310,7 @@ function currentPushPermission() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.200', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.201', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1493,11 +1493,13 @@ async function enablePhoneNotifications() {
   enablePhoneNotificationsPromise = (async () => {
     if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
     let permission = currentPushPermission();
-    if (permission === 'default' && 'Notification' in window) {
+    // Android TWA'da PushManager.subscribe() sistem iznini kendisi ister.
+    // Burada ayrıca requestPermission() çağrılması iki izin penceresi açıyordu.
+    if (permission === 'default' && 'Notification' in window && !runsInAndroidAppShell()) {
       permission = await Notification.requestPermission();
     }
     if (permission === 'unsupported') throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor.');
-    if (permission !== 'granted') {
+    if (permission !== 'granted' && !(runsInAndroidAppShell() && permission === 'default')) {
       state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
       throw new Error('Bildirim izni verilmedi.');
     }
