@@ -1,4 +1,5 @@
 const NOTIFICATION_URL = new URL('./?open=notifications', self.registration.scope).href;
+const NOTIFICATION_ICON_URL = new URL('./sasa-f-icon.svg?v=2026.08.02.188', self.registration.scope).href;
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(clients.claim()));
@@ -13,8 +14,8 @@ self.addEventListener('push', event => {
 
   event.waitUntil(self.registration.showNotification(payload.title || 'SASA-F', {
     body: payload.body || 'Yeni bir bildiriminiz var.',
-    icon: './sasa-f-icon.svg?v=2026.07.29.164',
-    badge: './sasa-f-icon.svg?v=2026.07.29.164',
+    icon: NOTIFICATION_ICON_URL,
+    badge: NOTIFICATION_ICON_URL,
     tag: payload.tag || 'sasa-f-notification',
     renotify: true,
     data: { url: payload.url || NOTIFICATION_URL }
