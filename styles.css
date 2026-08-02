@@ -289,6 +289,9 @@ tbody tr:hover { background: #f5f1eb; }
 .notification-list-content p { margin: 0; color: var(--ink); line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
 .notification-delete-button { position: absolute; top: 9px; right: 12px; min-height: 30px; padding: 5px 10px; border: 1px solid #f3b6b1; border-radius: 9px; color: #b90f08; background: #fff4f3; font-size: 11px; font-weight: 900; cursor: pointer; }
 .notification-delete-button:hover, .notification-delete-button:focus-visible { color: white; border-color: #cd120a; background: #cd120a; }
+.notification-metrics { display: grid; justify-items: end; gap: 6px; }
+.notification-delivery-status { color: #17603a; background: #e8f6ee; white-space: nowrap; }
+.notification-read-status { white-space: nowrap; }
 .push-permission-card { overflow: visible; }
 .push-permission-row { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px 20px; }
 .push-permission-copy { display: grid; gap: 4px; }
@@ -421,7 +424,8 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .list-row { grid-template-columns: 58px minmax(0,1fr); }
   .training-summary-row { grid-template-columns: 96px minmax(0, 1fr); }
   .list-row > :last-child { grid-column: 2; justify-self: start; }
-  .notification-list-row > .status { grid-column: 2; justify-self: start; }
+  .notification-list-row > .status, .notification-list-row > .notification-metrics { grid-column: 2; justify-self: start; }
+  .notification-metrics { justify-items: start; }
   .fee-month-badges { justify-content: flex-start; }
   .parent-hero { grid-template-columns: auto 1fr; }
   .student-profile-hero { grid-template-columns: auto 1fr; }

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.194';
+const APP_VERSION = '2026.08.02.195';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.15-beta/SASA-F-v1.0.15-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -920,7 +920,18 @@ function notificationsView() {
     const recipientStatus = item.read ? 'Okundu' : 'Okunmadı';
     const visibleStatus = sentByCurrentUser ? item.status : recipientStatus;
     const deleteButton = canDelete ? `<button class="notification-delete-button" type="button" data-action="delete-notification" data-id="${item.id}" aria-label="${escapeHtml(item.title)} bildirimini sil">Sil</button>` : '';
-    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div>${deleteButton}<span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span></div>`;
+    const metricsAvailable = item.recipientCount !== null && item.deliveredCount !== null;
+    const deliverySucceeded = Number(item.deliveredCount) > 0;
+    const deliveryStatus = metricsAvailable
+      ? `<span class="status ${deliverySucceeded ? 'notification-delivery-status' : 'danger'}">${deliverySucceeded ? 'Teslim edildi' : 'Teslim edilemedi'} ${item.deliveredCount}/${item.recipientCount}</span>`
+      : `<span class="status">${escapeHtml(item.status)}</span>`;
+    const readStatus = metricsAvailable
+      ? `<span class="status blue notification-read-status">Okundu ${item.readCount || 0}/${item.deliveredCount}</span>`
+      : '';
+    const statusMarkup = canDelete
+      ? `<div class="notification-metrics">${deliveryStatus}${readStatus}</div>`
+      : `<span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span>`;
+    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div>${deleteButton}${statusMarkup}</div>`;
   }).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div>${pushPermissionCard}${composePanel}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${notificationRows}</section></div>`;
 }
@@ -1326,6 +1337,9 @@ async function saveAndSendNotification({ audience, title, body }) {
     if (pushError) throw pushError;
     notification.id = Number(pushResult.notificationId);
     notification.status = pushResult.sent > 0 ? 'Teslim edildi' : 'Başarısız';
+    notification.recipientCount = Number(pushResult.recipients || 0);
+    notification.deliveredCount = Number(pushResult.sent || 0);
+    notification.readCount = 0;
     state.notifications.unshift(notification);
     persistLocalData();
     return { notification, sent: Number(pushResult.sent || 0) };
@@ -1350,7 +1364,10 @@ async function createTrainingAndSendNotification(training) {
     audience: `${training.group} velileri`,
     sentBy: state.userId,
     time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-    status: Number(result.sent || 0) > 0 ? 'Teslim edildi' : 'Başarısız'
+    status: Number(result.sent || 0) > 0 ? 'Teslim edildi' : 'Başarısız',
+    recipientCount: Number(result.recipients || 0),
+    deliveredCount: Number(result.sent || 0),
+    readCount: 0
   };
   state.notifications.unshift(notification);
   persistLocalData();

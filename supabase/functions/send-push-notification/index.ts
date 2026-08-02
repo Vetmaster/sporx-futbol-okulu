@@ -216,11 +216,11 @@ Deno.serve(async request => {
   }
 
   recipientIds = [...new Set(recipientIds.filter(Boolean))];
-  let subscriptions: Array<{ id: number; endpoint: string; p256dh: string; auth_secret: string }> = [];
+  let subscriptions: Array<{ id: number; user_id: string; endpoint: string; p256dh: string; auth_secret: string }> = [];
   if (recipientIds.length) {
     const { data } = await admin
       .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth_secret')
+      .select('id, user_id, endpoint, p256dh, auth_secret')
       .in('user_id', recipientIds);
     subscriptions = data || [];
   }
@@ -244,7 +244,7 @@ Deno.serve(async request => {
           setTimeout(() => reject(new Error('Push delivery request timed out')), PUSH_TIMEOUT_MS);
         })
       ]);
-      return { id: subscription.id, sent: true };
+      return { id: subscription.id, userId: subscription.user_id, sent: true };
     } catch (error) {
       const statusCode = Number((error as { statusCode?: number }).statusCode || 0);
       if (statusCode === 404 || statusCode === 410) {
@@ -254,11 +254,36 @@ Deno.serve(async request => {
     }
   }));
 
-  const sent = results.filter(result => result.status === 'fulfilled').length;
-  const failed = results.length - sent;
+  const deliveredRecipientIds = new Set<string>();
+  results.forEach(result => {
+    if (result.status === 'fulfilled') deliveredRecipientIds.add(result.value.userId);
+  });
+  const sent = deliveredRecipientIds.size;
+  const failed = Math.max(0, recipientIds.length - sent);
+  const { error: clearDeliveriesError } = await admin
+    .from('notification_deliveries')
+    .delete()
+    .eq('notification_id', notification.id);
+  if (clearDeliveriesError) return json({ error: clearDeliveriesError.message }, 500);
+
+  if (deliveredRecipientIds.size) {
+    const { error: deliveriesError } = await admin
+      .from('notification_deliveries')
+      .upsert(
+        [...deliveredRecipientIds].map(userId => ({
+          notification_id: notification.id,
+          user_id: userId
+        })),
+        { onConflict: 'notification_id,user_id' }
+      );
+    if (deliveriesError) return json({ error: deliveriesError.message }, 500);
+  }
+
   await admin.from('notifications').update({
     status: sent > 0 ? 'sent' : 'failed',
-    sent_at: new Date().toISOString()
+    sent_at: new Date().toISOString(),
+    recipient_count: recipientIds.length,
+    delivered_count: sent
   }).eq('id', notification.id);
 
   return json({ trainingId, notificationId: notification.id, sent, failed, recipients: recipientIds.length });
