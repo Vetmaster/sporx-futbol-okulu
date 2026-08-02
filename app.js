@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.02.207';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.19-beta/SASA-F-v1.0.19-beta.apk';
+const APP_VERSION = '2026.08.02.208';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.20-beta/SASA-F-v1.0.20-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
@@ -640,6 +640,7 @@ function renderNavigation() {
 }
 
 function dashboardNotificationPromptMarkup() {
+  if (runsInAndroidAppShell()) return '';
   const permission = currentPushPermission();
   const dismissed = window.localStorage.getItem(PUSH_PROMPT_DISMISS_STORAGE_KEY) === '1';
   const notificationsManuallyDisabled = window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY) === 'disabled';
@@ -1330,7 +1331,7 @@ function currentPushPermission() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.207', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.208', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1452,12 +1453,16 @@ async function refreshPushStatus(shouldRender = false) {
       try {
         const pushPreference = window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY);
         if (pushPreference !== 'disabled' && permission === 'granted' && state.userId) {
-          const { count, error: countError } = await supabaseClient
-            .from('push_subscriptions')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', state.userId);
-          if (countError) throw countError;
-          if (Number(count || 0) > 0) {
+          let shouldRestoreSubscription = runsInAndroidAppShell();
+          if (!shouldRestoreSubscription) {
+            const { count, error: countError } = await supabaseClient
+              .from('push_subscriptions')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', state.userId);
+            if (countError) throw countError;
+            shouldRestoreSubscription = Number(count || 0) > 0;
+          }
+          if (shouldRestoreSubscription) {
             subscription = await createAndSavePushSubscription(registration);
             window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
           }

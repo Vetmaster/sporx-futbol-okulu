@@ -24,6 +24,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
@@ -38,6 +39,8 @@ public class LauncherActivity
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1201;
     private final Handler splashHandler = new Handler(Looper.getMainLooper());
     private final Runnable launchTwaTask = this::launchTwa;
+    private long splashStartedAtMillis;
+    private boolean twaLaunchScheduled;
 
     @Override
     protected boolean shouldLaunchImmediately() {
@@ -47,9 +50,9 @@ public class LauncherActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        splashStartedAtMillis = SystemClock.elapsedRealtime();
         showSplashScreen();
-        requestNotificationPermissionIfNeeded();
-        splashHandler.postDelayed(launchTwaTask, SPLASH_DISPLAY_DURATION_MILLIS);
+        if (!requestNotificationPermissionIfNeeded()) scheduleTwaLaunch();
         // Setting an orientation crashes the app due to the transparent background on Android 8.0
         // Oreo and below. We only set the orientation on Oreo and above. This only affects the
         // splash screen and Chrome will still respect the orientation.
@@ -61,14 +64,32 @@ public class LauncherActivity
         }
     }
 
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+    private boolean requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false;
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                == PackageManager.PERMISSION_GRANTED) return;
+                == PackageManager.PERMISSION_GRANTED) return false;
         ActivityCompat.requestPermissions(
                 this,
                 new String[]{Manifest.permission.POST_NOTIFICATIONS},
                 NOTIFICATION_PERMISSION_REQUEST_CODE);
+        return true;
+    }
+
+    private void scheduleTwaLaunch() {
+        if (twaLaunchScheduled) return;
+        twaLaunchScheduled = true;
+        long elapsedMillis = SystemClock.elapsedRealtime() - splashStartedAtMillis;
+        long remainingMillis = Math.max(0L, SPLASH_DISPLAY_DURATION_MILLIS - elapsedMillis);
+        splashHandler.postDelayed(launchTwaTask, remainingMillis);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            String[] permissions,
+            int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) scheduleTwaLaunch();
     }
 
     private void showSplashScreen() {
