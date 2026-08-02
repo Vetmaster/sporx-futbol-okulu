@@ -2,10 +2,10 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="48"
-    android:viewportHeight="48">
-    <!-- Android durum çubuğu için çerçevesiz, tek renk SASA-F işareti. -->
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Android durum çubuğu için şeffaf zeminli, tek renk SASA-F işareti. -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M24,8H12C7.6,8 5,10.6 5,14.2C5,18.1 7.5,20.1 12.2,21.2L17.3,22.4C19.2,22.9 20,23.6 20,24.9C20,26.4 18.8,27.2 16.6,27.2H6.2L4.8,33H17.5C23.5,33 26.8,30.1 26.8,25C26.8,20.6 24.2,18.5 19.1,17.3L14.1,16.1C12.4,15.7 11.6,15 11.6,13.8C11.6,12.6 12.6,12 14.5,12H23L24,8ZM29,8H44L42.6,13.8H34.4L33.6,17.2H41.2L39.8,22.8H32.2L29.8,33H23.5L29,8Z" />
+        android:pathData="M2,4H11V7H2ZM2,4H5V11H2ZM2,8H11V11H2ZM8,9H11V16H8ZM2,13H11V16H2ZM13,4H22V7H13ZM13,4H16V16H13ZM13,8H21V11H13Z" />
 </vector>

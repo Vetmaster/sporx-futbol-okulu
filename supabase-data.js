@@ -417,16 +417,15 @@
     }
 
     async function markNotificationsRead(notificationIds) {
-      if (!userId || !notificationIds.length) return;
-      const { error } = await client.from('notification_reads').upsert(
-        notificationIds.map(notificationId => ({
-          notification_id: Number(notificationId),
-          user_id: userId,
-          read_at: new Date().toISOString()
-        })),
-        { onConflict: 'notification_id,user_id', ignoreDuplicates: true }
-      );
+      if (!userId || !notificationIds.length) return [];
+      const { data, error } = await client.rpc('mark_notifications_read_and_get_counts', {
+        notification_ids: notificationIds.map(Number)
+      });
       if (error) throw error;
+      return (data || []).map(row => ({
+        notificationId: Number(row.notification_id),
+        readCount: Number(row.read_count || 0)
+      }));
     }
 
     async function deleteNotification(id) {
