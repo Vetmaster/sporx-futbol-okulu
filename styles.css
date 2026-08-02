@@ -297,6 +297,13 @@ tbody tr:hover { background: #f5f1eb; }
 .push-permission-copy { display: grid; gap: 4px; }
 .push-permission-copy strong { color: var(--ink); font-size: 15px; }
 .push-permission-copy small { color: var(--muted); line-height: 1.4; }
+.dashboard-notification-prompt { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 18px 20px; border-color: rgba(205,18,10,.22); background: linear-gradient(135deg, rgba(205,18,10,.08), rgba(255,255,255,.96)); }
+.dashboard-notification-prompt-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: white; background: var(--brand); }
+.dashboard-notification-prompt-icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dashboard-notification-prompt-copy { display: grid; gap: 5px; }
+.dashboard-notification-prompt-copy strong { color: var(--ink); font-size: 16px; }
+.dashboard-notification-prompt-copy small { color: var(--muted); line-height: 1.45; }
+.dashboard-notification-prompt-actions { display: flex; align-items: center; gap: 8px; }
 .push-switch-control { position: relative; display: inline-flex; align-items: center; gap: 9px; flex: 0 0 auto; color: var(--brand-dark); font-size: 13px; font-weight: 800; cursor: pointer; }
 .push-switch-control input { position: absolute; right: 0; width: 48px; height: 26px; margin: 0; padding: 0; opacity: 0; cursor: pointer; z-index: 1; }
 .push-switch-control input:disabled { cursor: wait; }
@@ -440,6 +447,10 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .training-sort-control select { min-width: 0; max-width: 230px; }
   .push-permission-row { gap: 12px; }
   .push-permission-copy small { max-width: 220px; }
+  .dashboard-notification-prompt { grid-template-columns: 42px minmax(0, 1fr); }
+  .dashboard-notification-prompt-icon { width: 42px; height: 42px; }
+  .dashboard-notification-prompt-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+  .dashboard-notification-prompt-actions button { width: 100%; }
   .install-prompt { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
   .install-prompt-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .install-prompt-actions .primary-button, .install-prompt-actions .secondary-button { width: 100%; }

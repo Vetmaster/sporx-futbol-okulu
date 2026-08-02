@@ -1,10 +1,11 @@
-const APP_VERSION = '2026.08.02.201';
+const APP_VERSION = '2026.08.02.203';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.18-beta/SASA-F-v1.0.18-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
 const ANDROID_APP_SEEN_MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
 const PUSH_PREFERENCE_STORAGE_KEY = 'sasa_phone_notifications';
+const PUSH_PROMPT_DISMISS_STORAGE_KEY = 'sasa_push_prompt_dismissed_v1';
 const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
@@ -636,6 +637,18 @@ function renderNavigation() {
   bottomNav.innerHTML = mobileKeys.filter(key => navItems[key]?.roles.includes(state.role)).map(key => navMarkup(key, navItems[key])).join('');
 }
 
+function dashboardNotificationPromptMarkup() {
+  const permission = currentPushPermission();
+  const dismissed = window.localStorage.getItem(PUSH_PROMPT_DISMISS_STORAGE_KEY) === '1';
+  const notificationsManuallyDisabled = window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY) === 'disabled';
+  if (dismissed || notificationsManuallyDisabled || state.pushStatus !== 'disabled' || permission !== 'default') return '';
+  return `<section class="panel dashboard-notification-prompt" aria-labelledby="dashboardNotificationPromptTitle">
+    <span class="dashboard-notification-prompt-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg></span>
+    <div class="dashboard-notification-prompt-copy"><strong id="dashboardNotificationPromptTitle">Antrenman ve duyurulardan haberdar olun</strong><small>Yeni antrenmanları, iptalleri ve okul duyurularını telefonunuzdan takip edin. Android ilk etkinleştirmede web ve uygulama için iki onay gösterebilir.</small></div>
+    <div class="dashboard-notification-prompt-actions"><button class="primary-button" type="button" data-action="enable-dashboard-notifications">Bildirimleri aç</button><button class="secondary-button" type="button" data-action="dismiss-dashboard-notifications">Şimdi değil</button></div>
+  </section>`;
+}
+
 function dashboardView() {
   if (state.role === 'parent') return parentDashboard();
   const activeStudents = state.students.filter(isActiveStudent);
@@ -643,6 +656,7 @@ function dashboardView() {
   const pendingFeeAmount = pendingFeeStudents.length * 1500;
   const plannedTrainings = sortedTrainings(state.trainings);
   return `<div class="page-stack">
+    ${dashboardNotificationPromptMarkup()}
     <div class="section-heading"><div><h2>Bugünün kulüp özeti</h2><p>20 Temmuz Pazartesi · Son güncelleme şimdi</p></div></div>
     <section class="stats-grid club-summary-grid">
       <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>${activeStudents.length} / ${state.students.length}</strong><button class="stat-link" type="button" data-page="students">${GROUPS.length} grup</button></article>
@@ -691,6 +705,7 @@ function parentDashboard() {
     : '<article class="stat-card next-training-card"><span class="label">Sıradaki antrenman</span><strong>Planlanmış antrenman yok</strong><small>Öğrencinin grubu için yaklaşan kayıt bulunmuyor.</small></article>';
   const newsfeedItems = state.notifications.slice(0, 5).map(item => `<button class="newsfeed-item ${item.read ? '' : 'is-unread'}" type="button" data-page="notifications"><span class="newsfeed-marker" aria-hidden="true"></span><span class="newsfeed-content"><span class="newsfeed-meta"><span>${escapeHtml(item.date)} · ${escapeHtml(item.time)}</span>${item.read ? '' : '<span class="status warning">Yeni</span>'}</span><strong>${escapeHtml(item.title)}</strong>${item.body ? `<span class="newsfeed-message">${escapeHtml(item.body)}</span>` : ''}</span></button>`).join('');
   return `<div class="page-stack">
+    ${dashboardNotificationPromptMarkup()}
     <section class="panel parent-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><div class="parent-hero-actions">${parentStudentSwitcherMarkup()}<button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></div></section>
     <section class="stats-grid parent-dashboard-stats">
       ${nextTrainingCard}
@@ -1256,7 +1271,7 @@ async function showAuthenticatedApp(user) {
   setAuthPending(false);
   render();
   startRealtimeSync();
-  refreshPushStatus(state.page === 'notifications');
+  refreshPushStatus(state.page === 'notifications' || state.page === 'dashboard');
   if (state.page === 'notifications') markAllNotificationsRead();
   })();
   activeProfileLoad = { userId: user.id, promise: loadPromise };
@@ -1310,7 +1325,7 @@ function currentPushPermission() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.201', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.203', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1493,13 +1508,13 @@ async function enablePhoneNotifications() {
   enablePhoneNotificationsPromise = (async () => {
     if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
     let permission = currentPushPermission();
-    // Android TWA'da PushManager.subscribe() sistem iznini kendisi ister.
-    // Burada ayrıca requestPermission() çağrılması iki izin penceresi açıyordu.
-    if (permission === 'default' && 'Notification' in window && !runsInAndroidAppShell()) {
+    // TWA'da web bildirimi ve Android uygulama bildirimi ayrı yetkilerdir.
+    // Web izni kalıcı aboneliğin sayfa yenilendiğinde korunması için gereklidir.
+    if (permission === 'default' && 'Notification' in window) {
       permission = await Notification.requestPermission();
     }
     if (permission === 'unsupported') throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor.');
-    if (permission !== 'granted' && !(runsInAndroidAppShell() && permission === 'default')) {
+    if (permission !== 'granted') {
       state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
       throw new Error('Bildirim izni verilmedi.');
     }
@@ -1811,16 +1826,21 @@ document.addEventListener('click', async event => {
   else if (action === 'scroll-profile-fees') document.querySelector('#monthlyFeeSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   else if (action === 'toggle-student-timeline') { const studentId = Number(actionButton.dataset.id); state.expandedTimelineStudentId = Number(state.expandedTimelineStudentId) === studentId ? null : studentId; render(); }
   else if (action === 'fee-filter') { state.feeFilter = actionButton.dataset.filter || 'all'; render(); }
-  else if (action === 'toggle-phone-notifications') {
+  else if (action === 'dismiss-dashboard-notifications') {
+    window.localStorage.setItem(PUSH_PROMPT_DISMISS_STORAGE_KEY, '1');
+    render();
+  }
+  else if (action === 'toggle-phone-notifications' || action === 'enable-dashboard-notifications') {
     if (state.pushBusy) return;
     state.pushBusy = true;
     render();
     try {
-      if (state.pushStatus === 'enabled') {
+      if (action === 'toggle-phone-notifications' && state.pushStatus === 'enabled') {
         await disablePhoneNotifications();
         showToast('Bu telefondaki bildirimler kapatıldı.');
       } else {
         await enablePhoneNotifications();
+        window.localStorage.removeItem(PUSH_PROMPT_DISMISS_STORAGE_KEY);
         showToast('Telefon bildirimleri açıldı.');
       }
     } catch (error) {
@@ -2195,7 +2215,7 @@ async function handleAuthStateChange(event, session) {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.userId && !appShell.classList.contains('is-hidden')) {
-    refreshPushStatus(state.page === 'notifications');
+    refreshPushStatus(state.page === 'notifications' || state.page === 'dashboard');
   }
 });
 
