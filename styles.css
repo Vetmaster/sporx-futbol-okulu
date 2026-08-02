@@ -344,6 +344,7 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
 .timeline-content strong { font-size: 15px; }
 .timeline-content small { color: var(--muted); line-height: 1.45; }
 .student-timeline .timeline-empty { display: block; min-height: auto; padding: 20px 0; color: var(--muted); text-align: center; }
+.student-timeline-actions { display: flex; justify-content: center; padding: 0 22px 20px; }
 .empty-state { padding: 24px; color: var(--muted); text-align: center; }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 100; max-width: 360px; padding: 13px 17px; border-radius: 11px; color: white; background: var(--ink); box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
 .toast.show { opacity: 1; transform: translateY(0); }

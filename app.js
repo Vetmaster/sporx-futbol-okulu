@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.184';
+const APP_VERSION = '2026.08.02.186';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.12-beta/SASA-F-v1.0.12-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -55,6 +55,7 @@ const state = {
   monthlyFeeSortKey: 'period',
   monthlyFeeSortDirection: 'desc',
   monthlyFeeUnpaidOnly: false,
+  expandedTimelineStudentId: null,
   trainingSortDirection: 'asc',
   feeFilter: 'all',
   accountingFilter: 'all',
@@ -605,7 +606,10 @@ function studentTimelineEntries(student) {
 }
 function studentTimelineMarkup(student) {
   const entries = studentTimelineEntries(student);
-  return `<section class="panel student-timeline-card"><div class="panel-heading"><div><h3>Öğrenci zaman çizelgesi</h3><small class="muted">Kayıt, aidat ve yoklama hareketleri</small></div><span class="status blue">${entries.length} hareket</span></div><ol class="student-timeline">${entries.slice(0, 10).map(entry => `<li class="${entry.tone}"><span class="timeline-dot" aria-hidden="true"></span><div class="timeline-content"><time datetime="${entry.date}">${formatTimelineDate(entry.date)}</time><strong>${entry.title}</strong><small>${entry.detail}</small></div></li>`).join('') || '<li class="timeline-empty">Henüz zaman çizelgesi hareketi bulunmuyor.</li>'}</ol></section>`;
+  const expanded = Number(state.expandedTimelineStudentId) === Number(student.id);
+  const visibleEntries = expanded ? entries : entries.slice(0, 4);
+  const historyButton = entries.length > 4 ? `<div class="student-timeline-actions"><button class="secondary-button" type="button" data-action="toggle-student-timeline" data-id="${student.id}" aria-expanded="${expanded}">${expanded ? 'Daha az göster' : 'Geçmiş hareketler'}</button></div>` : '';
+  return `<section class="panel student-timeline-card"><div class="panel-heading"><div><h3>Öğrenci zaman çizelgesi</h3><small class="muted">Kayıt, aidat ve yoklama hareketleri</small></div><span class="status blue">${entries.length} hareket</span></div><ol class="student-timeline">${visibleEntries.map(entry => `<li class="${entry.tone}"><span class="timeline-dot" aria-hidden="true"></span><div class="timeline-content"><time datetime="${entry.date}">${formatTimelineDate(entry.date)}</time><strong>${entry.title}</strong><small>${entry.detail}</small></div></li>`).join('') || '<li class="timeline-empty">Henüz zaman çizelgesi hareketi bulunmuyor.</li>'}</ol>${historyButton}</section>`;
 }
 function trainingAttendanceLabel(training) {
   const trainingStudents = studentsForTraining(training);
@@ -643,12 +647,12 @@ function dashboardView() {
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>₺208.300</strong><small>+%8 geçen aya göre</small></article>
     </section>
     <section class="dashboard-grid">
-      <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${plannedTrainings.map(t => `<div class="list-row training-summary-row"><span class="training-date-time"><small>${formatTrainingDate(t.date)}</small><b>${t.time}</b></span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${trainingAttendanceLabel(t)}</span></div>`).join('')}</article>
+      <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${plannedTrainings.slice(0, 4).map(t => `<div class="list-row training-summary-row"><span class="training-date-time"><small>${formatTrainingDate(t.date)}</small><b>${t.time}</b></span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${trainingAttendanceLabel(t)}</span></div>`).join('')}</article>
       <article class="panel"><div class="panel-heading"><h3>Kulüp performansı</h3><span class="status blue">Temmuz</span></div><div class="progress-group">
         ${progress('Aidat tahsilatı', 86)}${progress('Antrenman katılımı', 91)}${progress('Kontenjan kullanımı', 78)}
       </div></article>
     </section>
-    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 5).map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<span class="inline-separator" aria-hidden="true">•</span><small>Grup: ${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div><div class="fee-month-badges" aria-label="Ödenmemiş aylar">${unpaidFeePeriods(s).map(month => `<span class="status danger">${formatFeeMonth(month)}</span>`).join('')}</div></div>`).join('')}</section>
+    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 4).map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<span class="inline-separator" aria-hidden="true">•</span><small>Grup: ${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div><div class="fee-month-badges" aria-label="Ödenmemiş aylar">${unpaidFeePeriods(s).map(month => `<span class="status danger">${formatFeeMonth(month)}</span>`).join('')}</div></div>`).join('')}</section>
   </div>`;
 }
 
@@ -1731,6 +1735,7 @@ document.addEventListener('click', async event => {
   else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
   else if (action === 'pending-fees') navigateToPage('fees', { feeFilter: 'pending' });
   else if (action === 'scroll-profile-fees') document.querySelector('#monthlyFeeSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  else if (action === 'toggle-student-timeline') { const studentId = Number(actionButton.dataset.id); state.expandedTimelineStudentId = Number(state.expandedTimelineStudentId) === studentId ? null : studentId; render(); }
   else if (action === 'fee-filter') { state.feeFilter = actionButton.dataset.filter || 'all'; render(); }
   else if (action === 'toggle-phone-notifications') {
     state.pushBusy = true;
@@ -1821,7 +1826,7 @@ document.addEventListener('click', async event => {
       showToast('Aidat Supabase’e kaydedildi; tahsilat muhasebeye eklendi.');
     }
   }
-  else if (action === 'profile') { const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); navigateToPage('studentProfile', { selectedStudentId: Number(actionButton.dataset.id) }); }
+  else if (action === 'profile') { const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); navigateToPage('studentProfile', { selectedStudentId: Number(actionButton.dataset.id), expandedTimelineStudentId: null }); }
   else showToast('Bu işlem sonraki geliştirme adımında açılacak.');
 });
 
@@ -1835,6 +1840,7 @@ appContent.addEventListener('input', event => {
 appContent.addEventListener('change', async event => {
   if (event.target.id === 'parentStudentSelect') {
     state.selectedParentStudentId = Number(event.target.value) || null;
+    state.expandedTimelineStudentId = null;
     persistNavigationState();
     render();
     return;
