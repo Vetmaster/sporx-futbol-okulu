@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.199';
+const APP_VERSION = '2026.08.02.200';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.18-beta/SASA-F-v1.0.18-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1310,7 +1310,7 @@ function currentPushPermission() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.199', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.200', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1386,6 +1386,7 @@ async function createTrainingAndSendNotification(training) {
 }
 
 let pushStatusRefreshPromise = null;
+let enablePhoneNotificationsPromise = null;
 
 async function refreshPushStatus(shouldRender = false) {
   if (!pushStatusRefreshPromise) {
@@ -1488,26 +1489,33 @@ async function createAndSavePushSubscription(registration) {
 }
 
 async function enablePhoneNotifications() {
-  if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
-  const permission = 'Notification' in window
-    ? await Notification.requestPermission()
-    : runsInAndroidAppShell()
-      ? 'granted'
-      : 'unsupported';
-  if (permission === 'unsupported') throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor.');
-  if (permission !== 'granted') {
-    state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
-    throw new Error('Bildirim izni verilmedi.');
+  if (enablePhoneNotificationsPromise) return enablePhoneNotificationsPromise;
+  enablePhoneNotificationsPromise = (async () => {
+    if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
+    let permission = currentPushPermission();
+    if (permission === 'default' && 'Notification' in window) {
+      permission = await Notification.requestPermission();
+    }
+    if (permission === 'unsupported') throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor.');
+    if (permission !== 'granted') {
+      state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
+      throw new Error('Bildirim izni verilmedi.');
+    }
+    const registration = await getPushRegistration();
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await createAndSavePushSubscription(registration);
+    } else {
+      await savePushSubscription(subscription);
+    }
+    window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+    state.pushStatus = 'enabled';
+  })();
+  try {
+    return await enablePhoneNotificationsPromise;
+  } finally {
+    enablePhoneNotificationsPromise = null;
   }
-  const registration = await getPushRegistration();
-  let subscription = await registration.pushManager.getSubscription();
-  if (!subscription) {
-    subscription = await createAndSavePushSubscription(registration);
-  } else {
-    await savePushSubscription(subscription);
-  }
-  window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
-  state.pushStatus = 'enabled';
 }
 
 async function disablePhoneNotifications() {
@@ -1802,6 +1810,7 @@ document.addEventListener('click', async event => {
   else if (action === 'toggle-student-timeline') { const studentId = Number(actionButton.dataset.id); state.expandedTimelineStudentId = Number(state.expandedTimelineStudentId) === studentId ? null : studentId; render(); }
   else if (action === 'fee-filter') { state.feeFilter = actionButton.dataset.filter || 'all'; render(); }
   else if (action === 'toggle-phone-notifications') {
+    if (state.pushBusy) return;
     state.pushBusy = true;
     render();
     try {
