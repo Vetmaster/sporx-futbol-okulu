@@ -1,7 +1,9 @@
-const APP_VERSION = '2026.08.02.182';
+const APP_VERSION = '2026.08.02.183';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.12-beta/SASA-F-v1.0.12-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
+const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
+const ANDROID_APP_SEEN_MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
 const PUSH_PREFERENCE_STORAGE_KEY = 'sasa_phone_notifications';
 const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
@@ -210,8 +212,40 @@ function shouldOfferAndroidInstall() {
     && !window.localStorage.getItem(INSTALL_PROMPT_DISMISS_KEY);
 }
 
-function showAndroidInstallPrompt() {
+function markAndroidAppAsSeen() {
+  window.localStorage.setItem(ANDROID_APP_LAST_SEEN_STORAGE_KEY, String(Date.now()));
+}
+
+function wasAndroidAppRecentlySeen() {
+  if (Number(window.localStorage.getItem(NATIVE_VERSION_STORAGE_KEY)) > 0) return true;
+  const lastSeenAt = Number(window.localStorage.getItem(ANDROID_APP_LAST_SEEN_STORAGE_KEY));
+  return lastSeenAt > 0 && Date.now() - lastSeenAt < ANDROID_APP_SEEN_MAX_AGE_MS;
+}
+
+async function isAndroidAppInstalled() {
+  if (runsInAndroidAppShell()) {
+    markAndroidAppAsSeen();
+    return true;
+  }
+  if (wasAndroidAppRecentlySeen()) return true;
+  if (typeof window.navigator.getInstalledRelatedApps !== 'function') return false;
+  try {
+    const relatedApps = await window.navigator.getInstalledRelatedApps();
+    const installed = relatedApps.some(app => app.platform === 'play' && app.id === ANDROID_PACKAGE_ID);
+    if (installed) markAndroidAppAsSeen();
+    return installed;
+  } catch (error) {
+    console.warn('Kurulu Android uygulaması kontrol edilemedi:', error);
+    return false;
+  }
+}
+
+async function showAndroidInstallPrompt() {
   if (!shouldOfferAndroidInstall()) return;
+  if (await isAndroidAppInstalled()) {
+    installPrompt.classList.add('is-hidden');
+    return;
+  }
   appUpdatePrompt.classList.add('is-hidden');
   installPrompt.classList.remove('is-hidden');
 }
@@ -267,6 +301,8 @@ function runsInAndroidAppShell() {
   const legacyNativeLaunch = launchedWithVersion && (launchedByAndroidPackage || runsAsInstalledApp());
   return explicitlyLaunchedByAndroidShell || launchedByAndroidPackage || legacyNativeLaunch;
 }
+
+if (runsInAndroidAppShell()) markAndroidAppAsSeen();
 
 async function checkForAndroidUpdate() {
   if (!runsInAndroidAppShell()) return;

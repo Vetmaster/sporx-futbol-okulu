@@ -9,6 +9,13 @@
   "display": "standalone",
   "background_color": "#f7f7f7",
   "theme_color": "#39758f",
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.sasafutbol.yonetim"
+    }
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "sasa-f-icon.svg?v=2026.07.29.164",
