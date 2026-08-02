@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.206';
+const APP_VERSION = '2026.08.02.207';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.19-beta/SASA-F-v1.0.19-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1330,7 +1330,7 @@ function currentPushPermission() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.206', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.207', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1420,10 +1420,6 @@ async function refreshPushStatus(shouldRender = false) {
         state.pushStatus = 'unsupported';
         return;
       }
-      if (permission === 'denied') {
-        state.pushStatus = 'denied';
-        return;
-      }
       let registration;
       let subscription;
       try {
@@ -1445,6 +1441,11 @@ async function refreshPushStatus(shouldRender = false) {
             console.warn('Bildirim aboneliği yenilenemedi; mevcut abonelik korunuyor:', error);
           }
         }
+        return;
+      }
+
+      if (permission === 'denied') {
+        state.pushStatus = 'denied';
         return;
       }
 
@@ -1486,14 +1487,12 @@ function urlBase64ToUint8Array(value) {
 
 async function savePushSubscription(subscription) {
   const serialized = subscription.toJSON();
-  const { error } = await supabaseClient.from('push_subscriptions').upsert({
-    user_id: state.userId,
-    endpoint: serialized.endpoint,
-    p256dh: serialized.keys?.p256dh,
-    auth_secret: serialized.keys?.auth,
-    user_agent: navigator.userAgent,
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'endpoint' });
+  const { error } = await supabaseClient.rpc('register_push_subscription', {
+    subscription_endpoint: serialized.endpoint,
+    subscription_p256dh: serialized.keys?.p256dh,
+    subscription_auth_secret: serialized.keys?.auth,
+    subscription_user_agent: navigator.userAgent
+  });
   if (error) throw error;
 }
 
@@ -1512,6 +1511,14 @@ async function enablePhoneNotifications() {
   if (enablePhoneNotificationsPromise) return enablePhoneNotificationsPromise;
   enablePhoneNotificationsPromise = (async () => {
     if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
+    const registration = await getPushRegistration();
+    let subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      await savePushSubscription(subscription);
+      window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+      state.pushStatus = 'enabled';
+      return;
+    }
     let permission = currentPushPermission();
     // Android uygulama izni yerel açılış ekranında alınır. Burada yalnızca
     // web push izni istenir; böylece toggle tek bir izin penceresi gösterir.
@@ -1523,13 +1530,7 @@ async function enablePhoneNotifications() {
       state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
       throw new Error('Bildirim izni verilmedi.');
     }
-    const registration = await getPushRegistration();
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await createAndSavePushSubscription(registration);
-    } else {
-      await savePushSubscription(subscription);
-    }
+    subscription = await createAndSavePushSubscription(registration);
     window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
     state.pushStatus = 'enabled';
   })();
