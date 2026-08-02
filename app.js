@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.203';
+const APP_VERSION = '2026.08.02.204';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.18-beta/SASA-F-v1.0.18-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -63,6 +63,8 @@ const state = {
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
   pushStatus: 'checking',
   pushBusy: false,
+  notificationComposeOpen: false,
+  notificationDraft: { audience: 'Tüm kullanıcılar', title: '', body: '' },
   editingStudentId: null,
   editingTrainingId: null,
   editingAccountingEntryId: null
@@ -929,7 +931,8 @@ function notificationsView() {
       ? 'Android uygulama ayarlarından bildirim iznini açın.'
       : 'Yeni duyuruları telefonunuzun bildirim alanında görün.';
   const pushPermissionCard = `<section class="panel push-permission-card"><div class="push-permission-row"><div class="push-permission-copy"><strong>Telefon bildirimleri</strong><small>${pushDescription}</small></div><label class="push-switch-control"><span>${pushStatusLabel}</span><input type="checkbox" role="switch" data-action="toggle-phone-notifications" aria-label="Telefon bildirimlerini ${pushEnabled ? 'kapat' : 'aç'}" ${pushEnabled ? 'checked' : ''} ${pushSwitchDisabled ? 'disabled' : ''}><span class="push-switch-track" aria-hidden="true"><span class="push-switch-thumb"></span></span></label></div></section>`;
-  const composePanel = canSend ? `<section class="panel"><details class="notification-compose-disclosure"><summary><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required><option>Tüm kullanıcılar</option><option>Tüm veliler</option><option>Aidat borcu olanlar</option><option>Aidat borcu olmayanlar</option>${GROUPS.map(group => `<option>${group} velileri</option>`).join('')}<option>Normal kullanıcılar</option></select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın"></textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></details></section>` : '';
+  const audienceOptions = ['Tüm kullanıcılar', 'Tüm veliler', 'Aidat borcu olanlar', 'Aidat borcu olmayanlar', ...GROUPS.map(group => `${group} velileri`), 'Normal kullanıcılar'];
+  const composePanel = canSend ? `<section class="panel"><details class="notification-compose-disclosure" ${state.notificationComposeOpen ? 'open' : ''}><summary><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required>${audienceOptions.map(audience => `<option ${state.notificationDraft.audience === audience ? 'selected' : ''}>${escapeHtml(audience)}</option>`).join('')}</select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği" value="${escapeHtml(state.notificationDraft.title)}"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın">${escapeHtml(state.notificationDraft.body)}</textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></details></section>` : '';
   const notificationRows = state.notifications.map(item => {
     const sentByCurrentUser = item.sentBy === state.userId;
     const recipientStatus = item.read ? 'Okundu' : 'Okunmadı';
@@ -1251,6 +1254,8 @@ async function showAuthenticatedApp(user) {
   state.userEmail = user.email || '';
   state.page = 'dashboard';
   state.pageHistory = [];
+  state.notificationComposeOpen = false;
+  state.notificationDraft = { audience: 'Tüm kullanıcılar', title: '', body: '' };
   applyRemoteData(remoteData);
   if (openDashboardAfterPasswordLogin) {
     window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
@@ -1937,6 +1942,12 @@ document.addEventListener('click', async event => {
 });
 
 appContent.addEventListener('input', event => {
+  if (event.target.closest('#notificationForm')) {
+    if (event.target.name === 'audience') state.notificationDraft.audience = event.target.value;
+    if (event.target.name === 'title') state.notificationDraft.title = event.target.value;
+    if (event.target.name === 'message') state.notificationDraft.body = event.target.value;
+    return;
+  }
   if (!['studentSearch', 'groupFilter', 'activeStudentsOnlyFilter', 'debtStudentsOnlyFilter'].includes(event.target.id)) return;
   if (event.target.id === 'activeStudentsOnlyFilter') state.activeStudentsOnly = event.target.checked;
   if (event.target.id === 'debtStudentsOnlyFilter') state.debtStudentsOnly = event.target.checked;
@@ -1944,6 +1955,10 @@ appContent.addEventListener('input', event => {
 });
 
 appContent.addEventListener('change', async event => {
+  if (event.target.closest('#notificationForm') && event.target.name === 'audience') {
+    state.notificationDraft.audience = event.target.value;
+    return;
+  }
   if (event.target.id === 'parentStudentSelect') {
     state.selectedParentStudentId = Number(event.target.value) || null;
     state.expandedTimelineStudentId = null;
@@ -2178,6 +2193,8 @@ appContent.addEventListener('submit', async event => {
       title: data.get('title'),
       body: data.get('message')
     });
+    state.notificationComposeOpen = false;
+    state.notificationDraft = { audience: 'Tüm kullanıcılar', title: '', body: '' };
     event.target.reset();
     render();
     markAllNotificationsRead();
@@ -2188,6 +2205,11 @@ appContent.addEventListener('submit', async event => {
     showToast(`Bildirim gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
   }
 });
+
+appContent.addEventListener('toggle', event => {
+  if (!event.target.matches('.notification-compose-disclosure')) return;
+  state.notificationComposeOpen = event.target.open;
+}, true);
 
 async function handleAuthStateChange(event, session) {
   if (event === 'PASSWORD_RECOVERY') authMode = 'set-password';
