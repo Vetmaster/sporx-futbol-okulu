@@ -231,14 +231,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .progress-fill { height: 100%; border-radius: inherit; background: var(--brand); }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .search-input { min-width: min(100%, 280px); flex: 1; }
-.students-active-filter { display: inline-flex; width: max-content; align-items: center; gap: 9px; color: var(--brand-dark); font-size: 13px; font-weight: 800; cursor: pointer; }
+.students-active-filter { display: inline-flex; width: max-content; align-items: center; gap: 4px; color: var(--brand-dark); font-size: 13px; font-weight: 800; cursor: pointer; }
 .students-active-filter input { width: 18px; height: 18px; accent-color: var(--brand); }
 .students-checkbox-filters { display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; }
 .monthly-fee-filter { padding: 12px 20px; border-bottom: 1px solid var(--line); }
 .student-list-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -14px; padding: 11px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); background: var(--panel); font-size: 13px; }
 .student-list-summary strong { color: var(--brand-dark); font-size: 15px; }
 .training-list-block { display: grid; gap: 12px; }
-.training-list-toolbar { display: flex; justify-content: flex-end; }
+.training-card.is-past { background: #e4e5e3; border-color: #cfd2ce; }
+.training-card.is-past .training-schedule, .training-card.is-past .training-meta { color: #686d69; }
+.attendance-training-row.is-past { background: #e4e5e3; }
+.attendance-training-row.is-past small { color: #686d69; }
+.training-list-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
 .training-sort-control { width: max-content; display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 13px; }
 .training-sort-control select { width: auto; min-width: 210px; padding-block: 10px; color: var(--brand-dark); font-weight: 700; }
 .table-wrap { overflow-x: auto; }
@@ -462,8 +466,12 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .ledger-entry { grid-template-columns: 72px minmax(0,1fr); }
   .ledger-entry .ledger-amount { grid-column: 2; justify-content: flex-start; }
   .dialog-actions button { flex: 1; }
-  .training-sort-control { width: 100%; justify-content: flex-end; }
-  .training-sort-control select { min-width: 0; max-width: 230px; }
+  .training-list-toolbar { flex-wrap: nowrap; gap: 8px; }
+  .training-list-toolbar .students-active-filter { min-width: 0; flex: 1; font-size: 11px; }
+  .training-list-toolbar .students-active-filter span { line-height: 1.2; }
+  .training-sort-control { width: auto; flex: 0 0 auto; justify-content: flex-end; gap: 5px; }
+  .training-sort-control > span { display: none; }
+  .training-sort-control select { width: 132px; min-width: 0; max-width: 132px; padding-inline: 8px; }
   .push-permission-row { gap: 12px; }
   .push-permission-copy small { max-width: 220px; }
   .dashboard-notification-prompt { grid-template-columns: 42px minmax(0, 1fr); }

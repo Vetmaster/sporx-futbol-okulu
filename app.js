@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.215';
+const APP_VERSION = '2026.08.02.223';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -34,6 +34,7 @@ const ACCOUNTING_PERIODS = [
 ];
 const savedAccountingPeriod = window.localStorage.getItem('sporx_accounting_period');
 const NAVIGATION_STORAGE_KEY = 'sasa_navigation_state';
+const BROWSER_NAVIGATION_STATE_KEY = 'sasaAppNavigation';
 const localData = window.SporXDB.load();
 const state = {
   role: 'admin',
@@ -60,7 +61,10 @@ const state = {
   monthlyFeeSortDirection: 'desc',
   monthlyFeeUnpaidOnly: false,
   expandedTimelineStudentId: null,
-  trainingSortDirection: 'asc',
+  trainingSortDirection: 'desc',
+  attendanceSortDirection: 'desc',
+  showPastTrainings: false,
+  showPastAttendance: false,
   feeFilter: 'all',
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
@@ -76,6 +80,7 @@ const state = {
   editingAccountingEntryId: null
 };
 const notificationReadIdsInFlight = new Set();
+let browserNavigationReady = false;
 
 const MENU_ICONS = {
   student: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"></path></svg>',
@@ -132,7 +137,8 @@ function persistNavigationState() {
     selectedParentStudentId: state.selectedParentStudentId,
     feeFilter: state.feeFilter,
     accountingFilter: state.accountingFilter,
-    trainingSortDirection: state.trainingSortDirection
+    trainingSortDirection: state.trainingSortDirection,
+    attendanceSortDirection: state.attendanceSortDirection
   }));
 }
 
@@ -151,7 +157,8 @@ function restoreNavigationState(userId) {
   state.selectedParentStudentId = Number(savedState.selectedParentStudentId) || state.students[0]?.id || null;
   state.feeFilter = ['all', 'pending'].includes(savedState.feeFilter) ? savedState.feeFilter : 'all';
   state.accountingFilter = ['all', 'income', 'expense'].includes(savedState.accountingFilter) ? savedState.accountingFilter : 'all';
-  state.trainingSortDirection = savedState.trainingSortDirection === 'desc' ? 'desc' : 'asc';
+  state.trainingSortDirection = savedState.trainingSortDirection === 'asc' ? 'asc' : 'desc';
+  state.attendanceSortDirection = savedState.attendanceSortDirection === 'asc' ? 'asc' : 'desc';
 
   if (['studentProfile', 'studentAttendanceHistory'].includes(state.page) && !state.students.some(student => Number(student.id) === state.selectedStudentId)) {
     state.page = state.role === 'parent' ? 'child' : 'students';
@@ -169,9 +176,50 @@ function navigationSnapshot() {
   };
 }
 
+function browserNavigationState(snapshot = navigationSnapshot(), pageHistory = state.pageHistory) {
+  return {
+    ...(window.history.state || {}),
+    [BROWSER_NAVIGATION_STATE_KEY]: {
+      snapshot,
+      pageHistory: pageHistory.map(item => ({ ...item }))
+    }
+  };
+}
+
+function initializeBrowserNavigation() {
+  browserNavigationReady = false;
+  const currentSnapshot = navigationSnapshot();
+  const dashboardSnapshot = { ...currentSnapshot, page: 'dashboard' };
+  state.pageHistory = [];
+  window.history.replaceState(browserNavigationState(dashboardSnapshot, []), document.title);
+
+  if (currentSnapshot.page !== 'dashboard') {
+    state.pageHistory = [dashboardSnapshot];
+    window.history.pushState(browserNavigationState(currentSnapshot, state.pageHistory), document.title);
+  }
+  browserNavigationReady = true;
+}
+
+function restoreBrowserNavigation(eventState) {
+  const browserState = eventState?.[BROWSER_NAVIGATION_STATE_KEY];
+  if (!browserState?.snapshot || !navItems[browserState.snapshot.page]?.roles.includes(state.role)) return false;
+  Object.assign(state, browserState.snapshot);
+  state.pageHistory = Array.isArray(browserState.pageHistory)
+    ? browserState.pageHistory.map(item => ({ ...item }))
+    : [];
+  document.querySelector('#sidebar').classList.remove('open');
+  render();
+  if (state.page === 'notifications') {
+    refreshPushStatus(true);
+    markAllNotificationsRead();
+  }
+  return true;
+}
+
 function navigateToPage(page, updates = {}) {
   const targetPage = navItems[page]?.roles.includes(state.role) ? page : 'dashboard';
-  if (targetPage !== state.page) {
+  const pageChanged = targetPage !== state.page;
+  if (pageChanged) {
     state.pageHistory.push(navigationSnapshot());
     if (state.pageHistory.length > 30) state.pageHistory.shift();
   }
@@ -179,10 +227,22 @@ function navigateToPage(page, updates = {}) {
   state.page = targetPage;
   document.querySelector('#sidebar').classList.remove('open');
   render();
+  if (pageChanged && browserNavigationReady) {
+    window.history.pushState(browserNavigationState(), document.title);
+  }
   if (targetPage === 'notifications') {
     refreshPushStatus(true);
     markAllNotificationsRead();
   }
+}
+
+function requestAppBack() {
+  if (state.page === 'dashboard') return;
+  if (browserNavigationReady && window.history.state?.[BROWSER_NAVIGATION_STATE_KEY]) {
+    window.history.back();
+    return;
+  }
+  goBack();
 }
 
 function goBack() {
@@ -840,11 +900,14 @@ function studentAttendanceHistoryView() {
 
 function trainingsView() {
   const parentStudent = state.role === 'parent' ? currentParentStudent() : null;
-  const visibleTrainings = parentStudent
+  const groupTrainings = parentStudent
     ? state.trainings.filter(training => training.group === parentStudent.group)
     : state.role === 'parent'
       ? []
       : state.trainings;
+  const visibleTrainings = state.showPastTrainings
+    ? groupTrainings
+    : groupTrainings.filter(training => training.date >= localDateValue());
   const orderedTrainings = sortedTrainings(visibleTrainings, state.trainingSortDirection);
   const listDescription = parentStudent
     ? `${parentStudent.group} grubu · ${visibleTrainings.length} kayıt`
@@ -852,11 +915,15 @@ function trainingsView() {
   const emptyMessage = parentStudent
     ? `${parentStudent.group} grubu için planlanmış antrenman bulunmuyor.`
     : 'Henüz planlanmış antrenman bulunmuyor.';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>${listDescription}</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)}${state.role === 'parent' ? '' : ` · ${t.time}`}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div>${state.role !== 'parent' ? `<div class="training-actions"><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>${isAdminRole() ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div>` : ''}</article>`).join('') || `<div class="panel empty-state">${emptyMessage}</div>`}</section></div></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>${listDescription}</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="students-active-filter"><input id="showPastTrainingsFilter" type="checkbox" ${state.showPastTrainings ? 'checked' : ''}><span>Tarihi geçenleri de göster</span></label><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card ${t.date < localDateValue() ? 'is-past' : ''}"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)}${state.role === 'parent' ? '' : ` · ${t.time}`}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div>${state.role !== 'parent' ? `<div class="training-actions"><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>${isAdminRole() ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div>` : ''}</article>`).join('') || `<div class="panel empty-state">${emptyMessage}</div>`}</section></div></div>`;
 }
 
 function attendanceView() {
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Yoklama merkezi</h2><p>Antrenman bazında katılım kaydı</p></div></div><section class="panel">${sortedTrainings(state.trainings).map(t => `<div class="list-row"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${formatTrainingDate(t.date)} · ${trainingAttendanceLabel(t)} · ${t.coach}</small></div><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button></div>`).join('')}</section></div>`;
+  const visibleTrainings = state.showPastAttendance
+    ? state.trainings
+    : state.trainings.filter(training => training.date >= localDateValue());
+  const orderedTrainings = sortedTrainings(visibleTrainings, state.attendanceSortDirection);
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Yoklama merkezi</h2><p>Antrenman bazında katılım kaydı</p></div></div><div class="training-list-block"><div class="training-list-toolbar"><label class="students-active-filter"><input id="showPastAttendanceFilter" type="checkbox" ${state.showPastAttendance ? 'checked' : ''}><span>Tarihi geçenleri de göster</span></label><label class="training-sort-control"><span>Sırala</span><select id="attendanceSortSelect" aria-label="Yoklama antrenmanlarını sırala"><option value="desc" ${state.attendanceSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option><option value="asc" ${state.attendanceSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option></select></label></div><section class="panel">${orderedTrainings.map(t => `<div class="list-row attendance-training-row ${t.date < localDateValue() ? 'is-past' : ''}"><span class="time">${t.time}</span><div><strong>${t.group} · ${t.title}</strong><small>${formatTrainingDate(t.date)} · ${trainingAttendanceLabel(t)} · ${t.coach}</small></div><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button></div>`).join('') || '<div class="empty-state">Gösterilecek antrenman bulunmuyor.</div>'}</section></div></div>`;
 }
 
 function feesView() {
@@ -1299,6 +1366,7 @@ async function showAuthenticatedApp(user) {
     state.pageHistory = [];
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
   }
+  initializeBrowserNavigation();
   document.querySelector('#authPasswordField').classList.remove('is-hidden');
   loginSubmitButton.classList.remove('is-hidden');
   authScreen.classList.add('is-hidden');
@@ -1365,7 +1433,7 @@ function clearNativeBridgeFragment() {
   remainingFragment.delete('nativeNotificationPermission');
   const fragment = remainingFragment.toString();
   window.history.replaceState(
-    null,
+    window.history.state,
     '',
     `${window.location.pathname}${window.location.search}${fragment ? `#${fragment}` : ''}`
   );
@@ -1393,7 +1461,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.215', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.223', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1879,7 +1947,12 @@ document.querySelector('#forgotPasswordButton').addEventListener('click', () => 
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
 
 document.querySelector('#logoutButton').addEventListener('click', logout);
-globalBackButton.addEventListener('click', goBack);
+globalBackButton.addEventListener('click', requestAppBack);
+window.addEventListener('popstate', event => {
+  if (!state.userId || appShell.classList.contains('is-hidden')) return;
+  if (restoreBrowserNavigation(event.state)) return;
+  if (state.page !== 'dashboard') goBack();
+});
 document.querySelector('#menuButton').addEventListener('click', () => document.querySelector('#sidebar').classList.add('open'));
 document.querySelector('#sidebarScrim').addEventListener('click', () => document.querySelector('#sidebar').classList.remove('open'));
 
@@ -2082,8 +2155,24 @@ appContent.addEventListener('change', async event => {
     render();
     return;
   }
+  if (event.target.id === 'showPastTrainingsFilter') {
+    state.showPastTrainings = event.target.checked;
+    render();
+    return;
+  }
+  if (event.target.id === 'showPastAttendanceFilter') {
+    state.showPastAttendance = event.target.checked;
+    render();
+    return;
+  }
   if (event.target.id === 'trainingSortSelect') {
     state.trainingSortDirection = event.target.value === 'desc' ? 'desc' : 'asc';
+    render();
+    return;
+  }
+  if (event.target.id === 'attendanceSortSelect') {
+    state.attendanceSortDirection = event.target.value === 'asc' ? 'asc' : 'desc';
+    persistNavigationState();
     render();
     return;
   }
