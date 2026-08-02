@@ -426,6 +426,16 @@
       if (error) throw error;
     }
 
+    async function deleteNotification(id) {
+      requireContext();
+      const { error } = await client
+        .from('notifications')
+        .delete()
+        .eq('id', Number(id))
+        .eq('school_id', schoolId);
+      if (error) throw error;
+    }
+
     async function approveAccessRequest(requestId, role) {
       const { error } = await client.rpc('approve_access_request', {
         target_request_id: requestId,
@@ -453,6 +463,7 @@
       saveAttendance,
       saveNotification,
       markNotificationsRead,
+      deleteNotification,
       approveAccessRequest,
       revokeAccessRequestApproval
     };

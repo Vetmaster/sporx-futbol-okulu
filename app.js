@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.193';
+const APP_VERSION = '2026.08.02.194';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.15-beta/SASA-F-v1.0.15-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -891,6 +891,7 @@ function accountingEntriesView() {
 
 function notificationsView() {
   const canSend = state.role !== 'parent';
+  const canDelete = isAdminRole();
   const pushEnabled = state.pushStatus === 'enabled';
   const pushUnsupported = state.pushStatus === 'unsupported';
   const pushDenied = state.pushStatus === 'denied';
@@ -918,7 +919,8 @@ function notificationsView() {
     const sentByCurrentUser = item.sentBy === state.userId;
     const recipientStatus = item.read ? 'Okundu' : 'Okunmadı';
     const visibleStatus = sentByCurrentUser ? item.status : recipientStatus;
-    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div><span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span></div>`;
+    const deleteButton = canDelete ? `<button class="notification-delete-button" type="button" data-action="delete-notification" data-id="${item.id}" aria-label="${escapeHtml(item.title)} bildirimini sil">Sil</button>` : '';
+    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div>${deleteButton}<span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span></div>`;
   }).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div>${pushPermissionCard}${composePanel}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${notificationRows}</section></div>`;
 }
@@ -1793,6 +1795,17 @@ document.addEventListener('click', async event => {
       state.pushBusy = false;
       render();
     }
+  }
+  else if (action === 'delete-notification' && isAdminRole()) {
+    const notification = state.notifications.find(item => Number(item.id) === Number(actionButton.dataset.id));
+    if (!notification) return;
+    if (!window.confirm(`“${notification.title}” bildirimi silinsin mi?`)) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.deleteNotification(notification.id));
+    if (!saved) return;
+    state.notifications = state.notifications.filter(item => Number(item.id) !== Number(notification.id));
+    persistLocalData();
+    render();
+    showToast('Bildirim silindi.');
   }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = key === 'enrollmentDate' ? 'desc' : 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'monthly-fee-sort') {
