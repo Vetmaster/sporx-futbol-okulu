@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.204';
+const APP_VERSION = '2026.08.02.205';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.18-beta/SASA-F-v1.0.18-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1330,7 +1330,7 @@ function currentPushPermission() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.203', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.205', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1513,13 +1513,13 @@ async function enablePhoneNotifications() {
   enablePhoneNotificationsPromise = (async () => {
     if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
     let permission = currentPushPermission();
-    // TWA'da web bildirimi ve Android uygulama bildirimi ayrı yetkilerdir.
-    // Web izni kalıcı aboneliğin sayfa yenilendiğinde korunması için gereklidir.
-    if (permission === 'default' && 'Notification' in window) {
+    // Android uygulamasında PushManager.subscribe() sistem iznini kendisi ister.
+    // Burada ayrıca requestPermission() çağrılırsa aynı işlem iki izin penceresi açar.
+    if (permission === 'default' && 'Notification' in window && !runsInAndroidAppShell()) {
       permission = await Notification.requestPermission();
     }
     if (permission === 'unsupported') throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor.');
-    if (permission !== 'granted') {
+    if (permission !== 'granted' && !(runsInAndroidAppShell() && permission === 'default')) {
       state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
       throw new Error('Bildirim izni verilmedi.');
     }
