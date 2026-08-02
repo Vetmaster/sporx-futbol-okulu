@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <filter id="letterShadow" x="-15%" y="-15%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#6a0905" flood-opacity=".34"/>
+    </filter>
+  </defs>
+  <text x="250" y="326" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="210" font-style="italic" font-weight="900" letter-spacing="-24" fill="#fff8ef" filter="url(#letterShadow)">SF</text>
+</svg>

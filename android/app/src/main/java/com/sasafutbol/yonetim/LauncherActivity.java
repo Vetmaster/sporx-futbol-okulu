@@ -16,6 +16,8 @@
 package com.sasafutbol.yonetim;
 
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -75,11 +77,29 @@ public class LauncherActivity
 
     @Override
     protected Uri getLaunchingUrl() {
-        // Get the original launch Url.
         Uri uri = super.getLaunchingUrl();
+        Uri.Builder builder = uri.buildUpon().clearQuery();
 
-        
+        for (String parameterName : uri.getQueryParameterNames()) {
+            if ("nativeVersion".equals(parameterName)) continue;
+            for (String value : uri.getQueryParameters(parameterName)) {
+                builder.appendQueryParameter(parameterName, value);
+            }
+        }
 
-        return uri;
+        builder.appendQueryParameter("nativeVersion", String.valueOf(getInstalledVersionCode()));
+        return builder.build();
+    }
+
+    private long getInstalledVersionCode() {
+        try {
+            PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                return packageInfo.getLongVersionCode();
+            }
+            return packageInfo.versionCode;
+        } catch (PackageManager.NameNotFoundException error) {
+            return 1L;
+        }
     }
 }

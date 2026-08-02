@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.31.179';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.10-beta/SASA-F-v1.0.10-beta.apk';
+const APP_VERSION = '2026.08.02.180';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.11-beta/SASA-F-v1.0.11-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const PUSH_PREFERENCE_STORAGE_KEY = 'sasa_phone_notifications';

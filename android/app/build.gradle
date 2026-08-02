@@ -57,8 +57,8 @@ android {
         applicationId "com.sasafutbol.yonetim"
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 11
-        versionName "1.0.10-beta"
+        versionCode 12
+        versionName "1.0.11-beta"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
