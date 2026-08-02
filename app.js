@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.02.205';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.18-beta/SASA-F-v1.0.18-beta.apk';
+const APP_VERSION = '2026.08.02.206';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.19-beta/SASA-F-v1.0.19-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
@@ -1330,7 +1330,7 @@ function currentPushPermission() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.205', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.206', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1513,13 +1513,13 @@ async function enablePhoneNotifications() {
   enablePhoneNotificationsPromise = (async () => {
     if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
     let permission = currentPushPermission();
-    // Android uygulamasında PushManager.subscribe() sistem iznini kendisi ister.
-    // Burada ayrıca requestPermission() çağrılırsa aynı işlem iki izin penceresi açar.
-    if (permission === 'default' && 'Notification' in window && !runsInAndroidAppShell()) {
+    // Android uygulama izni yerel açılış ekranında alınır. Burada yalnızca
+    // web push izni istenir; böylece toggle tek bir izin penceresi gösterir.
+    if (permission === 'default' && 'Notification' in window) {
       permission = await Notification.requestPermission();
     }
     if (permission === 'unsupported') throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor.');
-    if (permission !== 'granted' && !(runsInAndroidAppShell() && permission === 'default')) {
+    if (permission !== 'granted') {
       state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
       throw new Error('Bildirim izni verilmedi.');
     }

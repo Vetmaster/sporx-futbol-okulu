@@ -15,6 +15,7 @@
  */
 package com.sasafutbol.yonetim;
 
+import android.Manifest;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -27,12 +28,14 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 
 
 
 public class LauncherActivity
         extends com.google.androidbrowserhelper.trusted.LauncherActivity {
     private static final long SPLASH_DISPLAY_DURATION_MILLIS = 3000L;
+    private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1201;
     private final Handler splashHandler = new Handler(Looper.getMainLooper());
     private final Runnable launchTwaTask = this::launchTwa;
 
@@ -45,6 +48,7 @@ public class LauncherActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         showSplashScreen();
+        requestNotificationPermissionIfNeeded();
         splashHandler.postDelayed(launchTwaTask, SPLASH_DISPLAY_DURATION_MILLIS);
         // Setting an orientation crashes the app due to the transparent background on Android 8.0
         // Oreo and below. We only set the orientation on Oreo and above. This only affects the
@@ -55,6 +59,16 @@ public class LauncherActivity
         } else {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         }
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) return;
+        ActivityCompat.requestPermissions(
+                this,
+                new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                NOTIFICATION_PERMISSION_REQUEST_CODE);
     }
 
     private void showSplashScreen() {
