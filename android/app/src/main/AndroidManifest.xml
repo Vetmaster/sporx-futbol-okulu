@@ -21,6 +21,8 @@
      the abbreviated format. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     
         <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
@@ -160,6 +162,23 @@
             
         </activity>
 
+        <activity
+            android:name=".UpdateActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="sasaf" android:host="update" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".UpdateInstallReceiver"
+            android:exported="false" />
+
         <activity android:name="com.google.androidbrowserhelper.trusted.FocusActivity" />
 
         <activity android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
@@ -183,7 +202,7 @@
             
                 <meta-data
                     android:name="android.support.customtabs.trusted.SMALL_ICON"
-                    android:resource="@drawable/ic_notification_icon" />
+                    android:resource="@drawable/ic_notification_status" />
             
 
             <intent-filter>
