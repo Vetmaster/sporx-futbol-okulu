@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.02.180';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.11-beta/SASA-F-v1.0.11-beta.apk';
+const APP_VERSION = '2026.08.02.182';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.12-beta/SASA-F-v1.0.12-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const PUSH_PREFERENCE_STORAGE_KEY = 'sasa_phone_notifications';
@@ -205,12 +205,15 @@ function runsAsInstalledApp() {
 
 function shouldOfferAndroidInstall() {
   return /Android/i.test(window.navigator.userAgent)
+    && !runsInAndroidAppShell()
     && !runsAsInstalledApp()
     && !window.localStorage.getItem(INSTALL_PROMPT_DISMISS_KEY);
 }
 
 function showAndroidInstallPrompt() {
-  if (shouldOfferAndroidInstall()) installPrompt.classList.remove('is-hidden');
+  if (!shouldOfferAndroidInstall()) return;
+  appUpdatePrompt.classList.add('is-hidden');
+  installPrompt.classList.remove('is-hidden');
 }
 
 window.addEventListener('beforeinstallprompt', event => {
@@ -257,12 +260,12 @@ function androidShellVersion() {
 }
 
 function runsInAndroidAppShell() {
-  const launchedWithVersion = new URLSearchParams(window.location.search).has('nativeVersion');
+  const launchParameters = new URLSearchParams(window.location.search);
+  const explicitlyLaunchedByAndroidShell = launchParameters.get('androidShell') === '1';
+  const launchedWithVersion = Number(launchParameters.get('nativeVersion')) > 0;
   const launchedByAndroidPackage = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
-  const legacyAndroidShell = /Android/i.test(window.navigator.userAgent)
-    && runsAsInstalledApp()
-    && !window.localStorage.getItem(NATIVE_VERSION_STORAGE_KEY);
-  return launchedWithVersion || launchedByAndroidPackage || legacyAndroidShell;
+  const legacyNativeLaunch = launchedWithVersion && (launchedByAndroidPackage || runsAsInstalledApp());
+  return explicitlyLaunchedByAndroidShell || launchedByAndroidPackage || legacyNativeLaunch;
 }
 
 async function checkForAndroidUpdate() {
@@ -277,6 +280,7 @@ async function checkForAndroidUpdate() {
     pendingUpdateUrl = release.apkUrl || ANDROID_APK_URL;
     appUpdatePrompt.dataset.versionCode = String(latestVersionCode);
     appUpdatePromptDescription.textContent = `${release.versionName || 'Yeni sürüm'} hazır. Güncel özellikler ve yeni logo için uygulamayı güncelleyin.`;
+    installPrompt.classList.add('is-hidden');
     appUpdatePrompt.classList.remove('is-hidden');
   } catch (error) {
     console.warn('Android sürüm kontrolü yapılamadı:', error);

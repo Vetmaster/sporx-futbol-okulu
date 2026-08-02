@@ -88,6 +88,7 @@ public class LauncherActivity
         }
 
         builder.appendQueryParameter("nativeVersion", String.valueOf(getInstalledVersionCode()));
+        builder.appendQueryParameter("androidShell", "1");
         return builder.build();
     }
 
