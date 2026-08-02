@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.209';
+const APP_VERSION = '2026.08.02.210';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -312,6 +312,18 @@ function runsInAndroidAppShell() {
 }
 
 if (runsInAndroidAppShell()) markAndroidAppAsSeen();
+
+function configurePersistentAndroidDownloads() {
+  const shouldShow = /Android/i.test(window.navigator.userAgent)
+    && !runsInAndroidAppShell()
+    && !runsAsInstalledApp();
+  document.querySelectorAll('[data-android-apk-download]').forEach(link => {
+    link.href = ANDROID_APK_URL;
+    link.classList.toggle('is-hidden', !shouldShow);
+  });
+}
+
+configurePersistentAndroidDownloads();
 
 async function checkForAndroidUpdate() {
   if (!runsInAndroidAppShell()) return;
@@ -1369,7 +1381,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.209', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.210', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
