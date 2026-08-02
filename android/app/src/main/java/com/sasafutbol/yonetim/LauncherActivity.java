@@ -124,7 +124,25 @@ public class LauncherActivity
 
         builder.appendQueryParameter("nativeVersion", String.valueOf(getInstalledVersionCode()));
         builder.appendQueryParameter("androidShell", "1");
+        if (getIntent().getBooleanExtra("openNotifications", false)) {
+            builder.appendQueryParameter("open", "notifications");
+        }
+
+        String fcmToken = FcmTokenStore.get(this);
+        String bridgeFragment = "nativeNotificationPermission="
+                + nativeNotificationPermissionState();
+        if (!fcmToken.isEmpty()) {
+            bridgeFragment = "nativeFcmToken=" + Uri.encode(fcmToken)
+                    + "&" + bridgeFragment;
+        }
+        builder.encodedFragment(bridgeFragment);
         return builder.build();
+    }
+
+    private String nativeNotificationPermissionState() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return "granted";
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED ? "granted" : "denied";
     }
 
     private long getInstalledVersionCode() {

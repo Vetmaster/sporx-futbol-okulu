@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "589847685028",
+    "project_id": "sasa-f-futbol-okulu",
+    "storage_bucket": "sasa-f-futbol-okulu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589847685028:android:296cc7e53f123cd58d4331",
+        "android_client_info": {
+          "package_name": "com.sasafutbol.yonetim"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJyLkdJ_PhCWmhdkJkIl-4GZesak5Q8Is"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

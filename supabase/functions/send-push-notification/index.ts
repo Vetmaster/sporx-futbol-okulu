@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { GoogleAuth } from 'npm:google-auth-library@9.15.1';
 import webpush from 'web-push';
 
 const PUSH_TIMEOUT_MS = 12000;
@@ -31,7 +32,9 @@ Deno.serve(async request => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
-  if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
+  const firebaseServiceAccountJson = Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON');
+  if (!supabaseUrl || !serviceRoleKey
+    || (!firebaseServiceAccountJson && (!vapidPublicKey || !vapidPrivateKey))) {
     return json({ error: 'Push service is not configured' }, 503);
   }
 
@@ -216,16 +219,86 @@ Deno.serve(async request => {
   }
 
   recipientIds = [...new Set(recipientIds.filter(Boolean))];
+  let fcmTokens: Array<{ id: number; user_id: string; token: string }> = [];
   let subscriptions: Array<{ id: number; user_id: string; endpoint: string; p256dh: string; auth_secret: string }> = [];
   if (recipientIds.length) {
-    const { data } = await admin
+    const { data: tokenData } = await admin
+      .from('fcm_tokens')
+      .select('id, user_id, token')
+      .in('user_id', recipientIds);
+    fcmTokens = tokenData || [];
+
+    const { data: subscriptionData } = await admin
       .from('push_subscriptions')
       .select('id, user_id, endpoint, p256dh, auth_secret')
       .in('user_id', recipientIds);
-    subscriptions = data || [];
+    subscriptions = subscriptionData || [];
   }
 
-  webpush.setVapidDetails('mailto:00vetmaster00@gmail.com', vapidPublicKey, vapidPrivateKey);
+  const deliveredRecipientIds = new Set<string>();
+  if (firebaseServiceAccountJson && fcmTokens.length) {
+    try {
+      const firebaseCredentials = JSON.parse(firebaseServiceAccountJson);
+      const firebaseProjectId = String(firebaseCredentials.project_id || '');
+      if (!firebaseProjectId) throw new Error('Firebase project_id is missing');
+      const firebaseAuth = new GoogleAuth({
+        credentials: firebaseCredentials,
+        scopes: ['https://www.googleapis.com/auth/firebase.messaging']
+      });
+      const firebaseAccessToken = await firebaseAuth.getAccessToken();
+      if (!firebaseAccessToken) throw new Error('Firebase access token could not be created');
+
+      const fcmResults = await Promise.allSettled(fcmTokens.map(async device => {
+        const response = await Promise.race([
+          fetch(`https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${firebaseAccessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              message: {
+                token: device.token,
+                data: {
+                  title: notification.title,
+                  body: notification.body,
+                  notificationId: String(notification.id),
+                  url: 'https://vetmaster.github.io/sporx-futbol-okulu/?open=notifications'
+                },
+                android: {
+                  priority: 'HIGH',
+                  notification: {
+                    channel_id: 'sasa_f_notifications',
+                    icon: 'ic_notification_status',
+                    color: '#E31B15',
+                    sound: 'default'
+                  }
+                }
+              }
+            })
+          }),
+          new Promise<Response>((_, reject) => {
+            setTimeout(() => reject(new Error('FCM delivery request timed out')), PUSH_TIMEOUT_MS);
+          })
+        ]);
+        if (!response.ok) {
+          const responseBody = await response.text();
+          if (response.status === 404 || responseBody.includes('UNREGISTERED')) {
+            await admin.from('fcm_tokens').delete().eq('id', device.id);
+          }
+          throw new Error(`FCM ${response.status}: ${responseBody.slice(0, 500)}`);
+        }
+        return { userId: device.user_id };
+      }));
+
+      fcmResults.forEach(result => {
+        if (result.status === 'fulfilled') deliveredRecipientIds.add(result.value.userId);
+      });
+    } catch (error) {
+      console.error('Firebase push delivery could not be initialized:', error);
+    }
+  }
+
   const payload = JSON.stringify({
     title: notification.title,
     body: notification.body,
@@ -233,7 +306,13 @@ Deno.serve(async request => {
     url: 'https://vetmaster.github.io/sporx-futbol-okulu/?open=notifications'
   });
 
-  const results = await Promise.allSettled(subscriptions.map(async subscription => {
+  const webFallbackSubscriptions = vapidPublicKey && vapidPrivateKey
+    ? subscriptions.filter(subscription => !deliveredRecipientIds.has(subscription.user_id))
+    : [];
+  if (vapidPublicKey && vapidPrivateKey) {
+    webpush.setVapidDetails('mailto:00vetmaster00@gmail.com', vapidPublicKey, vapidPrivateKey);
+  }
+  const results = await Promise.allSettled(webFallbackSubscriptions.map(async subscription => {
     try {
       await Promise.race([
         webpush.sendNotification({
@@ -254,7 +333,6 @@ Deno.serve(async request => {
     }
   }));
 
-  const deliveredRecipientIds = new Set<string>();
   results.forEach(result => {
     if (result.status === 'fulfilled') deliveredRecipientIds.add(result.value.userId);
   });

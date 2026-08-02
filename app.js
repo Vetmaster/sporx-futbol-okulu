@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.02.208';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.20-beta/SASA-F-v1.0.20-beta.apk';
+const APP_VERSION = '2026.08.02.209';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
@@ -14,7 +14,10 @@ const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBL
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 const remoteDataStore = supabaseClient && window.SasaSupabaseData?.create(supabaseClient);
-const authCallbackType = new URLSearchParams(window.location.hash.slice(1)).get('type');
+const initialFragmentParameters = new URLSearchParams(window.location.hash.slice(1));
+const NATIVE_FCM_TOKEN = initialFragmentParameters.get('nativeFcmToken') || '';
+const NATIVE_NOTIFICATION_PERMISSION = initialFragmentParameters.get('nativeNotificationPermission') || '';
+const authCallbackType = initialFragmentParameters.get('type');
 let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
 let signedOutMessage = '';
@@ -63,6 +66,8 @@ const state = {
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
   pushStatus: 'checking',
   pushBusy: false,
+  nativeFcmToken: NATIVE_FCM_TOKEN,
+  nativeNotificationPermission: NATIVE_NOTIFICATION_PERMISSION,
   notificationComposeOpen: false,
   notificationDraft: { audience: 'Tüm kullanıcılar', title: '', body: '' },
   editingStudentId: null,
@@ -1329,9 +1334,42 @@ function currentPushPermission() {
   return runsInAndroidAppShell() ? 'granted' : 'unsupported';
 }
 
+function clearNativeBridgeFragment() {
+  if (!NATIVE_FCM_TOKEN && !NATIVE_NOTIFICATION_PERMISSION) return;
+  const remainingFragment = new URLSearchParams(window.location.hash.slice(1));
+  remainingFragment.delete('nativeFcmToken');
+  remainingFragment.delete('nativeNotificationPermission');
+  const fragment = remainingFragment.toString();
+  window.history.replaceState(
+    null,
+    '',
+    `${window.location.pathname}${window.location.search}${fragment ? `#${fragment}` : ''}`
+  );
+}
+
+async function registerNativeFcmToken() {
+  if (!state.userId || !state.nativeFcmToken) return false;
+  const { error } = await supabaseClient.rpc('register_fcm_token', {
+    fcm_registration_token: state.nativeFcmToken,
+    fcm_device_name: navigator.userAgent
+  });
+  if (error) throw error;
+  clearNativeBridgeFragment();
+  return true;
+}
+
+async function unregisterNativeFcmToken() {
+  if (!state.userId || !state.nativeFcmToken) return;
+  const { error } = await supabaseClient
+    .from('fcm_tokens')
+    .delete()
+    .eq('token', state.nativeFcmToken);
+  if (error) throw error;
+}
+
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.208', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.209', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1412,6 +1450,29 @@ let enablePhoneNotificationsPromise = null;
 async function refreshPushStatus(shouldRender = false) {
   if (!pushStatusRefreshPromise) {
     pushStatusRefreshPromise = (async () => {
+      if (runsInAndroidAppShell()) {
+        if (state.nativeNotificationPermission === 'denied') {
+          state.pushStatus = 'denied';
+          return;
+        }
+        if (!state.nativeFcmToken) {
+          state.pushStatus = 'checking';
+          return;
+        }
+        if (window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY) === 'disabled') {
+          state.pushStatus = 'disabled';
+          return;
+        }
+        try {
+          await registerNativeFcmToken();
+          window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+          state.pushStatus = 'enabled';
+        } catch (error) {
+          console.error('Firebase bildirim kaydı tamamlanamadı:', error);
+          state.pushStatus = 'disabled';
+        }
+        return;
+      }
       if (!pushSupported()) {
         state.pushStatus = 'unsupported';
         return;
@@ -1515,6 +1576,20 @@ async function createAndSavePushSubscription(registration) {
 async function enablePhoneNotifications() {
   if (enablePhoneNotificationsPromise) return enablePhoneNotificationsPromise;
   enablePhoneNotificationsPromise = (async () => {
+    if (runsInAndroidAppShell()) {
+      if (state.nativeNotificationPermission !== 'granted') {
+        state.pushStatus = state.nativeNotificationPermission === 'denied' ? 'denied' : 'unsupported';
+        throw new Error('Android bildirim izni verilmedi. Telefon ayarlarından SASA-F bildirimlerini açın.');
+      }
+      if (!state.nativeFcmToken) {
+        state.pushStatus = 'checking';
+        throw new Error('Firebase bildirim anahtarı henüz hazırlanıyor. Uygulamayı kapatıp yeniden açın.');
+      }
+      await registerNativeFcmToken();
+      window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+      state.pushStatus = 'enabled';
+      return;
+    }
     if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
     const registration = await getPushRegistration();
     let subscription = await registration.pushManager.getSubscription();
@@ -1547,6 +1622,12 @@ async function enablePhoneNotifications() {
 }
 
 async function disablePhoneNotifications() {
+  if (runsInAndroidAppShell()) {
+    await unregisterNativeFcmToken();
+    window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'disabled');
+    state.pushStatus = 'disabled';
+    return;
+  }
   const registration = await getPushRegistration();
   const subscription = await registration?.pushManager.getSubscription();
   if (subscription) {
