@@ -16,6 +16,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -214,7 +216,29 @@ public class UpdateActivity extends Activity {
             }
             statusText.setText("Android kurulum ekranı açılıyor…");
         } catch (Exception error) {
-            showFailure("Kurulum başlatılamadı. Lütfen yeniden deneyin.");
+            if (!openSystemInstaller()) {
+                showFailure("Kurulum başlatılamadı. Lütfen APK dosyasını indirip açın.");
+            }
+        }
+    }
+
+    private boolean openSystemInstaller() {
+        if (downloadedApk == null || !downloadedApk.exists()) return false;
+
+        try {
+            Uri apkUri = FileProvider.getUriForFile(
+                    this,
+                    getString(R.string.providerAuthority),
+                    downloadedApk);
+            Intent installIntent = new Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(apkUri, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(installIntent);
+            statusText.setText("Android kurulum ekranı açılıyor…");
+            return true;
+        } catch (Exception fallbackError) {
+            return false;
         }
     }
 
