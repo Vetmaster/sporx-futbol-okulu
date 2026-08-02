@@ -52,6 +52,7 @@
       requireContext();
 
       const [
+        schoolSettingsResult,
         groupsResult,
         studentsRows,
         feeRows,
@@ -62,6 +63,7 @@
         attendanceRows,
         accessRequestRows
       ] = await Promise.all([
+        client.from('schools').select('monthly_fee_amount').eq('id', schoolId).single(),
         client.from('training_groups').select('id, name, sort_order').order('sort_order'),
         fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, training_groups(name)'),
         fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at'),
@@ -73,6 +75,7 @@
         fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at')
       ]);
 
+      if (schoolSettingsResult.error) throw schoolSettingsResult.error;
       if (groupsResult.error) throw groupsResult.error;
       const groups = groupsResult.data || [];
       groupsByName = new Map(groups.map(group => [group.name, group.id]));
@@ -190,6 +193,7 @@
 
       return {
         schoolId,
+        monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
         groups,
         students,
         trainings,
@@ -198,6 +202,20 @@
         attendanceRecords,
         accessRequests
       };
+    }
+
+    async function saveSchoolSettings(monthlyFeeAmount) {
+      requireContext();
+      const amount = Number(monthlyFeeAmount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Geçerli bir aylık aidat tutarı girin.');
+      const { data, error } = await client
+        .from('schools')
+        .update({ monthly_fee_amount: amount })
+        .eq('id', schoolId)
+        .select('monthly_fee_amount')
+        .single();
+      if (error) throw error;
+      return Number(data.monthly_fee_amount);
     }
 
     async function saveStudent(student, isNew) {
@@ -455,6 +473,7 @@
 
     return {
       load,
+      saveSchoolSettings,
       saveStudent,
       inviteGuardian,
       saveTraining,

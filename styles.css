@@ -137,6 +137,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .section-heading { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 12px; }
 .section-heading h2 { margin: 0 0 5px; font-size: 20px; }
 .section-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+.section-title-with-action { display: flex; align-items: center; gap: 8px; }
+.section-title-with-action h2 { margin-bottom: 0; }
+.heading-icon-button { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; color: var(--brand-dark); background: white; border: 1px solid var(--line); border-radius: 8px; }
+.heading-icon-button:hover { color: white; background: var(--brand); border-color: var(--brand); }
+.heading-icon-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.accounting-settings-panel { max-width: 720px; padding: 16px 18px; }
+.accounting-settings-form { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(195px, 255px) auto; align-items: center; gap: 12px; }
+.accounting-settings-form > label { margin: 0; }
+.settings-amount-control { position: relative; }
+.settings-amount-control input { padding-right: 34px; }
+.settings-amount-control span { position: absolute; top: 50%; right: 13px; color: var(--muted); font-weight: 900; transform: translateY(-50%); pointer-events: none; }
+.settings-form-hint { display: block; margin-top: 8px; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .club-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .profile-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -422,6 +434,10 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .global-back-button { width: 38px; justify-content: center; padding: 0; }
   .topbar p, .topbar select { display: none; }
   .topbar h1 { font-size: 18px; }
+  .accounting-settings-panel { padding: 14px; }
+  .accounting-settings-form { grid-template-columns: minmax(0, 1fr) 144px auto; gap: 8px; }
+  .accounting-settings-form > label { font-size: 12px; }
+  .accounting-settings-form .primary-button { padding-inline: 10px; }
   .stats-grid, .card-grid, .form-grid { grid-template-columns: 1fr; }
   .parent-dashboard-stats { grid-template-columns: 1fr; }
   .club-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }

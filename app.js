@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.210';
+const APP_VERSION = '2026.08.02.215';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -64,6 +64,7 @@ const state = {
   feeFilter: 'all',
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
+  monthlyFeeAmount: 1500,
   pushStatus: 'checking',
   pushBusy: false,
   nativeFcmToken: NATIVE_FCM_TOKEN,
@@ -79,7 +80,11 @@ const notificationReadIdsInFlight = new Set();
 const MENU_ICONS = {
   student: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"></path></svg>',
   training: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V3M7 4l10 3-10 4M4 21h8"></path></svg>',
-  accounting: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M8 6h8v4H8zM8.5 14h1M12 14h1M15.5 14h1M8.5 18h1M12 18h1M15.5 18h1"></path></svg>'
+  accounting: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M8 6h8v4H8zM8.5 14h1M12 14h1M15.5 14h1M8.5 18h1M12 18h1M15.5 18h1"></path></svg>',
+  attendance: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"></rect><path d="m7.5 12 3 3 6-7"></path></svg>',
+  notifications: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg>',
+  approvedToggle: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6.5" width="19" height="11" rx="5.5"></rect><circle cx="16" cy="12" r="3"></circle><path d="m6.5 12 1.4 1.4 2.6-3"></path></svg>',
+  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"></path></svg>'
 };
 
 const BASE_GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
@@ -102,19 +107,20 @@ const navItems = {
   studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   child: { label: 'Öğrenci', icon: MENU_ICONS.student, roles: ['parent'] },
   trainings: { label: 'Antrenman', icon: MENU_ICONS.training, roles: ['super_admin', 'admin', 'staff', 'parent'] },
-  attendance: { label: 'Yoklama', icon: '✓', roles: ['super_admin', 'admin', 'staff'] },
+  attendance: { label: 'Yoklama', icon: MENU_ICONS.attendance, roles: ['super_admin', 'admin', 'staff'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'staff', 'parent'] },
   accounting: { label: 'Muhasebe', icon: MENU_ICONS.accounting, roles: ['super_admin', 'admin'] },
+  accountingSettings: { label: 'Muhasebe Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['super_admin', 'admin'], hidden: true },
-  userApprovals: { label: 'Kullanıcı Onayları', icon: '✓', roles: ['super_admin'] },
-  notifications: { label: 'Bildirimler', icon: '●', roles: ['super_admin', 'admin', 'staff', 'parent'] }
+  userApprovals: { label: 'Kullanıcı Onayları', icon: MENU_ICONS.approvedToggle, roles: ['super_admin'] },
+  notifications: { label: 'Bildirimler', icon: MENU_ICONS.notifications, roles: ['super_admin', 'admin', 'staff', 'parent'] }
 };
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Veli' };
 const pageMeta = {
   dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
-  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
+  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
 
 function persistNavigationState() {
@@ -429,7 +435,7 @@ function isActiveStudent(student) { return ['late', 'paid'].includes(currentFeeS
 function unpaidFeePeriods(student) { return monthlyFeePeriods(student).filter(month => monthlyFeeStatus(student, month) === 'late'); }
 function monthlyFeeAmount(student, month) {
   const historicalAmount = student.feeHistory?.[month]?.amount;
-  return Number.isFinite(Number(historicalAmount)) && historicalAmount !== null ? Number(historicalAmount) : 1500;
+  return Number.isFinite(Number(historicalAmount)) && historicalAmount !== null ? Number(historicalAmount) : state.monthlyFeeAmount;
 }
 function feeAccountingReference(student, month) { return `fee:${student.id}:${month}`; }
 function removeFeeAccountingEntry(student, month) {
@@ -910,7 +916,11 @@ function accountingView() {
     transfer: incomeMethods.transfer - expenseMethods.transfer,
     card: incomeMethods.card - expenseMethods.card
   };
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Muhasebe</h2><p>Gelir ve Gider kayıtları · ${accountingPeriodLabel()}</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="income">${incomeCount} kayıt</button>${paymentMethodSummary(incomeMethods)}</div></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="expense">${expenseCount} kayıt</button>${paymentMethodSummary(expenseMethods)}</div></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="all">${periodEntries.length} kayıt</button>${paymentMethodSummary(cashRegisterMethods)}</div></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries" data-kind="all">Tümünü gör</button></div>${accountingEntryRows(periodEntries.slice(0, 4))}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Muhasebe</h2><button class="heading-icon-button" type="button" data-page="accountingSettings" aria-label="Muhasebe ayarlarına git" title="Muhasebe ayarları">${MENU_ICONS.settings}</button></div><p>Gelir ve Gider kayıtları · ${accountingPeriodLabel()}</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="income">${incomeCount} kayıt</button>${paymentMethodSummary(incomeMethods)}</div></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="expense">${expenseCount} kayıt</button>${paymentMethodSummary(expenseMethods)}</div></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="all">${periodEntries.length} kayıt</button>${paymentMethodSummary(cashRegisterMethods)}</div></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries" data-kind="all">Tümünü gör</button></div>${accountingEntryRows(periodEntries.slice(0, 4))}</section></div>`;
+}
+
+function accountingSettingsView() {
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Muhasebe ayarları</h2><p>Yeni aidat dönemlerinde kullanılacak varsayılan tutar</p></div></div><section class="panel accounting-settings-panel"><form id="accountingSettingsForm" class="accounting-settings-form"><label for="monthlyFeeAmount">Aylık aidat tutarı</label><div class="settings-amount-control"><input id="monthlyFeeAmount" name="monthlyFeeAmount" type="number" min="1" step="1" inputmode="numeric" value="${state.monthlyFeeAmount}" required><span>₺</span></div><button class="primary-button" type="submit">Kaydet</button></form><small class="form-hint settings-form-hint">Yeni aylarda Aidat tanımla formu bu tutarla açılır; geçmiş aidatlar değişmez.</small></section></div>`;
 }
 
 function accountingEntryRows(entries) {
@@ -998,7 +1008,7 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -1130,6 +1140,7 @@ function applyRemoteData(remoteData) {
   state.notifications = remoteData.notifications;
   state.attendanceRecords = remoteData.attendanceRecords;
   state.accessRequests = remoteData.accessRequests || [];
+  state.monthlyFeeAmount = Number(remoteData.monthlyFeeAmount) > 0 ? Number(remoteData.monthlyFeeAmount) : 1500;
   if (state.role === 'parent' && !state.students.some(student => Number(student.id) === Number(state.selectedParentStudentId))) {
     state.selectedParentStudentId = state.students[0]?.id || null;
   }
@@ -1140,6 +1151,7 @@ function applyRemoteData(remoteData) {
 
 const REALTIME_TABLES = [
   'profiles',
+  'schools',
   'training_groups',
   'students',
   'fee_periods',
@@ -1381,7 +1393,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.210', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.215', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1740,7 +1752,7 @@ function openFeeDefinitionDialog() {
   document.querySelector('#feeDefinitionStudentResults').innerHTML = '';
   form.elements.studentSearch.setAttribute('aria-expanded', 'false');
   form.elements.period.value = feeMonthKey();
-  form.elements.amount.value = '1500';
+  form.elements.amount.value = String(state.monthlyFeeAmount);
   form.elements.status.value = 'late';
   form.elements.paymentDate.value = localDateValue();
   form.elements.paymentMethod.value = 'cash';
@@ -2283,6 +2295,20 @@ document.querySelector('#accountingForm').addEventListener('submit', async event
   showToast(wasEditing ? 'Muhasebe işlemi Supabase’de güncellendi.' : 'Muhasebe işlemi Supabase’e kaydedildi.');
 });
 appContent.addEventListener('submit', async event => {
+  if (event.target.id === 'accountingSettingsForm') {
+    event.preventDefault();
+    const amount = Number(new FormData(event.target).get('monthlyFeeAmount'));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('Geçerli bir aylık aidat tutarı girin.');
+      return;
+    }
+    const savedAmount = await runRemoteMutation(() => remoteDataStore.saveSchoolSettings(amount));
+    if (!savedAmount) return;
+    state.monthlyFeeAmount = Number(savedAmount);
+    render();
+    showToast('Aylık aidat tutarı kaydedildi.');
+    return;
+  }
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
   const data = new FormData(event.target);
