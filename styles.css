@@ -44,6 +44,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .primary-button:disabled { cursor: wait; opacity: .68; }
 .secondary-button { color: var(--ink); border-color: var(--line); background: white; }
 .danger-button { color: white; background: var(--danger); }
+.danger-button:disabled { cursor: not-allowed; opacity: .38; }
 #loginSubmitButton { min-height: 44px; padding: 0 18px; border-radius: 10px; font-size: 16px; }
 .auth-link-button { justify-self: center; padding: 3px 6px; color: var(--brand); border: 0; background: transparent; font-weight: 700; }
 .auth-link-button:hover { text-decoration: underline; }
@@ -148,6 +149,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .settings-amount-control { position: relative; }
 .settings-amount-control input { padding-right: 34px; }
 .settings-amount-control span { position: absolute; top: 50%; right: 13px; color: var(--muted); font-weight: 900; transform: translateY(-50%); pointer-events: none; }
+.group-settings-panel { max-width: 760px; padding-bottom: 0; }
+.group-settings-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px; cursor: pointer; list-style: none; }
+.group-settings-summary::-webkit-details-marker { display: none; }
+.group-settings-summary > div { display: grid; gap: 4px; }
+.group-settings-summary h3 { margin: 0; font-size: 16px; }
+.group-settings-summary .disclosure-chevron { transition: transform .2s ease; }
+.group-settings-panel[open] .group-settings-summary { border-bottom: 1px solid var(--line); }
+.group-settings-panel[open] .group-settings-summary .disclosure-chevron { transform: rotate(180deg); }
+.group-settings-content { padding-bottom: 18px; }
+.group-settings-form { display: grid; grid-template-columns: minmax(120px, .55fr) minmax(220px, 1fr) auto; align-items: center; gap: 12px; padding: 0 20px 18px; border-bottom: 1px solid var(--line); }
+.group-settings-form > label { margin: 0; }
+.group-settings-list { display: grid; padding: 6px 20px 0; }
+.group-settings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 62px; border-bottom: 1px solid var(--line); }
+.group-settings-row > div { display: grid; gap: 4px; }
+.group-settings-actions { display: flex !important; align-items: center; gap: 8px; }
+.group-rename-form input { width: min(100%, 360px); }
+.group-settings-row small { color: var(--muted); font-size: 12px; }
+.group-settings-hint { display: block; padding: 16px 20px 0; }
 .settings-form-hint { display: block; margin-top: 8px; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .club-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -458,6 +477,9 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .accounting-settings-form { grid-template-columns: minmax(0, 1fr) 144px auto; gap: 8px; }
   .accounting-settings-form > label { font-size: 12px; }
   .accounting-settings-form .primary-button { padding-inline: 10px; }
+  .group-settings-form { grid-template-columns: 1fr; padding-inline: 14px; }
+  .group-settings-list { padding-inline: 14px; }
+  .group-settings-hint { padding-inline: 14px; }
   .stats-grid, .card-grid, .form-grid { grid-template-columns: 1fr; }
   .student-prepayment-content, .student-prepayment-months { grid-template-columns: 1fr; }
   .student-prepayment-disclosure summary { grid-template-columns: minmax(0, 1fr) auto; }

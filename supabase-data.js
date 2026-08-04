@@ -218,6 +218,61 @@
       return Number(data.monthly_fee_amount);
     }
 
+    async function saveGroup(groupName) {
+      requireContext();
+      const name = String(groupName || '').trim().replace(/\s+/g, ' ');
+      if (!name) throw new Error('Grup adı boş bırakılamaz.');
+      if (!/^[\p{L}\p{N} .:()\-/]{1,60}$/u.test(name)) throw new Error('Grup adında desteklenmeyen karakterler var.');
+      const duplicate = [...groupsByName.keys()].some(existing => existing.localeCompare(name, 'tr-TR', { sensitivity: 'base' }) === 0);
+      if (duplicate) throw new Error('Bu grup zaten kayıtlı.');
+      const { data, error } = await client
+        .from('training_groups')
+        .insert({ school_id: schoolId, name, sort_order: groupsByName.size + 1 })
+        .select('id, name, sort_order')
+        .single();
+      if (error) throw error;
+      groupsByName.set(data.name, data.id);
+      return data;
+    }
+
+    async function deleteGroup(groupName) {
+      requireContext();
+      const id = groupId(groupName);
+      const [studentsResult, trainingsResult] = await Promise.all([
+        client.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('group_id', id),
+        client.from('trainings').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('group_id', id)
+      ]);
+      if (studentsResult.error) throw studentsResult.error;
+      if (trainingsResult.error) throw trainingsResult.error;
+      if ((studentsResult.count || 0) > 0 || (trainingsResult.count || 0) > 0) {
+        throw new Error('Öğrenci veya antrenman kaydı bulunan grup silinemez.');
+      }
+      const { error } = await client.from('training_groups').delete().eq('id', id).eq('school_id', schoolId);
+      if (error) throw error;
+      groupsByName.delete(groupName);
+    }
+
+    async function updateGroup(currentName, groupName) {
+      requireContext();
+      const id = groupId(currentName);
+      const name = String(groupName || '').trim().replace(/\s+/g, ' ');
+      if (!name) throw new Error('Grup adı boş bırakılamaz.');
+      if (!/^[\p{L}\p{N} .:()\-/]{1,60}$/u.test(name)) throw new Error('Grup adında desteklenmeyen karakterler var.');
+      const duplicate = [...groupsByName.keys()].some(existing => existing !== currentName && existing.localeCompare(name, 'tr-TR', { sensitivity: 'base' }) === 0);
+      if (duplicate) throw new Error('Bu grup zaten kayıtlı.');
+      const { data, error } = await client
+        .from('training_groups')
+        .update({ name })
+        .eq('id', id)
+        .eq('school_id', schoolId)
+        .select('id, name, sort_order')
+        .single();
+      if (error) throw error;
+      groupsByName.delete(currentName);
+      groupsByName.set(data.name, data.id);
+      return data;
+    }
+
     async function saveStudent(student, isNew) {
       requireContext();
       const birthValue = String(student.birth || '');
@@ -474,6 +529,9 @@
     return {
       load,
       saveSchoolSettings,
+      saveGroup,
+      deleteGroup,
+      updateGroup,
       saveStudent,
       inviteGuardian,
       saveTraining,

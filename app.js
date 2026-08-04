@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.04.225';
+const APP_VERSION = '2026.08.04.232';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -76,6 +76,10 @@ const state = {
   notificationComposeOpen: false,
   notificationDraft: { audience: 'Tüm kullanıcılar', title: '', body: '' },
   editingStudentId: null,
+  editingGroupName: null,
+  groupSettingsOpen: false,
+  newestGroupPinned: false,
+  newestGroupName: '',
   editingTrainingId: null,
   editingAccountingEntryId: null
 };
@@ -108,6 +112,7 @@ function persistLocalData() {
 const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'staff', 'parent'] },
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'staff'] },
+  studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin', 'staff'], hidden: true },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
   child: { label: 'Öğrenci', icon: MENU_ICONS.student, roles: ['parent'] },
@@ -123,7 +128,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -223,6 +228,7 @@ function navigateToPage(page, updates = {}) {
     state.pageHistory.push(navigationSnapshot());
     if (state.pageHistory.length > 30) state.pageHistory.shift();
   }
+  if (pageChanged && targetPage === 'studentSettings') state.groupSettingsOpen = false;
   Object.assign(state, updates);
   state.page = targetPage;
   document.querySelector('#sidebar').classList.remove('open');
@@ -429,8 +435,9 @@ window.setTimeout(checkForAndroidUpdate, 1500);
 
 function syncGroupOptions() {
   document.querySelectorAll('select[name="group"]').forEach(select => {
-    const existingGroups = new Set([...select.options].map(option => option.value));
-    GROUPS.filter(group => !existingGroups.has(group)).forEach(group => select.add(new Option(group, group)));
+    const selectedGroup = select.value;
+    select.replaceChildren(new Option('Seçiniz', ''), ...GROUPS.map(group => new Option(group, group)));
+    if (GROUPS.includes(selectedGroup)) select.value = selectedGroup;
   });
 }
 syncGroupOptions();
@@ -814,11 +821,28 @@ function parentDashboard() {
 
 function studentsView() {
   const visibleStudents = filteredAndSortedStudents();
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Kayıtlı öğrenciler</h2><p>Öğrenci kayıtları ve profilleri</p></div><button class="primary-button" data-action="add-student">+ Yeni öğrenci</button></div>
-    <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="Öğrenci veya veli ara"><select id="groupFilter"><option value="">Tüm gruplar</option>${GROUPS.map(group => `<option>${group}</option>`).join('')}</select></div>
+  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Kayıtlı öğrenciler</h2><button class="heading-icon-button" type="button" data-page="studentSettings" aria-label="Öğrenci ayarlarına git" title="Öğrenci ayarları">${MENU_ICONS.settings}</button></div><p>Öğrenci kayıtları ve profilleri</p></div><button class="primary-button" data-action="add-student">+ Yeni öğrenci</button></div>
+    <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="Öğrenci veya veli ara"><select id="groupFilter"><option value="">Tüm gruplar</option>${GROUPS.map(group => `<option>${escapeHtml(group)}</option>`).join('')}</select></div>
     <div class="students-checkbox-filters"><label class="students-active-filter"><input id="activeStudentsOnlyFilter" type="checkbox" ${state.activeStudentsOnly ? 'checked' : ''}><span>Sadece aktif öğrenciler</span></label><label class="students-active-filter"><input id="debtStudentsOnlyFilter" type="checkbox" ${state.debtStudentsOnly ? 'checked' : ''}><span>Aidat borcu olanlar</span></label></div>
     <div class="student-list-summary" aria-live="polite"><span>Listelenen öğrenci sayısı</span><strong><span id="studentsCountSummary">${visibleStudents.length}</span> / ${state.students.length}</strong></div>
     <section class="panel table-wrap"><table><thead><tr>${studentSortHeader('name', 'Öğrenci')}${studentSortHeader('birth', 'Doğum tarihi')}${studentSortHeader('enrollmentDate', 'Kayıt tarihi')}${studentSortHeader('group', 'Grup / Mevki')}${studentSortHeader('parent', 'Veli')}${studentSortHeader('fee', 'Aidat')}${studentSortHeader('attendance', 'Devam')}<th></th></tr></thead><tbody id="studentsBody">${studentRows(visibleStudents)}</tbody></table></section></div>`;
+}
+
+function studentSettingsView() {
+  const alphabeticGroups = [...GROUPS].sort((left, right) => left.localeCompare(right, 'tr-TR', { numeric: true, sensitivity: 'base' }));
+  const displayedGroups = state.newestGroupPinned && state.newestGroupName && GROUPS.includes(state.newestGroupName)
+    ? [state.newestGroupName, ...alphabeticGroups.filter(group => group !== state.newestGroupName)]
+    : alphabeticGroups;
+  const groupRows = displayedGroups.map(group => {
+    const studentCount = state.students.filter(student => student.group === group).length;
+    const trainingCount = state.trainings.filter(training => training.group === group).length;
+    const inUse = studentCount > 0 || trainingCount > 0;
+    if (state.editingGroupName === group) {
+      return `<form class="group-settings-row group-rename-form" data-group="${escapeHtml(group)}" data-original-group="${escapeHtml(group)}"><div><label for="editGroupName">Grup adını düzenle</label><input id="editGroupName" name="groupName" maxlength="60" value="${escapeHtml(group)}" required><small>${studentCount} öğrenci · ${trainingCount} antrenman</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-group">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
+    }
+    return `<div class="group-settings-row" data-group="${escapeHtml(group)}"><div><strong>${escapeHtml(group)}</strong><small>${studentCount} öğrenci · ${trainingCount} antrenman</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-group" data-group="${escapeHtml(group)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-group" data-group="${escapeHtml(group)}" ${inUse ? 'disabled' : ''} title="${inUse ? 'Önce bu gruptaki öğrenci ve antrenman kayıtlarını başka gruba taşıyın' : 'Grubu sil'}">Sil</button></div></div>`;
+  }).join('');
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Öğrenci ayarları</h2><p>Öğrenci kayıtlarında kullanılacak gruplar</p></div></div><details class="panel group-settings-panel"${state.groupSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Gruplar</h3><small class="muted">${GROUPS.length} kayıtlı grup</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="groupSettingsForm" class="group-settings-form"><label for="newGroupName">Yeni grup adı</label><input id="newGroupName" name="groupName" maxlength="60" placeholder="Örn. U15 veya Saat 14:00" required><button class="primary-button" type="submit">Grup ekle</button></form><div class="group-settings-list">${groupRows || '<div class="empty-state">Henüz grup eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Öğrenci veya antrenman kaydı bulunan gruplar silinemez. Önce ilgili kayıtları başka bir gruba taşıyın.</small></div></details></div>`;
 }
 
 function studentSortHeader(key, label) {
@@ -1085,7 +1109,7 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, students: studentsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -1221,7 +1245,10 @@ function applyRemoteData(remoteData) {
   if (state.role === 'parent' && !state.students.some(student => Number(student.id) === Number(state.selectedParentStudentId))) {
     state.selectedParentStudentId = state.students[0]?.id || null;
   }
-  GROUPS = [...new Set([...BASE_GROUPS, ...remoteData.groups.map(group => group.name)])];
+  const remoteGroups = [...new Set(remoteData.groups.map(group => group.name))];
+  GROUPS = state.newestGroupPinned && state.newestGroupName && remoteGroups.includes(state.newestGroupName)
+    ? [state.newestGroupName, ...remoteGroups.filter(group => group !== state.newestGroupName)]
+    : remoteGroups;
   syncGroupOptions();
   persistLocalData();
 }
@@ -1471,7 +1498,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.04.225', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.04.232', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2076,6 +2103,31 @@ document.addEventListener('click', async event => {
     render();
     showToast('Bildirim silindi.');
   }
+  else if (action === 'edit-group' && state.role !== 'parent') {
+    state.editingGroupName = String(actionButton.dataset.group || '');
+    render();
+    window.setTimeout(() => document.querySelector('#editGroupName')?.focus(), 0);
+  }
+  else if (action === 'cancel-edit-group' && state.role !== 'parent') {
+    state.editingGroupName = null;
+    render();
+  }
+  else if (action === 'delete-group' && state.role !== 'parent') {
+    const groupName = String(actionButton.dataset.group || '');
+    const studentCount = state.students.filter(student => student.group === groupName).length;
+    const trainingCount = state.trainings.filter(training => training.group === groupName).length;
+    if (studentCount || trainingCount) {
+      showToast('Bu grup kullanımda. Önce öğrenci ve antrenman kayıtlarını başka gruba taşıyın.');
+      return;
+    }
+    if (!window.confirm(`“${groupName}” grubu silinsin mi?`)) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.deleteGroup(groupName));
+    if (!saved) return;
+    GROUPS = GROUPS.filter(group => group !== groupName);
+    syncGroupOptions();
+    render();
+    showToast('Grup silindi.');
+  }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = key === 'enrollmentDate' ? 'desc' : 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'monthly-fee-sort') {
     const key = actionButton.dataset.sortKey;
@@ -2437,7 +2489,78 @@ document.querySelector('#accountingForm').addEventListener('submit', async event
   render();
   showToast(wasEditing ? 'Muhasebe işlemi Supabase’de güncellendi.' : 'Muhasebe işlemi Supabase’e kaydedildi.');
 });
+appContent.addEventListener('toggle', event => {
+  const details = event.target;
+  if (!details.matches?.('.group-settings-panel')) return;
+  if (!details.isConnected) return;
+  state.groupSettingsOpen = details.open;
+  if (!details.open) {
+    state.newestGroupPinned = false;
+    state.newestGroupName = '';
+  }
+}, true);
 appContent.addEventListener('submit', async event => {
+  if (event.target.matches('.group-rename-form')) {
+    event.preventDefault();
+    const currentName = String(event.target.dataset.originalGroup || '');
+    const groupName = String(new FormData(event.target).get('groupName') || '').trim().replace(/\s+/g, ' ');
+    if (!/^[\p{L}\p{N} .:()\-/]{1,60}$/u.test(groupName)) {
+      showToast('Geçerli bir grup adı girin.');
+      return;
+    }
+    if (GROUPS.some(group => group !== currentName && group.localeCompare(groupName, 'tr-TR', { sensitivity: 'base' }) === 0)) {
+      showToast('Bu grup zaten kayıtlı.');
+      return;
+    }
+    if (groupName === currentName) {
+      state.editingGroupName = null;
+      render();
+      return;
+    }
+    const updatedGroup = await runRemoteMutation(() => remoteDataStore.updateGroup(currentName, groupName));
+    if (!updatedGroup) return;
+    GROUPS = GROUPS.map(group => group === currentName ? updatedGroup.name : group);
+    state.students.forEach(student => { if (student.group === currentName) student.group = updatedGroup.name; });
+    state.trainings.forEach(training => { if (training.group === currentName) training.group = updatedGroup.name; });
+    state.editingGroupName = null;
+    syncGroupOptions();
+    persistLocalData();
+    render();
+    showToast('Grup adı güncellendi.');
+    return;
+  }
+  if (event.target.id === 'groupSettingsForm') {
+    event.preventDefault();
+    const groupName = String(new FormData(event.target).get('groupName') || '').trim().replace(/\s+/g, ' ');
+    if (!groupName) {
+      showToast('Geçerli bir grup adı girin.');
+      return;
+    }
+    if (!/^[\p{L}\p{N} .:()\-/]{1,60}$/u.test(groupName)) {
+      showToast('Grup adında desteklenmeyen karakterler var.');
+      return;
+    }
+    if (GROUPS.some(group => group.localeCompare(groupName, 'tr-TR', { sensitivity: 'base' }) === 0)) {
+      showToast('Bu grup zaten kayıtlı.');
+      return;
+    }
+    state.newestGroupPinned = true;
+    state.newestGroupName = groupName;
+    const savedGroup = await runRemoteMutation(() => remoteDataStore.saveGroup(groupName));
+    if (!savedGroup) {
+      state.newestGroupPinned = false;
+      state.newestGroupName = '';
+      return;
+    }
+    GROUPS = [savedGroup.name, ...GROUPS.filter(group => group !== savedGroup.name)];
+    state.groupSettingsOpen = true;
+    state.newestGroupName = savedGroup.name;
+    syncGroupOptions();
+    event.target.reset();
+    render();
+    showToast('Yeni grup eklendi.');
+    return;
+  }
   if (event.target.id === 'accountingSettingsForm') {
     event.preventDefault();
     const amount = Number(new FormData(event.target).get('monthlyFeeAmount'));
