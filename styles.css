@@ -346,6 +346,22 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
 .dialog-heading h2 { margin: 5px 0 0; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .full-field { grid-column: 1 / -1; }
+.student-prepayment-disclosure { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--brand-soft); }
+.student-prepayment-disclosure summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; list-style: none; }
+.student-prepayment-disclosure summary::-webkit-details-marker { display: none; }
+.student-prepayment-disclosure summary > span:first-child { font-weight: 800; }
+.student-prepayment-disclosure summary small { color: var(--muted); font-size: 12px; font-weight: 700; }
+.student-prepayment-disclosure[open] .disclosure-chevron { transform: rotate(180deg); }
+.student-prepayment-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, .5fr); gap: 16px; padding: 0 16px 16px; border-top: 1px solid var(--line); }
+.student-prepayment-months { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 16px; }
+.student-prepayment-month { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); cursor: pointer; }
+.student-prepayment-month input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand); }
+.student-prepayment-month span { font-size: 13px; font-weight: 800; text-transform: capitalize; }
+.student-prepayment-month small { color: var(--muted); font-size: 11px; }
+.student-prepayment-content > label { align-self: start; padding-top: 16px; }
+.student-prepayment-total { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; color: white; background: var(--brand-dark); }
+.student-prepayment-total span { font-size: 13px; font-weight: 700; }
+.student-prepayment-total strong { font-size: 18px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; }
 .training-dialog-actions { flex-wrap: wrap; }
 .dialog-delete-button { margin-right: auto; }
@@ -443,6 +459,10 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .accounting-settings-form > label { font-size: 12px; }
   .accounting-settings-form .primary-button { padding-inline: 10px; }
   .stats-grid, .card-grid, .form-grid { grid-template-columns: 1fr; }
+  .student-prepayment-content, .student-prepayment-months { grid-template-columns: 1fr; }
+  .student-prepayment-disclosure summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .student-prepayment-disclosure summary small { grid-column: 1; grid-row: 2; }
+  .student-prepayment-disclosure summary .disclosure-chevron { grid-column: 2; grid-row: 1 / span 2; }
   .parent-dashboard-stats { grid-template-columns: 1fr; }
   .club-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .club-summary-grid .stat-card { padding: 15px; }

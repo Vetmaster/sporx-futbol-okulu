@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.224';
+const APP_VERSION = '2026.08.04.225';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -463,6 +463,14 @@ function studentBirthYearLabel(student) {
 }
 function feeMonthKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 function formatFeeMonth(key) { const [year, month] = String(key).split('-').map(Number); return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)); }
+function upcomingFeeMonths(count = 6) {
+  const cursor = new Date();
+  cursor.setDate(1);
+  return Array.from({ length: count }, (_, index) => {
+    const month = new Date(cursor.getFullYear(), cursor.getMonth() + index, 1);
+    return feeMonthKey(month);
+  });
+}
 function formatFeeDueDate(key) {
   const [year, month] = String(key).split('-').map(Number);
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -1463,7 +1471,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.02.224', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.04.225', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1769,7 +1777,22 @@ function openStudentDialog(student = null) {
   document.querySelector('#studentDialogTitle').textContent = student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
   document.querySelector('#studentSubmitButton').textContent = student ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet';
   document.querySelector('#guardianInviteHint').classList.toggle('is-hidden', Boolean(student));
+  const prepaymentSection = document.querySelector('#studentPrepaymentSection');
+  prepaymentSection.classList.toggle('is-hidden', Boolean(student));
+  prepaymentSection.open = false;
+  document.querySelector('#studentPrepaymentMonths').innerHTML = upcomingFeeMonths().map(month => `<label class="student-prepayment-month"><input type="checkbox" name="prepaymentMonth" value="${month}"><span>${formatFeeMonth(month)}</span><small>${formatCurrency(state.monthlyFeeAmount)}</small></label>`).join('');
+  form.elements.prepaymentMethod.value = 'cash';
+  updateStudentPrepaymentSummary();
   document.querySelector('#studentDialog').showModal();
+}
+
+function updateStudentPrepaymentSummary() {
+  const form = document.querySelector('#studentForm');
+  const selectedCount = form.querySelectorAll('input[name="prepaymentMonth"]:checked').length;
+  document.querySelector('#studentPrepaymentSummary').textContent = selectedCount
+    ? `${selectedCount} ay seçili`
+    : 'İsteğe bağlı · 0 ay seçili';
+  document.querySelector('#studentPrepaymentTotal').textContent = formatCurrency(selectedCount * state.monthlyFeeAmount);
 }
 
 function openTrainingDialog(training = null) {
@@ -2203,11 +2226,20 @@ appContent.addEventListener('change', async event => {
   showToast(paymentControl.checked ? 'Aidat ödendi; tahsilat muhasebeye gelir olarak eklendi.' : 'Ödeme kaldırıldı; aidat borç bakiyesine geri eklendi.');
 });
 
+document.querySelector('#studentPrepaymentMonths').addEventListener('change', updateStudentPrepaymentSummary);
 document.querySelector('#studentForm').addEventListener('submit', async event => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
   const wasEditing = Boolean(state.editingStudentId);
+  const prepaymentMonths = wasEditing
+    ? []
+    : [...new Set(data.getAll('prepaymentMonth').map(String).filter(month => /^\d{4}-\d{2}$/.test(month)))];
+  const prepaymentMethod = String(data.get('prepaymentMethod') || 'cash');
+  if (prepaymentMonths.length && !PAYMENT_METHODS[prepaymentMethod]) {
+    showToast('Ön ödeme yöntemini kontrol edin.');
+    return;
+  }
   const existingStudent = wasEditing ? state.students.find(item => item.id === Number(state.editingStudentId)) : null;
   const enrollmentDate = existingStudent?.enrollmentDate || localDateValue();
   const studentRecord = {
@@ -2229,6 +2261,24 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   } else {
     state.students.unshift(studentRecord);
   }
+  const savedPrepaymentMonths = [];
+  const failedPrepaymentMonths = [];
+  if (!wasEditing && prepaymentMonths.length) {
+    for (const month of prepaymentMonths) {
+      const paymentDetails = {
+        amount: state.monthlyFeeAmount,
+        paymentDate: localDateValue(),
+        paymentMethod: prepaymentMethod
+      };
+      try {
+        await remoteDataStore.saveFeeStatus(studentRecord, month, 'paid', state.monthlyFeeAmount, paymentDetails);
+        setMonthlyFeeStatus(studentRecord, month, 'paid', paymentDetails);
+        savedPrepaymentMonths.push(month);
+      } catch {
+        failedPrepaymentMonths.push(month);
+      }
+    }
+  }
   let guardianInviteResult = null;
   let guardianInviteError = null;
   if (!wasEditing) {
@@ -2246,12 +2296,14 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   render();
   if (wasEditing) {
     showToast('Öğrenci profili Supabase’de güncellendi.');
+  } else if (failedPrepaymentMonths.length) {
+    showToast(`Öğrenci kaydedildi; ${savedPrepaymentMonths.length}/${prepaymentMonths.length} aylık ön ödeme işlendi. Kaydedilemeyen dönemleri profilden tekrar tanımlayın.`);
   } else if (guardianInviteError) {
-    showToast(`Öğrenci kaydedildi; veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
+    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
   } else if (guardianInviteResult?.status === 'invited') {
-    showToast(`Öğrenci kaydedildi. Veli daveti ${studentRecord.email} adresine gönderildi.`);
+    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}. Veli daveti ${studentRecord.email} adresine gönderildi.`);
   } else {
-    showToast('Öğrenci kaydedildi ve mevcut veli hesabına bağlandı.');
+    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; mevcut veli hesabına bağlandı.`);
   }
 });
 document.querySelector('#attendanceForm').addEventListener('submit', async event => {
