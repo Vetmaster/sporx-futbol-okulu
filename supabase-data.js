@@ -31,6 +31,15 @@
     }
   }
 
+  async function fetchAccessRequests(client) {
+    try {
+      return await fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, email_verified_at, reviewed_at, created_at', 'created_at');
+    } catch (error) {
+      if (!String(error?.message || '').includes('email_verified_at')) throw error;
+      return fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at');
+    }
+  }
+
   function create(client) {
     let schoolId = null;
     let userId = null;
@@ -72,7 +81,7 @@
         fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_by, sent_at, created_at, recipient_count, delivered_count, read_count', 'created_at'),
         fetchAll(client, 'notification_reads', 'notification_id, read_at', 'notification_id'),
         fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at'),
-        fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at')
+        fetchAccessRequests(client)
       ]);
 
       if (schoolSettingsResult.error) throw schoolSettingsResult.error;
@@ -187,6 +196,7 @@
           fullName: row.full_name,
           requestedRole: row.requested_role,
           status: row.status,
+          emailVerifiedAt: row.email_verified_at,
           reviewedAt: row.reviewed_at,
           createdAt: row.created_at
         }));
@@ -304,10 +314,10 @@
       return Number(data.id);
     }
 
-    async function inviteGuardian(studentId) {
+    async function inviteGuardian(studentId, previousEmail = '') {
       requireContext();
       const { data, error } = await client.functions.invoke('invite-guardian', {
-        body: { studentId: Number(studentId) }
+        body: { studentId: Number(studentId), previousEmail: String(previousEmail || '') }
       });
       if (error) {
         let responseMessage = '';

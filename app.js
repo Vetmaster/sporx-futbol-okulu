@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.04.232';
+const APP_VERSION = '2026.08.04.234';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1086,20 +1086,24 @@ function notificationsView() {
 function userApprovalsView() {
   const pendingRequests = state.accessRequests.filter(request => request.status === 'pending');
   const approvedRequests = state.accessRequests.filter(request => request.status === 'approved');
-  const pendingRows = pendingRequests.map(request => `
+  const pendingRows = pendingRequests.map(request => {
+    const emailVerified = Boolean(request.emailVerifiedAt);
+    return `
     <div class="approval-row">
       <div>
         <strong>${escapeHtml(request.fullName)}</strong>
         <small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small>
+        <span class="status ${emailVerified ? '' : 'warning'}">${emailVerified ? 'E-posta doğrulandı' : 'E-posta doğrulaması bekleniyor'}</span>
       </div>
-      <select id="approval-role-${request.id}" aria-label="${escapeHtml(request.fullName)} için kullanıcı rolü">
+      <select id="approval-role-${request.id}" aria-label="${escapeHtml(request.fullName)} için kullanıcı rolü" ${emailVerified ? '' : 'disabled'}>
         <option value="admin" ${request.requestedRole === 'admin' ? 'selected' : ''}>Admin</option>
         <option value="parent" ${request.requestedRole === 'parent' ? 'selected' : ''}>Veli</option>
       </select>
       <div class="approval-actions">
-        <label class="approval-switch-control pending"><span>Onay bekliyor</span><input type="checkbox" role="switch" aria-label="${escapeHtml(request.fullName)} kullanıcısını onayla" data-action="approve-user" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>
+        <label class="approval-switch-control pending"><span>${emailVerified ? 'Onay bekliyor' : 'Doğrulama bekleniyor'}</span><input type="checkbox" role="switch" aria-label="${escapeHtml(request.fullName)} kullanıcısını onayla" data-action="approve-user" data-id="${request.id}" ${emailVerified ? '' : 'disabled'}><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   const resolvedRows = approvedRequests.slice(0, 10).map(request => `
     <div class="list-row">
       <span class="status">Onaylandı</span>
@@ -1498,7 +1502,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.04.232', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.04.234', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2143,6 +2147,11 @@ document.addEventListener('click', async event => {
     const roleControl = document.querySelector(`#approval-role-${actionButton.dataset.id}`);
     if (!request || !roleControl) return;
     if (!actionButton.checked) return;
+    if (!request.emailVerifiedAt) {
+      actionButton.checked = false;
+      showToast('E-posta adresi doğrulanmadan kullanıcı onaylanamaz.');
+      return;
+    }
     const saved = await runRemoteMutation(() => remoteDataStore.approveAccessRequest(request.id, roleControl.value));
     if (!saved) {
       actionButton.checked = false;
@@ -2293,6 +2302,8 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     return;
   }
   const existingStudent = wasEditing ? state.students.find(item => item.id === Number(state.editingStudentId)) : null;
+  const previousStudentEmail = existingStudent?.email || '';
+  const studentEmailChanged = wasEditing && previousStudentEmail.toLocaleLowerCase('tr') !== studentData.email.toLocaleLowerCase('tr');
   const enrollmentDate = existingStudent?.enrollmentDate || localDateValue();
   const studentRecord = {
     ...(existingStudent || {}),
@@ -2310,6 +2321,14 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   if (!saved) return;
   if (wasEditing) {
     Object.assign(existingStudent, studentRecord);
+    if (previousStudentEmail && studentRecord.email && previousStudentEmail.toLocaleLowerCase('tr') !== studentRecord.email.toLocaleLowerCase('tr')) {
+      state.accessRequests.forEach(request => {
+        if (request.requestedRole === 'parent' && String(request.email || '').toLocaleLowerCase('tr') === previousStudentEmail.toLocaleLowerCase('tr')) {
+          request.email = studentRecord.email;
+          request.emailVerifiedAt = null;
+        }
+      });
+    }
   } else {
     state.students.unshift(studentRecord);
   }
@@ -2333,9 +2352,9 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   }
   let guardianInviteResult = null;
   let guardianInviteError = null;
-  if (!wasEditing) {
+  if (!wasEditing || studentEmailChanged) {
     try {
-      guardianInviteResult = await remoteDataStore.inviteGuardian(studentRecord.id);
+      guardianInviteResult = await remoteDataStore.inviteGuardian(studentRecord.id, previousStudentEmail);
     } catch (error) {
       guardianInviteError = error;
     }
@@ -2347,13 +2366,21 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   state.page = wasEditing ? 'studentProfile' : 'students';
   render();
   if (wasEditing) {
-    showToast('Öğrenci profili Supabase’de güncellendi.');
+    if (studentEmailChanged && guardianInviteError) {
+      showToast(`Öğrenci profili güncellendi ancak yeni veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
+    } else if (studentEmailChanged && guardianInviteResult?.status === 'invited') {
+      showToast(`Öğrenci profili güncellendi. Doğrulama daveti ${studentRecord.email} adresine gönderildi.`);
+    } else {
+      showToast('Öğrenci profili Supabase’de güncellendi.');
+    }
   } else if (failedPrepaymentMonths.length) {
     showToast(`Öğrenci kaydedildi; ${savedPrepaymentMonths.length}/${prepaymentMonths.length} aylık ön ödeme işlendi. Kaydedilemeyen dönemleri profilden tekrar tanımlayın.`);
   } else if (guardianInviteError) {
     showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
   } else if (guardianInviteResult?.status === 'invited') {
     showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}. Veli daveti ${studentRecord.email} adresine gönderildi.`);
+  } else if (guardianInviteResult?.status === 'pending_approval') {
+    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}. Veli hesabı Süper Admin onayı bekliyor.`);
   } else {
     showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; mevcut veli hesabına bağlandı.`);
   }

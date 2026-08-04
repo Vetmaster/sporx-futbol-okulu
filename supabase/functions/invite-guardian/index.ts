@@ -65,6 +65,7 @@ Deno.serve(async request => {
 
   const body = await request.json().catch(() => ({}));
   const studentId = Number(body.studentId);
+  const previousEmail = normalizedEmail(body.previousEmail);
   if (!Number.isInteger(studentId) || studentId <= 0) return json({ error: 'Geçersiz öğrenci kaydı.' }, 400);
 
   const { data: student, error: studentError } = await admin
@@ -78,7 +79,23 @@ Deno.serve(async request => {
   const email = normalizedEmail(student.email);
   if (!validEmail(email)) return json({ error: 'Geçerli bir veli e-posta adresi bulunamadı.' }, 400);
   if (student.guardian_user_id) {
-    return json({ status: 'already_linked', email, userId: student.guardian_user_id });
+    const { data: linkedUser, error: linkedUserError } = await admin.auth.admin.getUserById(student.guardian_user_id);
+    if (linkedUserError || !linkedUser.user) return json({ error: 'Bağlı veli hesabı kontrol edilemedi.' }, 500);
+    if (normalizedEmail(linkedUser.user.email) !== email) {
+      return json({ error: 'Onaylanmış veli hesabının giriş e-postası bu ekrandan değiştirilemez.' }, 409);
+    }
+    return json({ status: 'already_linked', email, userId: student.guardian_user_id, verified: true });
+  }
+
+  if (previousEmail && previousEmail !== email) {
+    const { error: oldRequestError } = await admin
+      .from('access_requests')
+      .delete()
+      .eq('school_id', callerProfile.school_id)
+      .eq('requested_role', 'parent')
+      .eq('status', 'pending')
+      .ilike('email', previousEmail);
+    if (oldRequestError) return json({ error: 'Eski veli daveti geçersizleştirilemedi.' }, 500);
   }
 
   let guardianUser: User | null = null;
@@ -119,17 +136,17 @@ Deno.serve(async request => {
     return json({ error: 'Bu e-posta adresi farklı okul veya kullanıcı rolüne ait.' }, 409);
   }
 
-  const fullName = String(student.guardian_name || '').trim() || email.split('@')[0];
-  const { error: profileError } = await admin
-    .from('profiles')
-    .upsert({
-      id: guardianUser.id,
-      school_id: callerProfile.school_id,
-      full_name: fullName,
-      role: 'parent'
-    }, { onConflict: 'id' });
-  if (profileError) return json({ error: 'Veli profili oluşturulamadı.' }, 500);
+  if (existingProfile?.role === 'parent') {
+    const { error: linkExistingError } = await admin
+      .from('students')
+      .update({ guardian_user_id: guardianUser.id })
+      .eq('id', student.id)
+      .eq('school_id', callerProfile.school_id);
+    if (linkExistingError) return json({ error: 'Öğrenci mevcut veli hesabına bağlanamadı.' }, 500);
+    return json({ status: 'linked', email, userId: guardianUser.id, verified: true });
+  }
 
+  const fullName = String(student.guardian_name || '').trim() || email.split('@')[0];
   const { error: accessRequestError } = await admin
     .from('access_requests')
     .upsert({
@@ -138,22 +155,17 @@ Deno.serve(async request => {
       email,
       full_name: fullName,
       requested_role: 'parent',
-      status: 'approved',
-      reviewed_by: callerResult.user.id,
-      reviewed_at: new Date().toISOString()
+      status: 'pending',
+      email_verified_at: guardianUser.email_confirmed_at,
+      reviewed_by: null,
+      reviewed_at: null
     }, { onConflict: 'user_id' });
   if (accessRequestError) return json({ error: 'Veli erişim kaydı oluşturulamadı.' }, 500);
 
-  const { error: linkError } = await admin
-    .from('students')
-    .update({ guardian_user_id: guardianUser.id })
-    .eq('id', student.id)
-    .eq('school_id', callerProfile.school_id);
-  if (linkError) return json({ error: 'Öğrenci veli hesabına bağlanamadı.' }, 500);
-
   return json({
-    status: invited ? 'invited' : 'linked',
+    status: invited ? 'invited' : 'pending_approval',
     email,
-    userId: guardianUser.id
+    userId: guardianUser.id,
+    verified: Boolean(guardianUser.email_confirmed_at)
   });
 });
