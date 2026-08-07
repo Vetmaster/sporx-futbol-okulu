@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.04.234';
+const APP_VERSION = '2026.08.07.235';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -66,6 +66,8 @@ const state = {
   showPastTrainings: false,
   showPastAttendance: false,
   feeFilter: 'all',
+  feeListSortKey: 'enrollmentDate',
+  feeListSortDirection: 'desc',
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
   monthlyFeeAmount: 1500,
@@ -825,7 +827,7 @@ function studentsView() {
     <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="Öğrenci veya veli ara"><select id="groupFilter"><option value="">Tüm gruplar</option>${GROUPS.map(group => `<option>${escapeHtml(group)}</option>`).join('')}</select></div>
     <div class="students-checkbox-filters"><label class="students-active-filter"><input id="activeStudentsOnlyFilter" type="checkbox" ${state.activeStudentsOnly ? 'checked' : ''}><span>Sadece aktif öğrenciler</span></label><label class="students-active-filter"><input id="debtStudentsOnlyFilter" type="checkbox" ${state.debtStudentsOnly ? 'checked' : ''}><span>Aidat borcu olanlar</span></label></div>
     <div class="student-list-summary" aria-live="polite"><span>Listelenen öğrenci sayısı</span><strong><span id="studentsCountSummary">${visibleStudents.length}</span> / ${state.students.length}</strong></div>
-    <section class="panel table-wrap"><table><thead><tr>${studentSortHeader('name', 'Öğrenci')}${studentSortHeader('birth', 'Doğum tarihi')}${studentSortHeader('enrollmentDate', 'Kayıt tarihi')}${studentSortHeader('group', 'Grup / Mevki')}${studentSortHeader('parent', 'Veli')}${studentSortHeader('fee', 'Aidat')}${studentSortHeader('attendance', 'Devam')}<th></th></tr></thead><tbody id="studentsBody">${studentRows(visibleStudents)}</tbody></table></section></div>`;
+    <section class="panel table-wrap"><table><thead><tr>${studentSortHeader('name', 'Öğrenci')}${studentSortHeader('birth', 'Doğum tarihi')}${studentSortHeader('enrollmentDate', 'Kayıt tarihi')}${studentSortHeader('group', 'Grup')}${studentSortHeader('position', 'Mevki')}${studentSortHeader('parent', 'Veli')}${studentSortHeader('fee', 'Aidat')}${studentSortHeader('attendance', 'Devam')}<th></th></tr></thead><tbody id="studentsBody">${studentRows(visibleStudents)}</tbody></table></section></div>`;
 }
 
 function studentSettingsView() {
@@ -854,7 +856,7 @@ function studentSortHeader(key, label) {
 function studentSortValue(student, key) {
   if (key === 'fee') return studentHasFeeDebt(student) ? 'Borç var' : 'Borç yok';
   if (key === 'attendance') return studentAttendanceRate(student);
-  return key === 'group' ? `${student.group || ''} ${student.position || ''}` : student[key] || '';
+  return student[key] || '';
 }
 function sortStudentList(list) {
   if (!state.studentSortKey) return list;
@@ -891,7 +893,7 @@ function updateStudentSortHeaders() {
 }
 function studentHasFeeDebt(student) { return unpaidFeePeriods(student).length > 0; }
 function studentListFeeLabel(student) { return studentHasFeeDebt(student) ? '<span class="status danger">Borç var</span>' : '<span class="status">Borç yok</span>'; }
-function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${formatEnrollmentDate(s.enrollmentDate) || '—'}</td><td>${s.group}${s.position ? ` · ${s.position}` : ''}</td><td>${s.parent || '—'}<br><small class="muted">${s.phone}</small></td><td>${studentListFeeLabel(s)}</td><td>%${studentAttendanceRate(s)}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
+function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${formatEnrollmentDate(s.enrollmentDate) || '—'}</td><td>${s.group || '—'}</td><td>${s.position || '—'}</td><td>${s.parent || '—'}<br><small class="muted">${s.phone}</small></td><td>${studentListFeeLabel(s)}</td><td>%${studentAttendanceRate(s)}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
 
 function childView() {
   const s = currentParentStudent();
@@ -982,11 +984,47 @@ function feesView() {
   const summaryMarkup = isParent
     ? `<section class="stats-grid"><article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${parentDebtBalance ? `${formatCurrency(parentDebtBalance)} borç bakiyesi` : 'Aidat borcunuz yoktur.'}</strong><small>${parentDebtBalance ? `${parentUnpaidMonths.length} ödenmemiş dönem` : 'Ödenmemiş aidat bulunmuyor'}</small></article></section>`
     : `<section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section>`;
+  const feeRows = isParent
+    ? parentUnpaidMonths.map(month => ({ student: parentStudent, month, status: 'late' }))
+    : list.map(student => ({ student, month: currentMonth, status: currentFeeStatus(student) }));
+  const sortedFeeRows = sortFeeListRows(feeRows);
   const tableRows = isParent
-    ? parentUnpaidMonths.map(month => `<tr><td>${studentNameLink(parentStudent)}</td><td>${formatFeeMonth(month)}</td><td>${formatCurrency(monthlyFeeAmount(parentStudent, month))}</td><td>${formatFeeDueDate(month)}</td><td>${statusLabel('late')}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty-state">Aidat borcunuz bulunmuyor.</div></td></tr>'
-    : list.map(s => { const status = currentFeeStatus(s); const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${s.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(s)}</td><td>${currentMonthLabel}</td><td>${status === 'none' ? '—' : formatCurrency(monthlyFeeAmount(s, currentMonth))}</td><td>${formatFeeDueDate(currentMonth)}</td><td>${statusLabel(status)}</td><td>${paymentAction}</td></tr>`; }).join('');
+    ? sortedFeeRows.map(row => `<tr><td>${studentNameLink(row.student)}</td><td>${formatFeeMonth(row.month)}</td><td>${formatCurrency(monthlyFeeAmount(row.student, row.month))}</td><td>${formatFeeDueDate(row.month)}</td><td>${statusLabel(row.status)}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty-state">Aidat borcunuz bulunmuyor.</div></td></tr>'
+    : sortedFeeRows.map(row => { const { student, month, status } = row; const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${student.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(student)}</td><td>${formatFeeMonth(month)}</td><td>${status === 'none' ? '—' : formatCurrency(monthlyFeeAmount(student, month))}</td><td>${formatFeeDueDate(month)}</td><td>${statusLabel(status)}</td><td>${paymentAction}</td></tr>`; }).join('');
   const subtitle = isParent ? `${parentUnpaidMonths.length} ödenmemiş dönem` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}<section class="panel table-wrap"><table><thead><tr><th>Öğrenci</th><th>Dönem</th><th>Tutar</th><th>Son ödeme</th><th>Durum</th>${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}<section class="panel table-wrap"><table><thead><tr>${feeListSortHeader('name', 'Öğrenci')}${feeListSortHeader('period', 'Dönem')}${feeListSortHeader('amount', 'Tutar')}${feeListSortHeader('due', 'Son ödeme')}${feeListSortHeader('status', 'Durum')}${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
+}
+
+function feeListSortHeader(key, label) {
+  const active = state.feeListSortKey === key;
+  const indicator = active ? state.feeListSortDirection === 'asc' ? '↑' : '↓' : '↕';
+  return `<th aria-sort="${active ? state.feeListSortDirection === 'asc' ? 'ascending' : 'descending' : 'none'}"><button class="table-sort-button" type="button" data-action="fee-list-sort" data-sort-key="${key}"><span>${label}</span><span class="sort-indicator" aria-hidden="true">${indicator}</span></button></th>`;
+}
+
+function feeListSortValue(row, key) {
+  if (key === 'enrollmentDate') return row.student.enrollmentDate || '';
+  if (key === 'name') return row.student.name || '';
+  if (key === 'period' || key === 'due') return row.month || '';
+  if (key === 'amount') return row.status === 'none' ? 0 : monthlyFeeAmount(row.student, row.month);
+  if (key === 'status') return ({ none: 'Aidat yok', late: 'Ödenmedi', paid: 'Ödendi', exempt: 'Muaf', unknown: 'Kaynak notu' })[row.status] || 'Bekliyor';
+  return '';
+}
+
+function sortFeeListRows(rows) {
+  const direction = state.feeListSortDirection === 'desc' ? -1 : 1;
+  return [...rows].sort((left, right) => {
+    const leftValue = feeListSortValue(left, state.feeListSortKey);
+    const rightValue = feeListSortValue(right, state.feeListSortKey);
+    const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
+      ? (leftValue - rightValue) * direction
+      : String(leftValue).localeCompare(String(rightValue), 'tr-TR', { numeric: true, sensitivity: 'base' }) * direction;
+    if (comparison !== 0) return comparison;
+    if (state.feeListSortKey === 'enrollmentDate') {
+      const studentOrder = (Number(left.student.id) - Number(right.student.id)) * direction;
+      return studentOrder || String(right.month || '').localeCompare(String(left.month || ''));
+    }
+    return String(left.student.name || '').localeCompare(String(right.student.name || ''), 'tr-TR', { sensitivity: 'base' });
+  });
 }
 
 function accountingPeriodFiltersMarkup() {
@@ -1502,7 +1540,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.04.234', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.07.235', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2139,6 +2177,15 @@ document.addEventListener('click', async event => {
     else {
       state.monthlyFeeSortKey = key;
       state.monthlyFeeSortDirection = ['period', 'due'].includes(key) ? 'desc' : 'asc';
+    }
+    render();
+  }
+  else if (action === 'fee-list-sort') {
+    const key = actionButton.dataset.sortKey;
+    if (state.feeListSortKey === key) state.feeListSortDirection = state.feeListSortDirection === 'asc' ? 'desc' : 'asc';
+    else {
+      state.feeListSortKey = key;
+      state.feeListSortDirection = ['period', 'due'].includes(key) ? 'desc' : 'asc';
     }
     render();
   }
