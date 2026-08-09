@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.244';
+const APP_VERSION = '2026.08.09.246';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1089,7 +1089,13 @@ function feesView() {
   const sortedFeeRows = sortFeeListRows(feeRows);
   const tableRows = isParent
     ? sortedFeeRows.map(row => `<tr><td>${studentNameLink(row.student)}</td><td>${formatFeeMonth(row.month)}</td><td>${formatCurrency(monthlyFeeAmount(row.student, row.month))}</td><td>${formatFeeDueDate(row.month)}</td><td>${statusLabel(row.status)}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty-state">Aidat borcunuz bulunmuyor.</div></td></tr>'
-    : sortedFeeRows.map(row => { const { student, month, status } = row; const paymentAction = status === 'none' ? statusLabel('none') : `<button class="text-button" data-action="mark-paid" data-id="${student.id}">${status === 'paid' ? 'Makbuz' : 'Ödendi işaretle'}</button>`; return `<tr><td>${studentNameLink(student)}</td><td>${formatFeeMonth(month)}</td><td>${status === 'none' ? '—' : formatCurrency(monthlyFeeAmount(student, month))}</td><td>${formatFeeDueDate(month)}</td><td>${statusLabel(status)}</td><td>${paymentAction}</td></tr>`; }).join('');
+    : sortedFeeRows.map(row => {
+        const { student, month, status } = row;
+        const paymentControl = status === 'none'
+          ? statusLabel('none')
+          : `<label class="fee-paid-control"><input type="checkbox" data-monthly-fee data-id="${student.id}" data-month="${month}" aria-label="${formatFeeMonth(month)} aidatını ödendi işaretle" ${status === 'paid' ? 'checked' : ''}><span>${status === 'paid' ? 'Ödendi' : 'Ödendi seç'}</span></label>`;
+        return `<tr><td>${studentNameLink(student)}</td><td>${formatFeeMonth(month)}</td><td>${status === 'none' ? '—' : formatCurrency(monthlyFeeAmount(student, month))}</td><td>${formatFeeDueDate(month)}</td><td>${feeStatusControl(student, month, status)}</td><td>${paymentControl}</td></tr>`;
+      }).join('');
   const subtitle = isParent ? `${parentUnpaidMonths.length} ödenmemiş dönem` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
   return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}<section class="panel table-wrap"><table><thead><tr>${feeListSortHeader('name', 'Öğrenci')}${feeListSortHeader('period', 'Dönem')}${feeListSortHeader('amount', 'Tutar')}${feeListSortHeader('due', 'Son ödeme')}${feeListSortHeader('status', 'Durum')}${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
 }
@@ -1696,7 +1702,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.244', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.246', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2085,6 +2091,7 @@ function openFeePaymentDialog(student, month) {
   form.reset();
   form.elements.studentId.value = String(student.id);
   form.elements.period.value = month;
+  form.elements.paymentDate.value = localDateValue();
   form.elements.paymentMethod.value = 'cash';
   document.querySelector('#feePaymentDescription').textContent = `${student.name} · ${formatFeeMonth(month)} · ${formatCurrency(monthlyFeeAmount(student, month))}`;
   document.querySelector('#feePaymentDialog').showModal();
@@ -2473,18 +2480,6 @@ document.addEventListener('click', async event => {
     }
   }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
-  else if (action === 'mark-paid') {
-    const student = state.students.find(s => s.id === Number(actionButton.dataset.id));
-    if (student) {
-      const month = feeMonthKey();
-      const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, month, 'paid', monthlyFeeAmount(student, month)));
-      if (!saved) return;
-      setMonthlyFeeStatus(student, month, 'paid');
-      persistLocalData();
-      render();
-      showToast('Aidat Supabase’e kaydedildi; tahsilat muhasebeye eklendi.');
-    }
-  }
   else if (action === 'profile') { const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); navigateToPage('studentProfile', { selectedStudentId: Number(actionButton.dataset.id), expandedTimelineStudentId: null }); }
   else showToast('Bu işlem sonraki geliştirme adımında açılacak.');
 });
@@ -2790,12 +2785,13 @@ document.querySelector('#feePaymentForm').addEventListener('submit', async event
   const data = new FormData(form);
   const student = state.students.find(item => item.id === Number(data.get('studentId')));
   const month = String(data.get('period') || '');
+  const paymentDate = String(data.get('paymentDate') || '');
   const paymentMethod = String(data.get('paymentMethod') || '');
-  if (!student || !/^\d{4}-\d{2}$/.test(month) || !PAYMENT_METHODS[paymentMethod]) {
-    showToast('Öğrenci, dönem veya tahsilat tipi bilgisini kontrol edin.');
+  if (!student || !/^\d{4}-\d{2}$/.test(month) || !/^\d{4}-\d{2}-\d{2}$/.test(paymentDate) || !PAYMENT_METHODS[paymentMethod]) {
+    showToast('Öğrenci, dönem, ödeme tarihi veya tahsilat tipi bilgisini kontrol edin.');
     return;
   }
-  const paymentDetails = { paymentDate: localDateValue(), paymentMethod };
+  const paymentDetails = { paymentDate, paymentMethod };
   const amount = monthlyFeeAmount(student, month);
   const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, month, 'paid', amount, paymentDetails));
   if (!saved) { render(); return; }
