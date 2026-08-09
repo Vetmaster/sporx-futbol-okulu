@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.243';
+const APP_VERSION = '2026.08.09.244';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1696,7 +1696,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.243', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.244', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2080,6 +2080,16 @@ function openFeeDefinitionDialog() {
   document.querySelector('#feeDefinitionDialog').showModal();
 }
 
+function openFeePaymentDialog(student, month) {
+  const form = document.querySelector('#feePaymentForm');
+  form.reset();
+  form.elements.studentId.value = String(student.id);
+  form.elements.period.value = month;
+  form.elements.paymentMethod.value = 'cash';
+  document.querySelector('#feePaymentDescription').textContent = `${student.name} · ${formatFeeMonth(month)} · ${formatCurrency(monthlyFeeAmount(student, month))}`;
+  document.querySelector('#feePaymentDialog').showModal();
+}
+
 function updateFeeDefinitionStudentResults() {
   const form = document.querySelector('#feeDefinitionForm');
   const searchValue = form.elements.studentSearch.value.trim().toLocaleLowerCase('tr-TR');
@@ -2231,7 +2241,7 @@ document.querySelector('#rolePreviewSelect').addEventListener('change', event =>
 
 document.addEventListener('click', async event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
-  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; if (dialog?.id === 'schoolAdminDialog') state.invitingSchoolId = null; if (dialog?.id === 'schoolEditDialog') state.editingSchoolId = null; return; }
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; if (dialog?.id === 'schoolAdminDialog') state.invitingSchoolId = null; if (dialog?.id === 'schoolEditDialog') state.editingSchoolId = null; if (dialog?.id === 'feePaymentDialog') render(); return; }
   const pageButton = event.target.closest('[data-page]');
   if (pageButton && appShell.contains(pageButton)) {
     if (pageButton.dataset.page === 'schools' && state.role === 'super_admin') {
@@ -2546,6 +2556,10 @@ appContent.addEventListener('change', async event => {
   if (!paymentControl || !['super_admin', 'admin'].includes(state.role)) return;
   const student = state.students.find(item => item.id === Number(paymentControl.dataset.id));
   if (!student) return;
+  if (paymentControl.checked) {
+    openFeePaymentDialog(student, paymentControl.dataset.month);
+    return;
+  }
   const status = paymentControl.checked ? 'paid' : 'late';
   const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, paymentControl.dataset.month, status, monthlyFeeAmount(student, paymentControl.dataset.month)));
   if (!saved) { render(); return; }
@@ -2768,6 +2782,30 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
 });
 document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
 document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', updateFeeDefinitionStudentResults);
+document.querySelector('#feePaymentDialog').addEventListener('cancel', () => window.setTimeout(render, 0));
+document.querySelector('#feePaymentForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!['super_admin', 'admin'].includes(state.role)) return;
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const student = state.students.find(item => item.id === Number(data.get('studentId')));
+  const month = String(data.get('period') || '');
+  const paymentMethod = String(data.get('paymentMethod') || '');
+  if (!student || !/^\d{4}-\d{2}$/.test(month) || !PAYMENT_METHODS[paymentMethod]) {
+    showToast('Öğrenci, dönem veya tahsilat tipi bilgisini kontrol edin.');
+    return;
+  }
+  const paymentDetails = { paymentDate: localDateValue(), paymentMethod };
+  const amount = monthlyFeeAmount(student, month);
+  const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, month, 'paid', amount, paymentDetails));
+  if (!saved) { render(); return; }
+  setMonthlyFeeStatus(student, month, 'paid', paymentDetails);
+  persistLocalData();
+  document.querySelector('#feePaymentDialog').close();
+  form.reset();
+  render();
+  showToast(`Aidat ${PAYMENT_METHODS[paymentMethod]} olarak tahsil edildi ve muhasebeye eklendi.`);
+});
 document.querySelector('#feeDefinitionForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!['super_admin', 'admin'].includes(state.role)) return;
