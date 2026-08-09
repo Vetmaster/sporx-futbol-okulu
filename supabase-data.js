@@ -5,6 +5,14 @@
     return String(value || '').slice(0, 7);
   }
 
+  function normalizeSubscriptionPlan(value) {
+    return ({ starter: 'standard', professional: 'premium', enterprise: 'pro', custom: 'pro' })[value] || value || 'standard';
+  }
+
+  function subscriptionPlanPrice(value) {
+    return ({ standard: 799, premium: 1299, pro: 1899 })[normalizeSubscriptionPlan(value)] || 799;
+  }
+
   function notificationDate(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -44,7 +52,7 @@
   }
 
   async function fetchSchoolSettings(client, schoolId, role) {
-    const columns = role === 'coach' ? 'name, slug, is_active' : 'name, slug, monthly_fee_amount, is_active';
+    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, is_active, subscription_plan, subscription_status';
     let result = await client.from('schools').select(columns).eq('id', schoolId).single();
     if (result.error && String(result.error.message || '').includes('is_active')) {
       const fallbackColumns = role === 'coach' ? 'name, slug' : 'name, slug, monthly_fee_amount';
@@ -223,6 +231,8 @@
         schoolName: schoolSettingsResult.data?.name || '',
         schoolSlug: schoolSettingsResult.data?.slug || '',
         schoolActive: schoolSettingsResult.data?.is_active !== false,
+        subscriptionPlan: normalizeSubscriptionPlan(schoolSettingsResult.data?.subscription_plan),
+        subscriptionStatus: schoolSettingsResult.data?.subscription_status || 'trial',
         monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
         groups,
         students,
@@ -249,9 +259,9 @@
       return rows.map(school => {
         const subscription = subscriptionBySchool.get(school.id) || {};
         return {
-          subscriptionPlan: subscription.subscription_plan || 'starter',
+          subscriptionPlan: normalizeSubscriptionPlan(subscription.subscription_plan),
           subscriptionStatus: subscription.subscription_status || 'trial',
-          subscriptionMonthlyPrice: Number(subscription.subscription_monthly_price || 0),
+          subscriptionMonthlyPrice: Number(subscription.subscription_monthly_price) || subscriptionPlanPrice(subscription.subscription_plan),
           subscriptionStartsOn: subscription.subscription_starts_on || '',
           subscriptionEndsOn: subscription.subscription_ends_on || '',
           id: school.id,
@@ -268,12 +278,11 @@
       });
     }
 
-    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, monthlyPrice, startsOn, endsOn }) {
+    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, startsOn, endsOn }) {
       const { data, error } = await client.rpc('update_school_subscription', {
         target_school_id: targetSchoolId,
         plan_code: plan,
         subscription_state: status,
-        monthly_price: monthlyPrice,
         starts_on: startsOn,
         ends_on: endsOn
       });
