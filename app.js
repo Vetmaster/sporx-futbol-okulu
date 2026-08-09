@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.246';
+const APP_VERSION = '2026.08.09.247';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -23,6 +23,13 @@ let authRequestPending = false;
 let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
+const SUBSCRIPTION_PLANS = {
+  starter: { name: 'Başlangıç', description: 'Yeni açılan ve temel yönetim ihtiyaçları olan futbol okulları' },
+  professional: { name: 'Profesyonel', description: 'Büyüyen öğrenci ve personel yapısına sahip futbol okulları' },
+  enterprise: { name: 'Kurumsal', description: 'Çok şubeli veya özel ihtiyaçları bulunan futbol organizasyonları' },
+  custom: { name: 'Özel', description: 'Okula özel koşullarla hazırlanan abonelik paketi' }
+};
+const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', past_due: 'Ödeme bekliyor', suspended: 'Askıda', cancelled: 'İptal edildi' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -85,6 +92,7 @@ const state = {
   editingGroupName: null,
   invitingSchoolId: null,
   editingSchoolId: null,
+  editingSubscriptionSchoolId: null,
   groupSettingsOpen: false,
   newestGroupPinned: false,
   newestGroupName: '',
@@ -102,7 +110,8 @@ const MENU_ICONS = {
   attendance: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"></rect><path d="m7.5 12 3 3 6-7"></path></svg>',
   notifications: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg>',
   approvedToggle: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6.5" width="19" height="11" rx="5.5"></rect><circle cx="16" cy="12" r="3"></circle><path d="m6.5 12 1.4 1.4 2.6-3"></path></svg>',
-  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"></path></svg>'
+  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"></path></svg>',
+  subscriptions: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3 9h18M7 14h4M16 13v3M14.5 14.5h3"></path></svg>'
 };
 
 const BASE_GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U11', 'U12', 'U13', 'U14'];
@@ -121,6 +130,7 @@ function persistLocalData() {
 const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'coach', 'parent'] },
   schools: { label: 'Okullar', icon: MENU_ICONS.schools, roles: ['super_admin'] },
+  subscriptions: { label: 'Paket ve Abonelik', icon: MENU_ICONS.subscriptions, roles: ['super_admin'] },
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'coach'] },
   studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'coach', 'parent'], hidden: true },
@@ -138,7 +148,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -806,6 +816,50 @@ function schoolsView() {
   </div>`;
 }
 
+function subscriptionDateLabel(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return 'Belirlenmedi';
+  return new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
+}
+
+function subscriptionStatusMarkup(status) {
+  const tone = status === 'active' ? '' : status === 'trial' ? 'blue' : status === 'past_due' ? 'danger' : 'warning';
+  return `<span class="status ${tone}">${SUBSCRIPTION_STATUSES[status] || 'Belirlenmedi'}</span>`;
+}
+
+function subscriptionsView() {
+  const schools = state.schools;
+  const activeCount = schools.filter(school => school.subscriptionStatus === 'active').length;
+  const trialCount = schools.filter(school => school.subscriptionStatus === 'trial').length;
+  const waitingCount = schools.filter(school => school.subscriptionStatus === 'past_due').length;
+  const recurringTotal = schools
+    .filter(school => ['active', 'trial'].includes(school.subscriptionStatus))
+    .reduce((total, school) => total + Number(school.subscriptionMonthlyPrice || 0), 0);
+  const planCards = Object.entries(SUBSCRIPTION_PLANS).map(([code, plan]) => {
+    const count = schools.filter(school => school.subscriptionPlan === code).length;
+    return `<article class="panel subscription-plan-card"><span class="eyebrow">PAKET</span><h3>${plan.name}</h3><p>${plan.description}</p><strong>${count} okul</strong></article>`;
+  }).join('');
+  const rows = schools.map(school => `<div class="subscription-school-row">
+    <div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.slug)}</small></div>
+    <span>${SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Başlangıç'}</span>
+    ${subscriptionStatusMarkup(school.subscriptionStatus)}
+    <span>${formatCurrency(school.subscriptionMonthlyPrice || 0)}<small>Aylık</small></span>
+    <span>${subscriptionDateLabel(school.subscriptionEndsOn)}<small>Bitiş / yenileme</small></span>
+    <button class="secondary-button" type="button" data-action="edit-subscription" data-id="${school.id}">Düzenle</button>
+  </div>`).join('');
+  return `<div class="page-stack">
+    <div class="section-heading"><div><h2>Paketler ve abonelikler</h2><p>Okul bazında paket, ücret ve yenileme takibi</p></div></div>
+    <section class="stats-grid subscription-summary-grid">
+      <article class="stat-card"><span class="label">Aktif abonelik</span><strong>${activeCount}</strong><small>${trialCount} deneme hesabı</small></article>
+      <article class="stat-card"><span class="label">Ödeme bekleyen</span><strong>${waitingCount}</strong><small>Takip edilmesi gereken okul</small></article>
+      <article class="stat-card"><span class="label">Aylık abonelik toplamı</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
+    </section>
+    <section class="subscription-plan-grid">${planCards}</section>
+    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Fiyatı belirlenmemiş paketler 0 ₺ olarak gösterilir.</small></div><span class="status blue">${schools.length} okul</span></div>
+      <div class="subscription-school-list">${rows || '<div class="empty-state">Henüz okul bulunmuyor.</div>'}</div>
+    </section>
+  </div>`;
+}
+
 function dashboardView() {
   if (state.role === 'parent') return parentDashboard();
   if (isCoachRole()) return coachDashboard();
@@ -1257,7 +1311,7 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, schools: schoolsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, schools: schoolsView, subscriptions: subscriptionsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -1702,7 +1756,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.246', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.247', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2248,7 +2302,7 @@ document.querySelector('#rolePreviewSelect').addEventListener('change', event =>
 
 document.addEventListener('click', async event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
-  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; if (dialog?.id === 'schoolAdminDialog') state.invitingSchoolId = null; if (dialog?.id === 'schoolEditDialog') state.editingSchoolId = null; if (dialog?.id === 'feePaymentDialog') render(); return; }
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; if (dialog?.id === 'schoolAdminDialog') state.invitingSchoolId = null; if (dialog?.id === 'schoolEditDialog') state.editingSchoolId = null; if (dialog?.id === 'subscriptionDialog') state.editingSubscriptionSchoolId = null; if (dialog?.id === 'feePaymentDialog') render(); return; }
   const pageButton = event.target.closest('[data-page]');
   if (pageButton && appShell.contains(pageButton)) {
     if (pageButton.dataset.page === 'schools' && state.role === 'super_admin') {
@@ -2298,6 +2352,21 @@ document.addEventListener('click', async event => {
     school.active = updated.is_active !== false;
     render();
     showToast(school.active ? 'Okul yeniden aktifleştirildi.' : 'Okul pasife alındı; verileri korunuyor.');
+  }
+  else if (action === 'edit-subscription' && state.role === 'super_admin') {
+    const school = state.schools.find(item => item.id === actionButton.dataset.id);
+    if (!school) return;
+    state.editingSubscriptionSchoolId = school.id;
+    const form = document.querySelector('#subscriptionForm');
+    form.reset();
+    form.elements.schoolId.value = school.id;
+    form.elements.plan.value = school.subscriptionPlan || 'starter';
+    form.elements.status.value = school.subscriptionStatus || 'trial';
+    form.elements.monthlyPrice.value = Number(school.subscriptionMonthlyPrice || 0);
+    form.elements.startsOn.value = school.subscriptionStartsOn || '';
+    form.elements.endsOn.value = school.subscriptionEndsOn || '';
+    document.querySelector('#subscriptionDialogSchoolName').textContent = school.name;
+    document.querySelector('#subscriptionDialog').showModal();
   }
   else if (action === 'select-fee-student') {
     const student = state.students.find(item => item.id === Number(actionButton.dataset.id));
@@ -2611,6 +2680,33 @@ document.querySelector('#schoolEditForm').addEventListener('submit', async event
   event.currentTarget.reset();
   render();
   showToast('Okul adı güncellendi.');
+});
+document.querySelector('#subscriptionForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (state.role !== 'super_admin') return;
+  const data = new FormData(event.currentTarget);
+  const schoolId = String(data.get('schoolId') || '');
+  const plan = String(data.get('plan') || '');
+  const status = String(data.get('status') || '');
+  const monthlyPrice = Number(data.get('monthlyPrice'));
+  const startsOn = String(data.get('startsOn') || '');
+  const endsOn = String(data.get('endsOn') || '');
+  if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_PLANS[plan] || !SUBSCRIPTION_STATUSES[status] || !Number.isFinite(monthlyPrice) || monthlyPrice < 0) {
+    showToast('Paket ve abonelik bilgilerini kontrol edin.');
+    return;
+  }
+  if (startsOn && endsOn && endsOn < startsOn) {
+    showToast('Bitiş tarihi başlangıç tarihinden önce olamaz.');
+    return;
+  }
+  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, monthlyPrice, startsOn: startsOn || null, endsOn: endsOn || null }));
+  if (!saved) return;
+  await refreshSchools();
+  state.editingSubscriptionSchoolId = null;
+  document.querySelector('#subscriptionDialog').close();
+  event.currentTarget.reset();
+  render();
+  showToast('Paket ve abonelik bilgileri güncellendi.');
 });
 document.querySelector('#studentForm').addEventListener('submit', async event => {
   event.preventDefault();
