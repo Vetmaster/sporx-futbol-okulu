@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.249';
+const APP_VERSION = '2026.08.09.250';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1442,8 +1442,16 @@ function showLoginScreen(message = '', isError = false) {
   appShell.classList.add('is-hidden');
   authScreen.classList.remove('is-hidden');
   configureAuthForm('login');
+  loginSubmitButton.classList.remove('is-hidden');
   showAuthMessage(message, isError);
   window.setTimeout(() => loginEmail.focus(), 0);
+}
+
+function showSubscriptionBlockedScreen() {
+  showLoginScreen('Abonelik yeniden etkinleştirildiğinde mevcut bilgilerinizle giriş yapabilirsiniz.', true);
+  document.querySelector('#authEyebrow').textContent = 'ABONELİK DURUMU';
+  document.querySelector('#authTitle').textContent = 'Aboneliğiniz iptal edilmiş';
+  document.querySelector('#authDescription').textContent = 'Uygulamaya yeniden erişebilmek için okul yöneticinizin aboneliği etkinleştirmesi gerekir.';
 }
 
 function showPasswordSetupScreen() {
@@ -1655,8 +1663,7 @@ async function showAuthenticatedApp(user) {
     if (loadError.message === 'SUBSCRIPTION_CANCELLED') {
       signedOutMessage = '';
       await supabaseClient.auth.signOut();
-      configureAuthForm('login');
-      showLoginScreen('Okul aboneliği iptal edildiği için uygulama erişimi kapatıldı. Lütfen okul yöneticinizle iletişime geçin.', true);
+      showSubscriptionBlockedScreen();
       return;
     }
     configureAuthForm('login');
@@ -1783,7 +1790,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.249', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.250', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
