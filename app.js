@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.251';
+const APP_VERSION = '2026.08.09.252';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -78,6 +78,7 @@ const state = {
   showPastTrainings: false,
   showPastAttendance: false,
   feeFilter: 'all',
+  feeSearchQuery: '',
   feeListSortKey: 'enrollmentDate',
   feeListSortDirection: 'desc',
   accountingFilter: 'all',
@@ -1128,7 +1129,11 @@ function feesView() {
     ? parentUnpaidMonths.reduce((total, month) => total + monthlyFeeAmount(parentStudent, month), 0)
     : 0;
   const pendingStudents = allStudents.filter(student => currentFeeStatus(student) === 'late');
-  const list = state.feeFilter === 'pending' ? pendingStudents : allStudents;
+  const unfilteredList = state.feeFilter === 'pending' ? pendingStudents : allStudents;
+  const feeSearchQuery = state.feeSearchQuery.trim().toLocaleLowerCase('tr-TR');
+  const list = isParent || !feeSearchQuery
+    ? unfilteredList
+    : unfilteredList.filter(student => `${student.name} ${student.parent || ''} ${student.group || ''}`.toLocaleLowerCase('tr-TR').includes(feeSearchQuery));
   const currentMonth = feeMonthKey();
   const currentMonthLabel = formatFeeMonth(currentMonth);
   const liableStudents = allStudents.filter(student => ['paid', 'late'].includes(currentFeeStatus(student)));
@@ -1152,9 +1157,10 @@ function feesView() {
           ? statusLabel('none')
           : `<label class="fee-paid-control"><input type="checkbox" data-monthly-fee data-id="${student.id}" data-month="${month}" aria-label="${formatFeeMonth(month)} aidatını ödendi işaretle" ${status === 'paid' ? 'checked' : ''}><span>${status === 'paid' ? 'Ödendi' : 'Ödendi seç'}</span></label>`;
         return `<tr><td>${studentNameLink(student)}</td><td>${formatFeeMonth(month)}</td><td>${status === 'none' ? '—' : formatCurrency(monthlyFeeAmount(student, month))}</td><td>${formatFeeDueDate(month)}</td><td>${feeStatusControl(student, month, status)}</td><td>${paymentControl}</td></tr>`;
-      }).join('');
+      }).join('') || `<tr><td colspan="6"><div class="empty-state">${feeSearchQuery ? 'Aramanızla eşleşen aidat kaydı bulunamadı.' : 'Aidat kaydı bulunmuyor.'}</div></td></tr>`;
   const subtitle = isParent ? `${parentUnpaidMonths.length} ödenmemiş dönem` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}<section class="panel table-wrap"><table><thead><tr>${feeListSortHeader('name', 'Öğrenci')}${feeListSortHeader('period', 'Dönem')}${feeListSortHeader('amount', 'Tutar')}${feeListSortHeader('due', 'Son ödeme')}${feeListSortHeader('status', 'Durum')}${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
+  const searchMarkup = isParent ? '' : `<div class="toolbar fee-list-toolbar"><input class="search-input" id="feeSearch" type="search" value="${escapeHtml(state.feeSearchQuery)}" placeholder="Öğrenci, veli veya grup ara" aria-label="Aidat kayıtlarında ara"><span class="muted" aria-live="polite">${list.length} / ${unfilteredList.length} öğrenci</span></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}${searchMarkup}<section class="panel table-wrap"><table><thead><tr>${feeListSortHeader('name', 'Öğrenci')}${feeListSortHeader('period', 'Dönem')}${feeListSortHeader('amount', 'Tutar')}${feeListSortHeader('due', 'Son ödeme')}${feeListSortHeader('status', 'Durum')}${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
 }
 
 function feeListSortHeader(key, label) {
@@ -1790,7 +1796,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.251', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.252', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2597,6 +2603,15 @@ appContent.addEventListener('input', event => {
     if (event.target.name === 'audience') state.notificationDraft.audience = event.target.value;
     if (event.target.name === 'title') state.notificationDraft.title = event.target.value;
     if (event.target.name === 'message') state.notificationDraft.body = event.target.value;
+    return;
+  }
+  if (event.target.id === 'feeSearch') {
+    state.feeSearchQuery = event.target.value;
+    const cursorPosition = event.target.selectionStart ?? state.feeSearchQuery.length;
+    render();
+    const feeSearch = document.querySelector('#feeSearch');
+    feeSearch?.focus();
+    feeSearch?.setSelectionRange(cursorPosition, cursorPosition);
     return;
   }
   if (!['studentSearch', 'groupFilter', 'activeStudentsOnlyFilter', 'debtStudentsOnlyFilter'].includes(event.target.id)) return;
