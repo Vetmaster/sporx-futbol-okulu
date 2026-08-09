@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.250';
+const APP_VERSION = '2026.08.09.251';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1573,7 +1573,7 @@ function scheduleRealtimeRefresh(payload = null) {
     return;
   }
   if (payload?.table === 'schools' && payload.eventType === 'UPDATE' && payload.new?.id === state.schoolId && payload.new?.subscription_status === 'cancelled' && !isActualSuperAdmin()) {
-    signedOutMessage = 'Okul aboneliği iptal edildiği için uygulama erişimi kapatıldı. Lütfen okul yöneticinizle iletişime geçin.';
+    signedOutMessage = 'SUBSCRIPTION_CANCELLED';
     stopRealtimeSync();
     supabaseClient.auth.signOut();
     return;
@@ -1661,7 +1661,7 @@ async function showAuthenticatedApp(user) {
     remoteData = await remoteDataStore.load({ school_id: initialSchoolId, user_id: user.id, role: profile.role });
   } catch (loadError) {
     if (loadError.message === 'SUBSCRIPTION_CANCELLED') {
-      signedOutMessage = '';
+      signedOutMessage = 'SUBSCRIPTION_CANCELLED';
       await supabaseClient.auth.signOut();
       showSubscriptionBlockedScreen();
       return;
@@ -1790,7 +1790,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.250', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.251', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -3155,6 +3155,10 @@ async function handleAuthStateChange(event, session) {
     stopRealtimeSync();
     const message = signedOutMessage;
     signedOutMessage = '';
+    if (message === 'SUBSCRIPTION_CANCELLED') {
+      showSubscriptionBlockedScreen();
+      return;
+    }
     if (authMode === 'set-password') {
       authMode = 'login';
       showLoginScreen('Davet veya şifre yenileme bağlantısının süresi dolmuş. Lütfen yeni bağlantı isteyin.', true);
