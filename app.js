@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.07.235';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.21-beta/SASA-F-v1.0.21-beta.apk';
+const APP_VERSION = '2026.08.09.241';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
@@ -35,10 +35,14 @@ const ACCOUNTING_PERIODS = [
 const savedAccountingPeriod = window.localStorage.getItem('sporx_accounting_period');
 const NAVIGATION_STORAGE_KEY = 'sasa_navigation_state';
 const BROWSER_NAVIGATION_STATE_KEY = 'sasaAppNavigation';
+const SELECTED_SCHOOL_STORAGE_KEY = 'sasa_selected_school_id';
 const localData = window.SporXDB.load();
 const state = {
   role: 'admin',
+  actualRole: 'admin',
   schoolId: null,
+  schoolName: '',
+  schools: [],
   userId: null,
   userFullName: '',
   userEmail: '',
@@ -79,6 +83,8 @@ const state = {
   notificationDraft: { audience: 'Tüm kullanıcılar', title: '', body: '' },
   editingStudentId: null,
   editingGroupName: null,
+  invitingSchoolId: null,
+  editingSchoolId: null,
   groupSettingsOpen: false,
   newestGroupPinned: false,
   newestGroupName: '',
@@ -89,6 +95,7 @@ const notificationReadIdsInFlight = new Set();
 let browserNavigationReady = false;
 
 const MENU_ICONS = {
+  schools: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-5h6v5M8 10h1M12 10h1M16 10h1M8 13h1M12 13h1M16 13h1"></path></svg>',
   student: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"></path></svg>',
   training: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V3M7 4l10 3-10 4M4 21h8"></path></svg>',
   accounting: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M8 6h8v4H8zM8.5 14h1M12 14h1M15.5 14h1M8.5 18h1M12 18h1M15.5 18h1"></path></svg>',
@@ -112,25 +119,26 @@ function persistLocalData() {
 }
 
 const navItems = {
-  dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'staff', 'parent'] },
-  students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'staff'] },
-  studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin', 'staff'], hidden: true },
-  studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
-  studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'staff', 'parent'], hidden: true },
+  dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'coach', 'parent'] },
+  schools: { label: 'Okullar', icon: MENU_ICONS.schools, roles: ['super_admin'] },
+  students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'coach'] },
+  studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
+  studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'coach', 'parent'], hidden: true },
+  studentAttendanceHistory: { label: 'Öğrenci Yoklamaları', icon: '✓', roles: ['super_admin', 'admin', 'coach', 'parent'], hidden: true },
   child: { label: 'Öğrenci', icon: MENU_ICONS.student, roles: ['parent'] },
-  trainings: { label: 'Antrenman', icon: MENU_ICONS.training, roles: ['super_admin', 'admin', 'staff', 'parent'] },
-  attendance: { label: 'Yoklama', icon: MENU_ICONS.attendance, roles: ['super_admin', 'admin', 'staff'] },
-  fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'staff', 'parent'] },
+  trainings: { label: 'Antrenman', icon: MENU_ICONS.training, roles: ['super_admin', 'admin', 'coach', 'parent'] },
+  attendance: { label: 'Yoklama', icon: MENU_ICONS.attendance, roles: ['super_admin', 'admin', 'coach'] },
+  fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'parent'] },
   accounting: { label: 'Muhasebe', icon: MENU_ICONS.accounting, roles: ['super_admin', 'admin'] },
   accountingSettings: { label: 'Muhasebe Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['super_admin', 'admin'], hidden: true },
   userApprovals: { label: 'Kullanıcı Onayları', icon: MENU_ICONS.approvedToggle, roles: ['super_admin'] },
-  notifications: { label: 'Bildirimler', icon: MENU_ICONS.notifications, roles: ['super_admin', 'admin', 'staff', 'parent'] }
+  notifications: { label: 'Bildirimler', icon: MENU_ICONS.notifications, roles: ['super_admin', 'admin', 'coach', 'parent'] }
 };
 
-const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', staff: 'Normal kullanıcı', parent: 'Veli' };
+const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci ve veli bilgilerinin tamamı'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -448,6 +456,9 @@ document.querySelector('#authVersionLabel').textContent = `v${APP_VERSION}`;
 
 function allowedItems() { return Object.entries(navItems).filter(([, item]) => item.roles.includes(state.role) && !item.hidden); }
 function isAdminRole() { return ['super_admin', 'admin'].includes(state.role); }
+function isCoachRole() { return state.role === 'coach'; }
+function isActualSuperAdmin() { return state.actualRole === 'super_admin'; }
+function isRolePreview() { return isActualSuperAdmin() && state.role !== 'super_admin'; }
 function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2).join(''); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
 function statusLabel(fee) {
@@ -678,7 +689,7 @@ function studentTimelineEntries(student) {
     detail: `${training.title} · ${training.group} · ${training.coach}`,
     tone: present ? 'positive' : 'negative'
   }));
-  const feeEvents = monthlyFeePeriods(student).flatMap(month => {
+  const feeEvents = isCoachRole() ? [] : monthlyFeePeriods(student).flatMap(month => {
     const status = monthlyFeeStatus(student, month);
     if (!['paid', 'late'].includes(status)) return [];
     const history = student.feeHistory?.[month];
@@ -716,7 +727,7 @@ function studentTimelineMarkup(student) {
   const expanded = Number(state.expandedTimelineStudentId) === Number(student.id);
   const visibleEntries = expanded ? entries : entries.slice(0, 4);
   const historyButton = entries.length > 4 ? `<div class="student-timeline-actions"><button class="secondary-button" type="button" data-action="toggle-student-timeline" data-id="${student.id}" aria-expanded="${expanded}">${expanded ? 'Daha az göster' : 'Geçmiş hareketler'}</button></div>` : '';
-  return `<section class="panel student-timeline-card"><div class="panel-heading"><div><h3>Öğrenci zaman çizelgesi</h3><small class="muted">Kayıt, aidat ve yoklama hareketleri</small></div><span class="status blue">${entries.length} hareket</span></div><ol class="student-timeline">${visibleEntries.map(entry => `<li class="${entry.tone}"><span class="timeline-dot" aria-hidden="true"></span><div class="timeline-content"><time datetime="${entry.date}">${formatTimelineDate(entry.date)}</time><strong>${entry.title}</strong><small>${entry.detail}</small></div></li>`).join('') || '<li class="timeline-empty">Henüz zaman çizelgesi hareketi bulunmuyor.</li>'}</ol>${historyButton}</section>`;
+  return `<section class="panel student-timeline-card"><div class="panel-heading"><div><h3>Öğrenci zaman çizelgesi</h3><small class="muted">${isCoachRole() ? 'Kayıt ve yoklama hareketleri' : 'Kayıt, aidat ve yoklama hareketleri'}</small></div><span class="status blue">${entries.length} hareket</span></div><ol class="student-timeline">${visibleEntries.map(entry => `<li class="${entry.tone}"><span class="timeline-dot" aria-hidden="true"></span><div class="timeline-content"><time datetime="${entry.date}">${formatTimelineDate(entry.date)}</time><strong>${entry.title}</strong><small>${entry.detail}</small></div></li>`).join('') || '<li class="timeline-empty">Henüz zaman çizelgesi hareketi bulunmuyor.</li>'}</ol>${historyButton}</section>`;
 }
 function trainingAttendanceLabel(training) {
   const trainingStudents = studentsForTraining(training);
@@ -752,22 +763,69 @@ function dashboardNotificationPromptMarkup() {
   </section>`;
 }
 
+function schoolsView() {
+  const activeSchools = state.schools.filter(school => school.active).length;
+  const totalStudents = state.schools.reduce((total, school) => total + school.studentCount, 0);
+  const totalDebt = state.schools.reduce((total, school) => total + school.unpaidTotal, 0);
+  const schoolCards = state.schools.map(school => `
+    <article class="panel school-management-card ${school.id === state.schoolId ? 'is-selected' : ''}">
+      <div class="school-management-heading">
+        <div><span class="eyebrow">${escapeHtml(school.slug)}</span><h3>${escapeHtml(school.name)}</h3></div>
+        <span class="status ${school.active ? '' : 'warning'}">${school.active ? 'Aktif' : 'Pasif'}</span>
+      </div>
+      <div class="school-management-stats">
+        <span><small>Öğrenci</small><strong>${school.studentCount}</strong></span>
+        <span><small>Bu ay aktif</small><strong>${school.activeStudentCount}</strong></span>
+        <span><small>Admin</small><strong>${school.adminCount}</strong></span>
+        <span><small>Bekleyen aidat</small><strong>${formatCurrency(school.unpaidTotal)}</strong></span>
+      </div>
+      <div class="school-management-actions">
+        <button class="primary-button" type="button" data-action="select-school" data-id="${school.id}" ${school.id === state.schoolId ? 'disabled' : ''}>${school.id === state.schoolId ? 'Açık okul' : 'Okulu aç'}</button>
+        <button class="secondary-button" type="button" data-action="invite-school-admin" data-id="${school.id}" ${school.active ? '' : 'disabled'}>Kullanıcı davet et</button>
+        <button class="secondary-button" type="button" data-action="rename-school" data-id="${school.id}">Adını düzenle</button>
+        <button class="secondary-button" type="button" data-action="toggle-school-status" data-id="${school.id}">${school.active ? 'Pasife al' : 'Aktifleştir'}</button>
+      </div>
+    </article>`).join('');
+  return `<div class="page-stack">
+    <div class="section-heading"><div><h2>Futbol okulları</h2><p>Süper Admin yönetim merkezi</p></div></div>
+    <section class="stats-grid school-platform-summary">
+      <article class="stat-card"><span class="label">Toplam okul</span><strong>${state.schools.length}</strong><small>${activeSchools} aktif okul</small></article>
+      <article class="stat-card"><span class="label">Toplam öğrenci</span><strong>${totalStudents}</strong><small>Tüm okullar</small></article>
+      <article class="stat-card"><span class="label">Toplam bekleyen aidat</span><strong>${formatCurrency(totalDebt)}</strong><small>Tüm okullar</small></article>
+    </section>
+    <section class="panel school-create-panel">
+      <div class="panel-heading"><div><h3>Yeni okul ekle</h3><small class="muted">Okul kendi öğrencileri, grupları, aidatları ve muhasebesiyle ayrı oluşturulur.</small></div></div>
+      <form id="schoolCreateForm" class="school-create-form">
+        <label>Okul adı<input name="schoolName" maxlength="120" placeholder="Örn. Çekmeköy Futbol Okulu" required></label>
+        <label>Okul kodu<input name="schoolSlug" maxlength="80" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="cekmekoy-futbol" required><small>Küçük harf, rakam ve tire kullanın.</small></label>
+        <label>Aylık aidat<input name="monthlyFeeAmount" type="number" min="1" step="1" value="${state.monthlyFeeAmount}" required></label>
+        <button class="primary-button" type="submit">Okulu oluştur</button>
+      </form>
+    </section>
+    <section class="school-management-grid">${schoolCards || '<div class="panel empty-state">Henüz okul bulunmuyor.</div>'}</section>
+  </div>`;
+}
+
 function dashboardView() {
   if (state.role === 'parent') return parentDashboard();
+  if (isCoachRole()) return coachDashboard();
   const activeStudents = state.students.filter(isActiveStudent);
-  const pendingFeeStudents = state.students.filter(student => currentFeeStatus(student) === 'late');
-  const pendingFeeAmount = pendingFeeStudents.length * 1500;
+  const pendingFeeStudents = state.students.filter(studentHasFeeDebt);
+  const pendingFeeAmount = pendingFeeStudents.reduce((total, student) => total + unpaidFeePeriods(student).reduce((studentTotal, month) => studentTotal + monthlyFeeAmount(student, month), 0), 0);
+  const currentMonth = feeMonthKey();
+  const currentMonthEntries = state.accountingEntries.filter(entry => String(entry.date || '').startsWith(currentMonth));
+  const currentMonthNet = currentMonthEntries.reduce((total, entry) => total + (entry.kind === 'expense' ? -entry.amount : entry.amount), 0);
   const plannedTrainings = sortedTrainings(
     state.trainings.filter(training => training.date >= localDateValue())
   );
   return `<div class="page-stack">
     ${dashboardNotificationPromptMarkup()}
-    <div class="section-heading"><div><h2>Bugünün kulüp özeti</h2><p>20 Temmuz Pazartesi · Son güncelleme şimdi</p></div></div>
+    <div class="section-heading"><div><h2>Bugünün kulüp özeti</h2><p>${new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' }).format(new Date())} · Son güncelleme şimdi</p></div></div>
     <section class="stats-grid club-summary-grid">
       <article class="stat-card"><span class="label">Aktif öğrenci</span><strong>${activeStudents.length} / ${state.students.length}</strong><button class="stat-link" type="button" data-page="students">${GROUPS.length} grup</button></article>
       <article class="stat-card"><span class="label">Planlanan antrenman</span><strong>${plannedTrainings.length}</strong><button class="stat-link" type="button" data-page="trainings">Takvime git</button></article>
       <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>${formatCurrency(pendingFeeAmount)}</strong><button class="stat-link" type="button" data-action="pending-fees">${pendingFeeStudents.length} öğrenci</button></article>
-      <article class="stat-card"><span class="label">Aylık net durum</span><strong>₺208.300</strong><small>+%8 geçen aya göre</small></article>
+      <article class="stat-card"><span class="label">Aylık net durum</span><strong>${formatCurrency(currentMonthNet)}</strong><small>${currentMonthEntries.length} muhasebe kaydı</small></article>
     </section>
     <section class="dashboard-grid">
       <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${plannedTrainings.slice(0, 4).map(t => `<div class="list-row training-summary-row"><span class="training-date-time"><small>${formatTrainingDate(t.date)}</small><b>${t.time}</b></span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${trainingAttendanceLabel(t)}</span></div>`).join('') || '<div class="empty-state">Planlanmış güncel antrenman bulunmuyor.</div>'}</article>
@@ -779,6 +837,22 @@ function dashboardView() {
   </div>`;
 }
 
+function coachDashboard() {
+  const plannedTrainings = sortedTrainings(state.trainings.filter(training => training.date >= localDateValue()));
+  const recordedTrainings = state.attendanceRecords.length;
+  const groupsWithStudents = new Set(state.students.map(student => student.group).filter(Boolean)).size;
+  return `<div class="page-stack">
+    ${dashboardNotificationPromptMarkup()}
+    <div class="section-heading"><div><h2>Antrenör özeti</h2><p>${new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' }).format(new Date())} · Son güncelleme şimdi</p></div></div>
+    <section class="stats-grid club-summary-grid">
+      <article class="stat-card"><span class="label">Öğrenci</span><strong>${state.students.length}</strong><button class="stat-link" type="button" data-page="students">${groupsWithStudents} grup</button></article>
+      <article class="stat-card"><span class="label">Planlanan antrenman</span><strong>${plannedTrainings.length}</strong><button class="stat-link" type="button" data-page="trainings">Takvime git</button></article>
+      <article class="stat-card"><span class="label">Kayıtlı yoklama</span><strong>${recordedTrainings}</strong><button class="stat-link" type="button" data-page="attendance">Yoklamaya git</button></article>
+    </section>
+    <section class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${plannedTrainings.slice(0, 4).map(training => `<div class="list-row training-summary-row"><span class="training-date-time"><small>${formatTrainingDate(training.date)}</small><b>${training.time}</b></span><div><strong>${training.group} · ${training.title}</strong><small>${training.coach} · ${training.field}</small></div><span class="status">${trainingAttendanceLabel(training)}</span></div>`).join('') || '<div class="empty-state">Planlanmış güncel antrenman bulunmuyor.</div>'}</section>
+  </div>`;
+}
+
 function progress(label, value) { return `<div><div class="progress-label"><span>${label}</span><strong>%${value}</strong></div><div class="progress-track"><div class="progress-fill" style="width:${value}%"></div></div></div>`; }
 
 function currentParentStudent() {
@@ -786,7 +860,7 @@ function currentParentStudent() {
 }
 
 function parentStudentSwitcherMarkup() {
-  if (state.role !== 'parent' || state.students.length < 2) return '';
+  if (state.role !== 'parent' || isRolePreview() || state.students.length < 2) return '';
   const currentStudent = currentParentStudent();
   return `<label class="parent-student-switcher"><span>Öğrenci</span><select id="parentStudentSelect" aria-label="Görüntülenecek öğrenciyi seçin">${state.students.map(student => `<option value="${student.id}" ${Number(student.id) === Number(currentStudent?.id) ? 'selected' : ''}>${escapeHtml(student.name)}</option>`).join('')}</select></label>`;
 }
@@ -823,11 +897,17 @@ function parentDashboard() {
 
 function studentsView() {
   const visibleStudents = filteredAndSortedStudents();
-  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Kayıtlı öğrenciler</h2><button class="heading-icon-button" type="button" data-page="studentSettings" aria-label="Öğrenci ayarlarına git" title="Öğrenci ayarları">${MENU_ICONS.settings}</button></div><p>Öğrenci kayıtları ve profilleri</p></div><button class="primary-button" data-action="add-student">+ Yeni öğrenci</button></div>
-    <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="Öğrenci veya veli ara"><select id="groupFilter"><option value="">Tüm gruplar</option>${GROUPS.map(group => `<option>${escapeHtml(group)}</option>`).join('')}</select></div>
-    <div class="students-checkbox-filters"><label class="students-active-filter"><input id="activeStudentsOnlyFilter" type="checkbox" ${state.activeStudentsOnly ? 'checked' : ''}><span>Sadece aktif öğrenciler</span></label><label class="students-active-filter"><input id="debtStudentsOnlyFilter" type="checkbox" ${state.debtStudentsOnly ? 'checked' : ''}><span>Aidat borcu olanlar</span></label></div>
+  const headingAction = isCoachRole() ? '' : `<button class="heading-icon-button" type="button" data-page="studentSettings" aria-label="Öğrenci ayarlarına git" title="Öğrenci ayarları">${MENU_ICONS.settings}</button>`;
+  const addStudentButton = isCoachRole() ? '' : '<button class="primary-button" data-action="add-student">+ Yeni öğrenci</button>';
+  const filters = isCoachRole() ? '' : `<div class="students-checkbox-filters"><label class="students-active-filter"><input id="activeStudentsOnlyFilter" type="checkbox" ${state.activeStudentsOnly ? 'checked' : ''}><span>Sadece aktif öğrenciler</span></label><label class="students-active-filter"><input id="debtStudentsOnlyFilter" type="checkbox" ${state.debtStudentsOnly ? 'checked' : ''}><span>Aidat borcu olanlar</span></label></div>`;
+  const tableHeaders = isCoachRole()
+    ? `${studentSortHeader('name', 'Öğrenci')}${studentSortHeader('birth', 'Doğum tarihi')}${studentSortHeader('enrollmentDate', 'Kayıt tarihi')}${studentSortHeader('group', 'Grup')}${studentSortHeader('position', 'Mevki')}${studentSortHeader('attendance', 'Devam')}<th></th>`
+    : `${studentSortHeader('name', 'Öğrenci')}${studentSortHeader('birth', 'Doğum tarihi')}${studentSortHeader('enrollmentDate', 'Kayıt tarihi')}${studentSortHeader('group', 'Grup')}${studentSortHeader('position', 'Mevki')}${studentSortHeader('parent', 'Veli')}${studentSortHeader('fee', 'Aidat')}${studentSortHeader('attendance', 'Devam')}<th></th>`;
+  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Kayıtlı öğrenciler</h2>${headingAction}</div><p>Öğrenci kayıtları ve profilleri</p></div>${addStudentButton}</div>
+    <div class="toolbar"><input class="search-input" id="studentSearch" type="search" placeholder="${isCoachRole() ? 'Öğrenci ara' : 'Öğrenci veya veli ara'}"><select id="groupFilter"><option value="">Tüm gruplar</option>${GROUPS.map(group => `<option>${escapeHtml(group)}</option>`).join('')}</select></div>
+    ${filters}
     <div class="student-list-summary" aria-live="polite"><span>Listelenen öğrenci sayısı</span><strong><span id="studentsCountSummary">${visibleStudents.length}</span> / ${state.students.length}</strong></div>
-    <section class="panel table-wrap"><table><thead><tr>${studentSortHeader('name', 'Öğrenci')}${studentSortHeader('birth', 'Doğum tarihi')}${studentSortHeader('enrollmentDate', 'Kayıt tarihi')}${studentSortHeader('group', 'Grup')}${studentSortHeader('position', 'Mevki')}${studentSortHeader('parent', 'Veli')}${studentSortHeader('fee', 'Aidat')}${studentSortHeader('attendance', 'Devam')}<th></th></tr></thead><tbody id="studentsBody">${studentRows(visibleStudents)}</tbody></table></section></div>`;
+    <section class="panel table-wrap"><table><thead><tr>${tableHeaders}</tr></thead><tbody id="studentsBody">${studentRows(visibleStudents)}</tbody></table></section></div>`;
 }
 
 function studentSettingsView() {
@@ -874,7 +954,11 @@ function sortStudentList(list) {
 function filteredAndSortedStudents() {
   const query = (document.querySelector('#studentSearch')?.value || '').toLocaleLowerCase('tr');
   const group = document.querySelector('#groupFilter')?.value || '';
-  const filtered = state.students.filter(student => (!state.activeStudentsOnly || isActiveStudent(student)) && (!state.debtStudentsOnly || studentHasFeeDebt(student)) && (!query || `${student.name} ${student.parent}`.toLocaleLowerCase('tr').includes(query)) && (!group || student.group === group));
+  const filtered = state.students.filter(student => {
+    const searchText = isCoachRole() ? student.name : `${student.name} ${student.parent}`;
+    const roleFiltersMatch = isCoachRole() || ((!state.activeStudentsOnly || isActiveStudent(student)) && (!state.debtStudentsOnly || studentHasFeeDebt(student)));
+    return roleFiltersMatch && (!query || searchText.toLocaleLowerCase('tr').includes(query)) && (!group || student.group === group);
+  });
   return sortStudentList(filtered);
 }
 function updateStudentsTable() {
@@ -893,7 +977,13 @@ function updateStudentSortHeaders() {
 }
 function studentHasFeeDebt(student) { return unpaidFeePeriods(student).length > 0; }
 function studentListFeeLabel(student) { return studentHasFeeDebt(student) ? '<span class="status danger">Borç var</span>' : '<span class="status">Borç yok</span>'; }
-function studentRows(list) { return list.map(s => `<tr><td><span class="profile-cell"><span class="profile-avatar">${initials(s.name)}</span>${studentNameLink(s)}</span></td><td>${s.birth}</td><td>${formatEnrollmentDate(s.enrollmentDate) || '—'}</td><td>${s.group || '—'}</td><td>${s.position || '—'}</td><td>${s.parent || '—'}<br><small class="muted">${s.phone}</small></td><td>${studentListFeeLabel(s)}</td><td>%${studentAttendanceRate(s)}</td><td><button class="text-button" data-action="profile" data-id="${s.id}">Profili aç</button></td></tr>`).join(''); }
+function studentRows(list) {
+  return list.map(student => {
+    const commonStart = `<td><span class="profile-cell"><span class="profile-avatar">${initials(student.name)}</span>${studentNameLink(student)}</span></td><td>${student.birth}</td><td>${formatEnrollmentDate(student.enrollmentDate) || '—'}</td><td>${student.group || '—'}</td><td>${student.position || '—'}</td>`;
+    const protectedColumns = isCoachRole() ? '' : `<td>${student.parent || '—'}<br><small class="muted">${student.phone}</small></td><td>${studentListFeeLabel(student)}</td>`;
+    return `<tr>${commonStart}${protectedColumns}<td>%${studentAttendanceRate(student)}</td><td><button class="text-button" data-action="profile" data-id="${student.id}">Profili aç</button></td></tr>`;
+  }).join('');
+}
 
 function childView() {
   const s = currentParentStudent();
@@ -913,12 +1003,20 @@ function studentProfileView() {
   const unpaidFees = unpaidFeePeriods(student);
   const feeDebtBalance = unpaidFees.reduce((total, month) => total + monthlyFeeAmount(student, month), 0);
   const feeSummaryCard = `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${formatCurrency(feeDebtBalance)}</strong><small class="${feeDebtBalance ? 'fee-debt-present' : 'fee-debt-clear'}">${feeDebtBalance ? 'Borç bakiye mevcut' : 'Borç bulunmuyor'}</small></button>`;
+  const profileActions = state.role === 'parent'
+    ? parentStudentSwitcherMarkup()
+    : isCoachRole() ? '' : '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>';
+  const profileStats = isCoachRole()
+    ? `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button><article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Güncel antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article>`
+    : `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button>${feeSummaryCard}<article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article>`;
+  const guardianDetails = isCoachRole() ? '' : `<article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent || 'Bilgi girilmedi'}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd>${student.email ? `<a href="mailto:${student.email}">${student.email}</a>` : 'Bilgi girilmedi'}</dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article>`;
+  const feeTrackingSection = isCoachRole() ? '' : `<section class="panel" id="monthlyFeeSection"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="students-checkbox-filters monthly-fee-filter"><label class="students-active-filter"><input id="monthlyFeeUnpaidOnlyFilter" type="checkbox" ${state.monthlyFeeUnpaidOnly ? 'checked' : ''}><span>Sadece ödenmemiş aidatları göster</span></label></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr>${monthlyFeeSortHeader('period', 'Dönem')}${monthlyFeeSortHeader('amount', 'Tutar')}${monthlyFeeSortHeader('due', 'Son ödeme')}${monthlyFeeSortHeader('status', 'Durum')}${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>`;
   return `<div class="page-stack">
-    <div class="section-heading"><div></div>${state.role !== 'parent' ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : parentStudentSwitcherMarkup()}</div>
-    <section class="panel student-profile-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div>${activeStudent ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
-    <section class="stats-grid profile-stats-grid"><button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button>${feeSummaryCard}<article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article></section>
-    <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Antrenman Grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position || 'Bilgi girilmedi'}</dd></div></dl></article><article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent || 'Bilgi girilmedi'}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd>${student.email ? `<a href="mailto:${student.email}">${student.email}</a>` : 'Bilgi girilmedi'}</dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article></section>
-    <section class="panel" id="monthlyFeeSection"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="students-checkbox-filters monthly-fee-filter"><label class="students-active-filter"><input id="monthlyFeeUnpaidOnlyFilter" type="checkbox" ${state.monthlyFeeUnpaidOnly ? 'checked' : ''}><span>Sadece ödenmemiş aidatları göster</span></label></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr>${monthlyFeeSortHeader('period', 'Dönem')}${monthlyFeeSortHeader('amount', 'Tutar')}${monthlyFeeSortHeader('due', 'Son ödeme')}${monthlyFeeSortHeader('status', 'Durum')}${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>
+    <div class="section-heading"><div></div>${profileActions}</div>
+    <section class="panel student-profile-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div>${activeStudent && !isCoachRole() ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
+    <section class="stats-grid profile-stats-grid">${profileStats}</section>
+    <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${student.birth}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Antrenman Grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position || 'Bilgi girilmedi'}</dd></div></dl></article>${guardianDetails}</section>
+    ${feeTrackingSection}
     <section class="panel"><div class="panel-heading"><h3>Yaklaşan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${sortedTrainings(state.trainings.filter(training => training.group === student.group)).slice(0, 4).map(training => `<div class="list-row"><span class="time">${training.time}</span><div><strong>${training.title}</strong><small>${formatTrainingDate(training.date)} · ${training.coach} · ${training.field}</small></div><span class="status">${training.group}</span></div>`).join('') || '<div class="empty-state">Bu grup için planlanmış antrenman bulunmuyor.</div>'}</section>
     ${studentTimelineMarkup(student)}
   </div>`;
@@ -951,7 +1049,8 @@ function trainingsView() {
   const emptyMessage = parentStudent
     ? `${parentStudent.group} grubu için planlanmış antrenman bulunmuyor.`
     : 'Henüz planlanmış antrenman bulunmuyor.';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>${listDescription}</p></div>${state.role !== 'parent' ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="students-active-filter"><input id="showPastTrainingsFilter" type="checkbox" ${state.showPastTrainings ? 'checked' : ''}><span>Tarihi geçenleri de göster</span></label><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card ${t.date < localDateValue() ? 'is-past' : ''}"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)}${state.role === 'parent' ? '' : ` · ${t.time}`}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div>${state.role !== 'parent' ? `<div class="training-actions"><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>${isAdminRole() ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div>` : ''}</article>`).join('') || `<div class="panel empty-state">${emptyMessage}</div>`}</section></div></div>`;
+  const canCreateTraining = ['super_admin', 'admin'].includes(state.role);
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman takvimi</h2><p>${listDescription}</p></div>${canCreateTraining ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="students-active-filter"><input id="showPastTrainingsFilter" type="checkbox" ${state.showPastTrainings ? 'checked' : ''}><span>Tarihi geçenleri de göster</span></label><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card ${t.date < localDateValue() ? 'is-past' : ''}"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)}${state.role === 'parent' ? '' : ` · ${t.time}`}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div>${state.role !== 'parent' ? `<div class="training-actions"><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>${isAdminRole() ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div>` : ''}</article>`).join('') || `<div class="panel empty-state">${emptyMessage}</div>`}</section></div></div>`;
 }
 
 function attendanceView() {
@@ -1074,7 +1173,7 @@ function accountingEntriesView() {
 }
 
 function notificationsView() {
-  const canSend = state.role !== 'parent';
+  const canSend = ['super_admin', 'admin'].includes(state.role);
   const canDelete = isAdminRole();
   const pushEnabled = state.pushStatus === 'enabled';
   const pushUnsupported = state.pushStatus === 'unsupported';
@@ -1098,7 +1197,7 @@ function notificationsView() {
       ? 'Android uygulama ayarlarından bildirim iznini açın.'
       : 'Yeni duyuruları telefonunuzun bildirim alanında görün.';
   const pushPermissionCard = `<section class="panel push-permission-card"><div class="push-permission-row"><div class="push-permission-copy"><strong>Telefon bildirimleri</strong><small>${pushDescription}</small></div><label class="push-switch-control"><span>${pushStatusLabel}</span><input type="checkbox" role="switch" data-action="toggle-phone-notifications" aria-label="Telefon bildirimlerini ${pushEnabled ? 'kapat' : 'aç'}" ${pushEnabled ? 'checked' : ''} ${pushSwitchDisabled ? 'disabled' : ''}><span class="push-switch-track" aria-hidden="true"><span class="push-switch-thumb"></span></span></label></div></section>`;
-  const audienceOptions = ['Tüm kullanıcılar', 'Tüm veliler', 'Aidat borcu olanlar', 'Aidat borcu olmayanlar', ...GROUPS.map(group => `${group} velileri`), 'Normal kullanıcılar'];
+  const audienceOptions = ['Tüm kullanıcılar', 'Tüm veliler', 'Aidat borcu olanlar', 'Aidat borcu olmayanlar', ...GROUPS.map(group => `${group} velileri`)];
   const composePanel = canSend ? `<section class="panel"><details class="notification-compose-disclosure" ${state.notificationComposeOpen ? 'open' : ''}><summary><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required>${audienceOptions.map(audience => `<option ${state.notificationDraft.audience === audience ? 'selected' : ''}>${escapeHtml(audience)}</option>`).join('')}</select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği" value="${escapeHtml(state.notificationDraft.title)}"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın">${escapeHtml(state.notificationDraft.body)}</textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></details></section>` : '';
   const notificationRows = state.notifications.map(item => {
     const sentByCurrentUser = item.sentBy === state.userId;
@@ -1135,6 +1234,7 @@ function userApprovalsView() {
       </div>
       <select id="approval-role-${request.id}" aria-label="${escapeHtml(request.fullName)} için kullanıcı rolü" ${emailVerified ? '' : 'disabled'}>
         <option value="admin" ${request.requestedRole === 'admin' ? 'selected' : ''}>Admin</option>
+        <option value="coach" ${request.requestedRole === 'coach' ? 'selected' : ''}>Antrenör</option>
         <option value="parent" ${request.requestedRole === 'parent' ? 'selected' : ''}>Veli</option>
       </select>
       <div class="approval-actions">
@@ -1151,7 +1251,7 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, schools: schoolsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -1159,12 +1259,22 @@ function render() {
   renderNavigation();
   const [title, subtitle] = pageMeta[state.page];
   document.querySelector('#pageTitle').textContent = title;
-  document.querySelector('#pageSubtitle').textContent = subtitle;
+  document.querySelector('#pageSubtitle').textContent = state.schoolName ? `${subtitle} · ${state.schoolName}` : subtitle;
   document.querySelector('#sidebarRole').textContent = roleNames[state.role];
   document.querySelector('#sidebarUser').textContent = state.userFullName || state.userEmail || 'SASA-F Kullanıcısı';
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
-  topbarSessionRole.classList.toggle('is-hidden', state.role === 'parent');
+  topbarSessionRole.classList.toggle('is-hidden', isActualSuperAdmin() || state.role === 'parent');
+  const rolePreviewSelect = document.querySelector('#rolePreviewSelect');
+  rolePreviewSelect.classList.toggle('is-hidden', !isActualSuperAdmin());
+  rolePreviewSelect.value = state.role;
+  const schoolSwitcher = document.querySelector('#schoolSwitcher');
+  const schoolSelect = document.querySelector('#schoolSelect');
+  schoolSwitcher.classList.toggle('is-hidden', !isActualSuperAdmin());
+  if (isActualSuperAdmin()) {
+    schoolSelect.innerHTML = state.schools.map(school => `<option value="${school.id}" ${school.id === state.schoolId ? 'selected' : ''}>${escapeHtml(school.name)}${school.active ? '' : ' (Pasif)'}</option>`).join('');
+    schoolSelect.disabled = state.schools.length < 2;
+  }
   updateNotificationUnreadBadge();
   globalBackButton.classList.toggle('is-hidden', state.page === 'dashboard');
   globalBackButton.disabled = state.page === 'dashboard';
@@ -1277,6 +1387,7 @@ function showPasswordSetupScreen() {
 
 function applyRemoteData(remoteData) {
   state.schoolId = remoteData.schoolId;
+  state.schoolName = remoteData.schoolName || state.schools.find(school => school.id === remoteData.schoolId)?.name || '';
   state.students = remoteData.students;
   state.trainings = remoteData.trainings;
   state.accountingEntries = remoteData.accountingEntries;
@@ -1293,6 +1404,37 @@ function applyRemoteData(remoteData) {
     : remoteGroups;
   syncGroupOptions();
   persistLocalData();
+}
+
+async function refreshSchools() {
+  if (!remoteDataStore) return [];
+  state.schools = await remoteDataStore.listSchools();
+  return state.schools;
+}
+
+async function switchSchool(schoolId, { navigate = true } = {}) {
+  if (!isActualSuperAdmin() || !state.schools.some(school => school.id === schoolId)) return false;
+  const selectedSchool = state.schools.find(school => school.id === schoolId);
+  if (!selectedSchool?.active && !window.confirm('Bu okul pasif durumda. Yine de okulu açmak istiyor musunuz?')) return false;
+  try {
+    const remoteData = await remoteDataStore.load({ school_id: schoolId, user_id: state.userId, role: state.actualRole });
+    state.selectedStudentId = null;
+    state.selectedParentStudentId = null;
+    state.notificationComposeOpen = false;
+    applyRemoteData(remoteData);
+    window.localStorage.setItem(SELECTED_SCHOOL_STORAGE_KEY, schoolId);
+    if (navigate) {
+      state.page = 'dashboard';
+      state.pageHistory = [];
+      initializeBrowserNavigation();
+    }
+    startRealtimeSync();
+    render();
+    return true;
+  } catch (error) {
+    showToast(`Okul verileri yüklenemedi: ${error.message || 'Bağlantı hatası'}`);
+    return false;
+  }
 }
 
 const REALTIME_TABLES = [
@@ -1330,7 +1472,7 @@ async function refreshRemoteDataFromRealtime() {
   }
   realtimeRefreshInFlight = true;
   try {
-    const remoteData = await remoteDataStore.load({ school_id: state.schoolId, user_id: state.userId });
+    const remoteData = await remoteDataStore.load({ school_id: state.schoolId, user_id: state.userId, role: state.actualRole });
     applyRemoteData(remoteData);
     render();
     if (state.page === 'notifications') markAllNotificationsRead();
@@ -1417,13 +1559,20 @@ async function showAuthenticatedApp(user) {
 
   let remoteData;
   try {
-    remoteData = await remoteDataStore.load({ school_id: profile.school_id, user_id: user.id });
+    state.schools = profile.role === 'super_admin' ? await remoteDataStore.listSchools() : [];
+    const savedSchoolId = window.localStorage.getItem(SELECTED_SCHOOL_STORAGE_KEY);
+    const initialSchoolId = profile.role === 'super_admin'
+      ? (state.schools.find(school => school.id === savedSchoolId)?.id || state.schools.find(school => school.active)?.id || state.schools[0]?.id)
+      : profile.school_id;
+    if (!initialSchoolId) throw new Error('Yönetilecek aktif bir okul bulunamadı.');
+    remoteData = await remoteDataStore.load({ school_id: initialSchoolId, user_id: user.id, role: profile.role });
   } catch (loadError) {
     configureAuthForm('login');
     showLoginScreen(`Kulüp verileri yüklenemedi: ${loadError.message || 'Bağlantı hatası'}`, true);
     return;
   }
 
+  state.actualRole = profile.role;
   state.role = profile.role;
   state.userId = user.id;
   state.userFullName = profile.full_name || user.user_metadata?.full_name || '';
@@ -1477,6 +1626,8 @@ async function logout() {
   state.userFullName = '';
   state.userEmail = '';
   state.userId = null;
+  state.actualRole = 'admin';
+  state.role = 'admin';
   stopRealtimeSync();
 }
 
@@ -1540,7 +1691,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.07.235', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.241', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -1569,6 +1720,7 @@ async function saveAndSendNotification({ audience, title, body }) {
   try {
     const { data: pushResult, error: pushError } = await invokePushFunction({
       action: 'create-and-send',
+      schoolId: state.schoolId,
       notification: { audience, title, body }
     });
     if (pushError) throw pushError;
@@ -1588,6 +1740,7 @@ async function saveAndSendNotification({ audience, title, body }) {
 async function createTrainingAndSendNotification(training) {
   const { data: result, error } = await invokePushFunction({
     action: 'create-training-and-send',
+    schoolId: state.schoolId,
     training
   });
   if (error) throw error;
@@ -1873,7 +2026,7 @@ function openTrainingDialog(training = null) {
   form.elements.group.value = training?.group || '';
   form.elements.duration.value = String(training?.duration || 90);
   form.elements.title.value = training?.title || '';
-  form.elements.coach.value = training?.coach || (state.role === 'staff' ? 'Oğuz Yalçın' : '');
+  form.elements.coach.value = training?.coach || '';
   form.elements.field.value = training?.field || '';
   document.querySelector('#trainingEyebrow').textContent = training ? 'ANTRENMANI DÜZENLE' : 'YENİ ANTRENMAN';
   document.querySelector('#trainingDialogTitle').textContent = training ? 'Antrenman bilgilerini güncelle' : 'Antrenman planla';
@@ -2049,19 +2202,82 @@ window.addEventListener('popstate', event => {
 });
 document.querySelector('#menuButton').addEventListener('click', () => document.querySelector('#sidebar').classList.add('open'));
 document.querySelector('#sidebarScrim').addEventListener('click', () => document.querySelector('#sidebar').classList.remove('open'));
+document.querySelector('#schoolSelect').addEventListener('change', async event => {
+  const previousSchoolId = state.schoolId;
+  const changed = await switchSchool(event.target.value);
+  if (!changed) event.target.value = previousSchoolId;
+});
+document.querySelector('#rolePreviewSelect').addEventListener('change', event => {
+  if (!isActualSuperAdmin()) return;
+  const previewRole = String(event.target.value || 'super_admin');
+  if (!roleNames[previewRole]) return;
+  state.role = previewRole;
+  state.page = 'dashboard';
+  state.pageHistory = [];
+  state.selectedStudentId = null;
+  state.selectedParentStudentId = state.students[0]?.id || null;
+  state.notificationComposeOpen = false;
+  initializeBrowserNavigation();
+  render();
+  showToast(previewRole === 'super_admin'
+    ? 'Süper Admin ekranına dönüldü.'
+    : `${roleNames[previewRole]} ekranı önizleniyor; gerçek yetkiniz değişmedi.`);
+});
 
 document.addEventListener('click', async event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
-  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; return; }
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; if (dialog?.id === 'schoolAdminDialog') state.invitingSchoolId = null; if (dialog?.id === 'schoolEditDialog') state.editingSchoolId = null; return; }
   const pageButton = event.target.closest('[data-page]');
-  if (pageButton && appShell.contains(pageButton)) { navigateToPage(pageButton.dataset.page, pageButton.dataset.page === 'fees' ? { feeFilter: 'all' } : {}); return; }
+  if (pageButton && appShell.contains(pageButton)) {
+    if (pageButton.dataset.page === 'schools' && state.role === 'super_admin') {
+      try { await refreshSchools(); } catch (error) { showToast(`Okul özeti yenilenemedi: ${error.message || 'Bağlantı hatası'}`); }
+    }
+    navigateToPage(pageButton.dataset.page, pageButton.dataset.page === 'fees' ? { feeFilter: 'all' } : {});
+    return;
+  }
   const actionButton = event.target.closest('[data-action]');
   if (!actionButton) {
     closeLedgerActions();
     return;
   }
   const action = actionButton.dataset.action;
-  if (action === 'select-fee-student') {
+  if (action === 'select-school' && state.role === 'super_admin') {
+    await switchSchool(actionButton.dataset.id);
+  }
+  else if (action === 'invite-school-admin' && state.role === 'super_admin') {
+    const school = state.schools.find(item => item.id === actionButton.dataset.id);
+    if (!school?.active) return;
+    state.invitingSchoolId = school.id;
+    const form = document.querySelector('#schoolAdminForm');
+    form.reset();
+    form.elements.schoolId.value = school.id;
+    document.querySelector('#schoolAdminDialogDescription').textContent = `${school.name} için Admin veya Antrenör hesabı oluşturulur.`;
+    document.querySelector('#schoolAdminDialog').showModal();
+    window.setTimeout(() => form.elements.fullName.focus(), 0);
+  }
+  else if (action === 'rename-school' && state.role === 'super_admin') {
+    const school = state.schools.find(item => item.id === actionButton.dataset.id);
+    if (!school) return;
+    state.editingSchoolId = school.id;
+    const form = document.querySelector('#schoolEditForm');
+    form.reset();
+    form.elements.schoolId.value = school.id;
+    form.elements.schoolName.value = school.name;
+    document.querySelector('#schoolEditDialog').showModal();
+    window.setTimeout(() => form.elements.schoolName.focus(), 0);
+  }
+  else if (action === 'toggle-school-status' && state.role === 'super_admin') {
+    const school = state.schools.find(item => item.id === actionButton.dataset.id);
+    if (!school) return;
+    const nextActive = !school.active;
+    if (!nextActive && !window.confirm(`“${school.name}” pasife alınsın mı? Veriler silinmeyecek.`)) return;
+    const updated = await runRemoteMutation(() => remoteDataStore.updateSchool({ id: school.id, name: school.name, active: nextActive }));
+    if (!updated) return;
+    school.active = updated.is_active !== false;
+    render();
+    showToast(school.active ? 'Okul yeniden aktifleştirildi.' : 'Okul pasife alındı; verileri korunuyor.');
+  }
+  else if (action === 'select-fee-student') {
     const student = state.students.find(item => item.id === Number(actionButton.dataset.id));
     if (!student) return;
     const form = document.querySelector('#feeDefinitionForm');
@@ -2070,9 +2286,9 @@ document.addEventListener('click', async event => {
     document.querySelector('#feeDefinitionStudentResults').classList.add('is-hidden');
     form.elements.studentSearch.setAttribute('aria-expanded', 'false');
   }
-  else if (action === 'add-student') openStudentDialog();
-  else if (action === 'edit-profile' && state.role !== 'parent') { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
-  else if (action === 'new-training') openTrainingDialog();
+  else if (action === 'add-student' && ['super_admin', 'admin'].includes(state.role)) openStudentDialog();
+  else if (action === 'edit-profile' && ['super_admin', 'admin'].includes(state.role)) { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
+  else if (action === 'new-training' && ['super_admin', 'admin'].includes(state.role)) openTrainingDialog();
   else if (action === 'edit-training' && isAdminRole()) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
   else if (action === 'delete-training' && isAdminRole()) {
     const training = state.trainings.find(item => item.id === Number(state.editingTrainingId));
@@ -2101,8 +2317,8 @@ document.addEventListener('click', async event => {
       }
     }
   }
-  else if (action === 'new-entry') openAccountingDialog();
-  else if (action === 'collect-fee' && state.role !== 'parent') openFeeDefinitionDialog();
+  else if (action === 'new-entry' && isAdminRole()) openAccountingDialog();
+  else if (action === 'collect-fee' && ['super_admin', 'admin'].includes(state.role)) openFeeDefinitionDialog();
   else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
   else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
   else if (action === 'pending-fees') navigateToPage('fees', { feeFilter: 'pending' });
@@ -2145,16 +2361,16 @@ document.addEventListener('click', async event => {
     render();
     showToast('Bildirim silindi.');
   }
-  else if (action === 'edit-group' && state.role !== 'parent') {
+  else if (action === 'edit-group' && ['super_admin', 'admin'].includes(state.role)) {
     state.editingGroupName = String(actionButton.dataset.group || '');
     render();
     window.setTimeout(() => document.querySelector('#editGroupName')?.focus(), 0);
   }
-  else if (action === 'cancel-edit-group' && state.role !== 'parent') {
+  else if (action === 'cancel-edit-group' && ['super_admin', 'admin'].includes(state.role)) {
     state.editingGroupName = null;
     render();
   }
-  else if (action === 'delete-group' && state.role !== 'parent') {
+  else if (action === 'delete-group' && ['super_admin', 'admin'].includes(state.role)) {
     const groupName = String(actionButton.dataset.group || '');
     const studentCount = state.students.filter(student => student.group === groupName).length;
     const trainingCount = state.trainings.filter(training => training.group === groupName).length;
@@ -2310,7 +2526,7 @@ appContent.addEventListener('change', async event => {
     return;
   }
   const statusControl = event.target.closest('[data-monthly-fee-status]');
-  if (statusControl && state.role !== 'parent') {
+  if (statusControl && ['super_admin', 'admin'].includes(state.role)) {
     const student = state.students.find(item => item.id === Number(statusControl.dataset.id));
     if (!student) return;
     const saved = await runRemoteMutation(() => remoteDataStore.saveFeeStatus(student, statusControl.dataset.month, statusControl.value, monthlyFeeAmount(student, statusControl.dataset.month)));
@@ -2322,7 +2538,7 @@ appContent.addEventListener('change', async event => {
     return;
   }
   const paymentControl = event.target.closest('[data-monthly-fee]');
-  if (!paymentControl || state.role === 'parent') return;
+  if (!paymentControl || !['super_admin', 'admin'].includes(state.role)) return;
   const student = state.students.find(item => item.id === Number(paymentControl.dataset.id));
   if (!student) return;
   const status = paymentControl.checked ? 'paid' : 'late';
@@ -2335,8 +2551,56 @@ appContent.addEventListener('change', async event => {
 });
 
 document.querySelector('#studentPrepaymentMonths').addEventListener('change', updateStudentPrepaymentSummary);
+document.querySelector('#schoolAdminForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (state.role !== 'super_admin') return;
+  const data = new FormData(event.currentTarget);
+  const schoolId = String(data.get('schoolId') || '');
+  const fullName = String(data.get('fullName') || '').trim();
+  const email = String(data.get('email') || '').trim().toLowerCase();
+  const role = String(data.get('role') || '');
+  if (!state.schools.some(school => school.id === schoolId && school.active) || !fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'coach'].includes(role)) {
+    showToast('Kullanıcı adı, e-posta adresi ve rolü kontrol edin.');
+    return;
+  }
+  const result = await runRemoteMutation(() => remoteDataStore.inviteSchoolAdmin({ schoolId, fullName, email, role }));
+  if (!result) return;
+  await refreshSchools();
+  state.invitingSchoolId = null;
+  document.querySelector('#schoolAdminDialog').close();
+  event.currentTarget.reset();
+  render();
+  const roleLabel = roleNames[role];
+  showToast(result.status === 'invited' ? `${roleLabel} daveti ${email} adresine gönderildi.` : `Mevcut kullanıcı ${roleLabel} olarak yetkilendirildi.`);
+});
+document.querySelector('#schoolEditForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (state.role !== 'super_admin') return;
+  const data = new FormData(event.currentTarget);
+  const school = state.schools.find(item => item.id === String(data.get('schoolId') || ''));
+  const name = String(data.get('schoolName') || '').trim();
+  if (!school || !name || name.length > 120) {
+    showToast('Geçerli bir okul adı girin.');
+    return;
+  }
+  if (name === school.name) {
+    state.editingSchoolId = null;
+    document.querySelector('#schoolEditDialog').close();
+    return;
+  }
+  const updated = await runRemoteMutation(() => remoteDataStore.updateSchool({ id: school.id, name, active: school.active }));
+  if (!updated) return;
+  school.name = updated.name || name;
+  if (school.id === state.schoolId) state.schoolName = school.name;
+  state.editingSchoolId = null;
+  document.querySelector('#schoolEditDialog').close();
+  event.currentTarget.reset();
+  render();
+  showToast('Okul adı güncellendi.');
+});
 document.querySelector('#studentForm').addEventListener('submit', async event => {
   event.preventDefault();
+  if (!['super_admin', 'admin'].includes(state.role)) return;
   const data = new FormData(event.currentTarget);
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
   const wasEditing = Boolean(state.editingStudentId);
@@ -2451,6 +2715,7 @@ document.querySelector('#attendanceForm').addEventListener('submit', async event
 });
 document.querySelector('#trainingForm').addEventListener('submit', async event => {
   event.preventDefault();
+  if (!['super_admin', 'admin'].includes(state.role)) return;
   const data = new FormData(event.currentTarget);
   const group = data.get('group');
   const trainingData = {
@@ -2500,6 +2765,7 @@ document.querySelector('#feeDefinitionStatus').addEventListener('change', update
 document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', updateFeeDefinitionStudentResults);
 document.querySelector('#feeDefinitionForm').addEventListener('submit', async event => {
   event.preventDefault();
+  if (!['super_admin', 'admin'].includes(state.role)) return;
   const form = event.currentTarget;
   const data = new FormData(form);
   const student = state.students.find(item => item.id === Number(data.get('studentId')));
@@ -2536,6 +2802,7 @@ document.querySelector('#feeDefinitionForm').addEventListener('submit', async ev
 });
 document.querySelector('#accountingForm').addEventListener('submit', async event => {
   event.preventDefault();
+  if (!isAdminRole()) return;
   const data = new FormData(event.currentTarget);
   const kind = data.get('kind');
   const entryData = {
@@ -2574,8 +2841,27 @@ appContent.addEventListener('toggle', event => {
   }
 }, true);
 appContent.addEventListener('submit', async event => {
+  if (event.target.id === 'schoolCreateForm' && state.role === 'super_admin') {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const name = String(data.get('schoolName') || '').trim();
+    const slug = String(data.get('schoolSlug') || '').trim().toLowerCase();
+    const monthlyFeeAmount = Number(data.get('monthlyFeeAmount'));
+    if (!name || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !Number.isFinite(monthlyFeeAmount) || monthlyFeeAmount <= 0) {
+      showToast('Okul adı, okul kodu ve aidat tutarını kontrol edin.');
+      return;
+    }
+    const created = await runRemoteMutation(() => remoteDataStore.createSchool({ name, slug, monthlyFeeAmount }));
+    if (!created?.id) return;
+    await refreshSchools();
+    event.target.reset();
+    await switchSchool(created.id);
+    showToast(`${name} oluşturuldu ve yönetim ekranı açıldı.`);
+    return;
+  }
   if (event.target.matches('.group-rename-form')) {
     event.preventDefault();
+    if (!['super_admin', 'admin'].includes(state.role)) return;
     const currentName = String(event.target.dataset.originalGroup || '');
     const groupName = String(new FormData(event.target).get('groupName') || '').trim().replace(/\s+/g, ' ');
     if (!/^[\p{L}\p{N} .:()\-/]{1,60}$/u.test(groupName)) {
@@ -2605,6 +2891,7 @@ appContent.addEventListener('submit', async event => {
   }
   if (event.target.id === 'groupSettingsForm') {
     event.preventDefault();
+    if (!['super_admin', 'admin'].includes(state.role)) return;
     const groupName = String(new FormData(event.target).get('groupName') || '').trim().replace(/\s+/g, ' ');
     if (!groupName) {
       showToast('Geçerli bir grup adı girin.');
@@ -2637,6 +2924,7 @@ appContent.addEventListener('submit', async event => {
   }
   if (event.target.id === 'accountingSettingsForm') {
     event.preventDefault();
+    if (!isAdminRole()) return;
     const amount = Number(new FormData(event.target).get('monthlyFeeAmount'));
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Geçerli bir aylık aidat tutarı girin.');
@@ -2651,6 +2939,7 @@ appContent.addEventListener('submit', async event => {
   }
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
+  if (!['super_admin', 'admin'].includes(state.role)) return;
   const data = new FormData(event.target);
   try {
     const result = await saveAndSendNotification({

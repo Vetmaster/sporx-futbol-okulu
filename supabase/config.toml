@@ -52,3 +52,6 @@ verify_jwt = false
 
 [functions.invite-guardian]
 verify_jwt = false
+
+[functions.invite-school-admin]
+verify_jwt = false
