@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.248';
+const APP_VERSION = '2026.08.09.249';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -49,6 +49,7 @@ const state = {
   schoolId: null,
   schoolName: '',
   schoolSubscriptionPlan: 'standard',
+  schoolSubscriptionStatus: 'trial',
   schools: [],
   userId: null,
   userFullName: '',
@@ -1456,6 +1457,7 @@ function applyRemoteData(remoteData) {
   state.schoolId = remoteData.schoolId;
   state.schoolName = remoteData.schoolName || state.schools.find(school => school.id === remoteData.schoolId)?.name || '';
   state.schoolSubscriptionPlan = remoteData.subscriptionPlan || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionPlan || 'standard';
+  state.schoolSubscriptionStatus = remoteData.subscriptionStatus || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionStatus || 'trial';
   state.students = remoteData.students;
   state.trainings = remoteData.trainings;
   state.accountingEntries = remoteData.accountingEntries;
@@ -1562,6 +1564,12 @@ function scheduleRealtimeRefresh(payload = null) {
     supabaseClient.auth.signOut();
     return;
   }
+  if (payload?.table === 'schools' && payload.eventType === 'UPDATE' && payload.new?.id === state.schoolId && payload.new?.subscription_status === 'cancelled' && !isActualSuperAdmin()) {
+    signedOutMessage = 'Okul aboneliği iptal edildiği için uygulama erişimi kapatıldı. Lütfen okul yöneticinizle iletişime geçin.';
+    stopRealtimeSync();
+    supabaseClient.auth.signOut();
+    return;
+  }
   window.clearTimeout(realtimeRefreshTimer);
   realtimeRefreshTimer = window.setTimeout(refreshRemoteDataFromRealtime, 300);
 }
@@ -1633,8 +1641,24 @@ async function showAuthenticatedApp(user) {
       ? (state.schools.find(school => school.id === savedSchoolId)?.id || state.schools.find(school => school.active)?.id || state.schools[0]?.id)
       : profile.school_id;
     if (!initialSchoolId) throw new Error('Yönetilecek aktif bir okul bulunamadı.');
+    if (profile.role !== 'super_admin') {
+      const { data: subscriptionSchool, error: subscriptionError } = await supabaseClient
+        .from('schools')
+        .select('subscription_status')
+        .eq('id', initialSchoolId)
+        .single();
+      if (subscriptionError) throw subscriptionError;
+      if (subscriptionSchool?.subscription_status === 'cancelled') throw new Error('SUBSCRIPTION_CANCELLED');
+    }
     remoteData = await remoteDataStore.load({ school_id: initialSchoolId, user_id: user.id, role: profile.role });
   } catch (loadError) {
+    if (loadError.message === 'SUBSCRIPTION_CANCELLED') {
+      signedOutMessage = '';
+      await supabaseClient.auth.signOut();
+      configureAuthForm('login');
+      showLoginScreen('Okul aboneliği iptal edildiği için uygulama erişimi kapatıldı. Lütfen okul yöneticinizle iletişime geçin.', true);
+      return;
+    }
     configureAuthForm('login');
     showLoginScreen(`Kulüp verileri yüklenemedi: ${loadError.message || 'Bağlantı hatası'}`, true);
     return;
@@ -1759,7 +1783,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.248', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.249', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
