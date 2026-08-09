@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.07.235">
+  <link rel="stylesheet" href="styles.css?v=2026.08.09.241">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -84,7 +84,14 @@
           <p id="pageSubtitle">Kulübün bugünkü durumu</p>
         </div>
         <div class="topbar-actions">
+          <label class="school-switcher is-hidden" id="schoolSwitcher"><span>Okul</span><select id="schoolSelect" aria-label="Yönetilecek futbol okulunu seçin"></select></label>
           <span class="session-role" id="topbarSessionRole"></span>
+          <select class="session-role role-preview-select is-hidden" id="rolePreviewSelect" aria-label="Ekran rolünü önizle" title="Ekran rolünü önizle">
+            <option value="super_admin">Süper Admin</option>
+            <option value="admin">Admin</option>
+            <option value="coach">Antrenör</option>
+            <option value="parent">Veli</option>
+          </select>
           <button class="topbar-notification-button" type="button" data-page="notifications" aria-label="Bildirimleri aç">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path>
@@ -220,11 +227,34 @@
     </form>
   </dialog>
 
+  <dialog id="schoolAdminDialog">
+    <form method="dialog" id="schoolAdminForm">
+      <div class="dialog-heading"><div><span class="eyebrow">OKUL KULLANICISI</span><h2>Kullanıcı davet et</h2><p id="schoolAdminDialogDescription">Seçili okul için kullanıcı hesabı oluşturulur.</p></div><button class="icon-button" type="button" data-dialog-close="schoolAdminDialog">×</button></div>
+      <input id="schoolAdminSchoolId" name="schoolId" type="hidden">
+      <div class="form-grid">
+        <label>Adı soyadı<input name="fullName" autocomplete="name" maxlength="100" required></label>
+        <label>E-posta adresi<input name="email" type="email" autocomplete="email" required></label>
+        <label>Kullanıcı rolü<select name="role" required><option value="admin">Admin</option><option value="coach">Antrenör</option></select></label>
+      </div>
+      <small class="form-hint">Davet edilen kullanıcı şifresini belirledikten sonra yalnızca bu okulun verilerine erişebilir.</small>
+      <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="schoolAdminDialog">Vazgeç</button><button class="primary-button" type="submit">Daveti gönder</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="schoolEditDialog">
+    <form method="dialog" id="schoolEditForm">
+      <div class="dialog-heading"><div><span class="eyebrow">OKUL AYARLARI</span><h2>Okul adını düzenle</h2><p>Okulun görünen adı güncellenir; okul kodu ve kayıtlar değişmez.</p></div><button class="icon-button" type="button" data-dialog-close="schoolEditDialog">×</button></div>
+      <input name="schoolId" type="hidden">
+      <label>Okul adı<input name="schoolName" maxlength="120" required></label>
+      <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="schoolEditDialog">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.07.235"></script>
-  <script src="app.js?v=2026.08.07.235"></script>
+  <script src="supabase-data.js?v=2026.08.09.241"></script>
+  <script src="app.js?v=2026.08.09.241"></script>
 </body>
 </html>

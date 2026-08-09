@@ -5,7 +5,8 @@
 - Roboto: genel kullanıcı arayüzü
 - Anta: Sasa Futbol marka yazısı
 - Responsive web düzeni: masaüstünde sol menü, mobilde alt menü
-- Prototip rolleri: admin, normal kullanıcı, öğrenci velisi
+- Roller: platform Süper Admini, okul admini, antrenör ve öğrenci velisi
+- Çok okullu yapı: Süper Admin okul seçebilir; diğer kullanıcılar yalnızca kendi okullarını görür
 
 ## Çalıştırma
 
@@ -28,14 +29,20 @@ Ardından `http://127.0.0.1:8765` adresini açın.
 - Temel muhasebe özeti
 - Bildirim oluşturma ekranı
 
-## Yerel veritabanı
+## Veri altyapısı
 
-Uygulama verileri şimdilik `localStorage` tabanlı, sürümlenmiş `sporx.localdb.v1` veri katmanında tutulur. Bu anahtar eski veriler kaybolmasın diye korunmaktadır. Öğrenci kayıtları, aidat durumları, yoklamalar, muhasebe hareketleri ve bildirim taslakları sayfa kapatılıp yeniden açıldığında korunur.
+Canlı kayıtlar Supabase üzerinde tutulur. Öğrenci, aidat, antrenman, yoklama, muhasebe ve bildirim tabloları `school_id` ile birbirinden ayrılır. Row Level Security kuralları okul adminlerinin yalnızca kendi okulunu; platform Süper Admininin ise seçtiği okulu yönetmesini sağlar.
 
-Bu yöntem tek cihazlı geliştirme ve prototip kullanımı içindir. Farklı cihazlar veya tarayıcılar aynı veriyi paylaşmaz; tarayıcı verileri temizlenirse kayıtlar silinir.
+Antrenör rolü yalnızca güvenli öğrenci dizinine, antrenmanlara ve yoklama kayıtlarına erişir. Veli iletişim bilgileri, aidat dönemleri ve muhasebe kayıtları bu role veritabanı seviyesinde kapalıdır.
+
+`localStorage` katmanı yalnızca arayüzün geçici önbelleği ve bağlantı sırasında geri dönüş verisi olarak korunur; yetki ve kalıcı veri kaynağı değildir.
+
+## Çok okullu sürümü devreye alma
+
+Önce `supabase/migrations/20260809150000_multi_school_platform.sql` geçişini Supabase'e uygulayın. Ardından `invite-guardian`, `invite-school-admin` ve `send-push-notification` Edge Function sürümlerini yayınlayın. Web arayüzü bu adımlardan sonra yayınlanmalıdır; aksi halde yeni okul listesi RPC çağrıları henüz bulunmaz.
 
 ## GitHub Pages
 
 Proje GitHub deposunun kök dizinine gönderildiğinde `.github/workflows/pages.yml` iş akışı web sürümünü GitHub Pages'a yayınlamaya hazırdır. Depo ayarlarında **Settings → Pages → Source: GitHub Actions** seçilmelidir.
 
-Supabase şeması, merkezi kimlik doğrulama, cihazlar arası veri paylaşımı ve Firebase Cloud Messaging sonraki çevrimiçi aşamada eklenecektir.
+GitHub Pages yalnızca web arayüzünü sunar; Supabase veri izolasyonu ve Firebase Cloud Messaging mevcut merkezi altyapıda çalışır.

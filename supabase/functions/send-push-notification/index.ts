@@ -55,9 +55,22 @@ Deno.serve(async request => {
     .maybeSingle();
   if (profileError || !callerProfile) return json({ error: 'Profile not found' }, 403);
 
-  if (!['super_admin', 'admin', 'staff'].includes(callerProfile.role)) {
+  if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Forbidden' }, 403);
   }
+
+  const requestedSchoolId = String(body.schoolId || callerProfile.school_id || '');
+  const targetSchoolId = callerProfile.role === 'super_admin' ? requestedSchoolId : callerProfile.school_id;
+  if (!targetSchoolId || (callerProfile.role !== 'super_admin' && requestedSchoolId !== callerProfile.school_id)) {
+    return json({ error: 'Forbidden school context' }, 403);
+  }
+  const { data: targetSchool } = await admin
+    .from('schools')
+    .select('id, is_active')
+    .eq('id', targetSchoolId)
+    .maybeSingle();
+  if (!targetSchool) return json({ error: 'School not found' }, 404);
+  if (targetSchool.is_active === false) return json({ error: 'School is inactive' }, 409);
 
   let notificationId = Number(body.notificationId || 0);
   let trainingId: number | null = null;
@@ -77,7 +90,7 @@ Deno.serve(async request => {
     const { data: group, error: groupError } = await admin
       .from('training_groups')
       .select('id, name')
-      .eq('school_id', callerProfile.school_id)
+      .eq('school_id', targetSchoolId)
       .eq('name', groupName)
       .maybeSingle();
     if (groupError || !group) return json({ error: 'Training group not found' }, 404);
@@ -85,7 +98,7 @@ Deno.serve(async request => {
     const { data: createdTraining, error: trainingError } = await admin
       .from('trainings')
       .insert({
-        school_id: callerProfile.school_id,
+        school_id: targetSchoolId,
         group_id: group.id,
         training_date: trainingDate,
         start_time: startTime,
@@ -110,7 +123,7 @@ Deno.serve(async request => {
     const { data: createdNotification, error: createError } = await admin
       .from('notifications')
       .insert({
-        school_id: callerProfile.school_id,
+        school_id: targetSchoolId,
         audience: `${group.name} velileri`,
         title: `${group.name} grubu · Yeni antrenman`,
         body: `${formattedDate} saat ${startTime.slice(0, 5)}’de ${title} antrenmanı yapılacaktır.`,
@@ -133,7 +146,7 @@ Deno.serve(async request => {
     const { data: createdNotification, error: createError } = await admin
       .from('notifications')
       .insert({
-        school_id: callerProfile.school_id,
+        school_id: targetSchoolId,
         audience,
         title,
         body: notificationBody,
@@ -154,7 +167,7 @@ Deno.serve(async request => {
     .from('notifications')
     .select('id, school_id, audience, title, body')
     .eq('id', notificationId)
-    .eq('school_id', callerProfile.school_id)
+    .eq('school_id', targetSchoolId)
     .maybeSingle();
   if (notificationError || !notification) return json({ error: 'Notification not found' }, 404);
 
@@ -213,7 +226,6 @@ Deno.serve(async request => {
       .select('id')
       .eq('school_id', notification.school_id);
     if (notification.audience === 'Tüm veliler') profilesQuery = profilesQuery.eq('role', 'parent');
-    if (notification.audience === 'Normal kullanıcılar') profilesQuery = profilesQuery.eq('role', 'staff');
     const { data: profiles } = await profilesQuery;
     recipientIds = (profiles || []).map(profile => profile.id);
   }

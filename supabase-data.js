@@ -17,27 +17,40 @@
     return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(date);
   }
 
-  async function fetchAll(client, table, columns, order = 'id') {
+  async function fetchAll(client, table, columns, order = 'id', filters = {}) {
     const rows = [];
     for (let from = 0; ; from += PAGE_SIZE) {
-      const { data, error } = await client
+      let query = client
         .from(table)
         .select(columns)
-        .order(order, { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+        .order(order, { ascending: true });
+      Object.entries(filters).forEach(([column, value]) => {
+        query = query.eq(column, value);
+      });
+      const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
       rows.push(...(data || []));
       if (!data || data.length < PAGE_SIZE) return rows;
     }
   }
 
-  async function fetchAccessRequests(client) {
+  async function fetchAccessRequests(client, schoolId) {
     try {
-      return await fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, email_verified_at, reviewed_at, created_at', 'created_at');
+      return await fetchAll(client, 'access_requests', 'id, user_id, school_id, email, full_name, requested_role, status, email_verified_at, reviewed_at, created_at', 'created_at', { school_id: schoolId });
     } catch (error) {
       if (!String(error?.message || '').includes('email_verified_at')) throw error;
-      return fetchAll(client, 'access_requests', 'id, user_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at');
+      return fetchAll(client, 'access_requests', 'id, user_id, school_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at', { school_id: schoolId });
     }
+  }
+
+  async function fetchSchoolSettings(client, schoolId, role) {
+    const columns = role === 'coach' ? 'name, slug, is_active' : 'name, slug, monthly_fee_amount, is_active';
+    let result = await client.from('schools').select(columns).eq('id', schoolId).single();
+    if (result.error && String(result.error.message || '').includes('is_active')) {
+      const fallbackColumns = role === 'coach' ? 'name, slug' : 'name, slug, monthly_fee_amount';
+      result = await client.from('schools').select(fallbackColumns).eq('id', schoolId).single();
+    }
+    return result;
   }
 
   function create(client) {
@@ -58,6 +71,8 @@
     async function load(profile) {
       schoolId = profile.school_id;
       userId = profile.user_id;
+      const role = profile.role;
+      const isCoach = role === 'coach';
       requireContext();
 
       const [
@@ -72,16 +87,18 @@
         attendanceRows,
         accessRequestRows
       ] = await Promise.all([
-        client.from('schools').select('monthly_fee_amount').eq('id', schoolId).single(),
-        client.from('training_groups').select('id, name, sort_order').order('sort_order'),
-        fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, training_groups(name)'),
-        fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at'),
-        fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date'),
-        fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on'),
-        fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_by, sent_at, created_at, recipient_count, delivered_count, read_count', 'created_at'),
+        fetchSchoolSettings(client, schoolId, role),
+        client.from('training_groups').select('id, name, sort_order').eq('school_id', schoolId).order('sort_order'),
+        isCoach
+          ? client.rpc('coach_student_directory', { target_school_id: schoolId }).then(({ data, error }) => { if (error) throw error; return data || []; })
+          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, training_groups(name)', 'id', { school_id: schoolId }),
+        isCoach ? Promise.resolve([]) : fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at', 'id', { school_id: schoolId }),
+        fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date', { school_id: schoolId }),
+        isCoach ? Promise.resolve([]) : fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on', { school_id: schoolId }),
+        fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_by, sent_at, created_at, recipient_count, delivered_count, read_count', 'created_at', { school_id: schoolId }),
         fetchAll(client, 'notification_reads', 'notification_id, read_at', 'notification_id'),
-        fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at'),
-        fetchAccessRequests(client)
+        fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at', { school_id: schoolId }),
+        isCoach ? Promise.resolve([]) : fetchAccessRequests(client, schoolId)
       ]);
 
       if (schoolSettingsResult.error) throw schoolSettingsResult.error;
@@ -112,8 +129,8 @@
           id: Number(row.id),
           name: row.full_name,
           birth: row.birth_date || row.birth_year || '',
-          group: row.training_groups?.name || 'Atanmamış',
-          position: row.position || '',
+          group: (isCoach ? row.group_name : row.training_groups?.name) || 'Atanmamış',
+          position: (isCoach ? row.player_position : row.position) || '',
           parent: row.guardian_name || '',
           phone: row.phone || '',
           email: row.email || '',
@@ -203,6 +220,9 @@
 
       return {
         schoolId,
+        schoolName: schoolSettingsResult.data?.name || '',
+        schoolSlug: schoolSettingsResult.data?.slug || '',
+        schoolActive: schoolSettingsResult.data?.is_active !== false,
         monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
         groups,
         students,
@@ -212,6 +232,68 @@
         attendanceRecords,
         accessRequests
       };
+    }
+
+    async function listSchools() {
+      const { data, error } = await client.rpc('school_overview');
+      let rows = data || [];
+      if (error) {
+        const fallback = await client.from('schools').select('id, name, slug, monthly_fee_amount, created_at').order('name');
+        if (fallback.error) throw error;
+        rows = fallback.data || [];
+      }
+      return rows.map(school => ({
+        id: school.id,
+        name: school.name,
+        slug: school.slug,
+        active: school.is_active !== false,
+        monthlyFeeAmount: Number(school.monthly_fee_amount || 0),
+        studentCount: Number(school.student_count || 0),
+        activeStudentCount: Number(school.active_student_count || 0),
+        adminCount: Number(school.admin_count || 0),
+        unpaidTotal: Number(school.unpaid_total || 0),
+        createdAt: school.created_at
+      }));
+    }
+
+    async function createSchool({ name, slug, monthlyFeeAmount }) {
+      const { data, error } = await client.rpc('create_school', {
+        school_name: name,
+        school_slug: slug,
+        initial_monthly_fee: monthlyFeeAmount
+      });
+      if (error) throw error;
+      const school = Array.isArray(data) ? data[0] : data;
+      return school;
+    }
+
+    async function updateSchool({ id, name, active }) {
+      const { data, error } = await client.rpc('update_school', {
+        target_school_id: id,
+        school_name: name,
+        active
+      });
+      if (error) throw error;
+      const school = Array.isArray(data) ? data[0] : data;
+      return school;
+    }
+
+    async function inviteSchoolAdmin({ schoolId: targetSchoolId, fullName, email, role }) {
+      const { data, error } = await client.functions.invoke('invite-school-admin', {
+        body: { schoolId: targetSchoolId, fullName, email, role }
+      });
+      if (error) {
+        let responseMessage = '';
+        try {
+          const responseBody = await error.context?.clone().json();
+          responseMessage = responseBody?.error || '';
+        } catch {
+          responseMessage = '';
+        }
+        throw new Error(responseMessage || data?.error || error.message || 'Kullanıcı daveti gönderilemedi.');
+      }
+      if (data?.error) throw new Error(data.error);
+      return data;
     }
 
     async function saveSchoolSettings(monthlyFeeAmount) {
@@ -317,7 +399,7 @@
     async function inviteGuardian(studentId, previousEmail = '') {
       requireContext();
       const { data, error } = await client.functions.invoke('invite-guardian', {
-        body: { studentId: Number(studentId), previousEmail: String(previousEmail || '') }
+        body: { studentId: Number(studentId), previousEmail: String(previousEmail || ''), schoolId }
       });
       if (error) {
         let responseMessage = '';
@@ -538,6 +620,10 @@
 
     return {
       load,
+      listSchools,
+      createSchool,
+      updateSchool,
+      inviteSchoolAdmin,
       saveSchoolSettings,
       saveGroup,
       deleteGroup,

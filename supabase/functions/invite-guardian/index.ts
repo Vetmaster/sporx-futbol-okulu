@@ -59,11 +59,16 @@ Deno.serve(async request => {
     .eq('id', callerResult.user.id)
     .maybeSingle();
   if (callerProfileError || !callerProfile) return json({ error: 'Yetkili kullanıcı profili bulunamadı.' }, 403);
-  if (!['super_admin', 'admin', 'staff'].includes(callerProfile.role)) {
+  if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Veli daveti göndermek için yetkiniz bulunmuyor.' }, 403);
   }
 
   const body = await request.json().catch(() => ({}));
+  const requestedSchoolId = String(body.schoolId || callerProfile.school_id || '');
+  const targetSchoolId = callerProfile.role === 'super_admin' ? requestedSchoolId : callerProfile.school_id;
+  if (!targetSchoolId || (callerProfile.role !== 'super_admin' && requestedSchoolId !== callerProfile.school_id)) {
+    return json({ error: 'Bu okul için işlem yetkiniz bulunmuyor.' }, 403);
+  }
   const studentId = Number(body.studentId);
   const previousEmail = normalizedEmail(body.previousEmail);
   if (!Number.isInteger(studentId) || studentId <= 0) return json({ error: 'Geçersiz öğrenci kaydı.' }, 400);
@@ -72,7 +77,7 @@ Deno.serve(async request => {
     .from('students')
     .select('id, school_id, full_name, guardian_name, email, guardian_user_id')
     .eq('id', studentId)
-    .eq('school_id', callerProfile.school_id)
+    .eq('school_id', targetSchoolId)
     .maybeSingle();
   if (studentError || !student) return json({ error: 'Öğrenci kaydı bulunamadı.' }, 404);
 
@@ -91,7 +96,7 @@ Deno.serve(async request => {
     const { error: oldRequestError } = await admin
       .from('access_requests')
       .delete()
-      .eq('school_id', callerProfile.school_id)
+      .eq('school_id', targetSchoolId)
       .eq('requested_role', 'parent')
       .eq('status', 'pending')
       .ilike('email', previousEmail);
@@ -130,7 +135,7 @@ Deno.serve(async request => {
     .maybeSingle();
   if (existingProfileError) return json({ error: 'Mevcut kullanıcı profili kontrol edilemedi.' }, 500);
   if (existingProfile && (
-    existingProfile.school_id !== callerProfile.school_id ||
+    existingProfile.school_id !== targetSchoolId ||
     existingProfile.role !== 'parent'
   )) {
     return json({ error: 'Bu e-posta adresi farklı okul veya kullanıcı rolüne ait.' }, 409);
@@ -141,7 +146,7 @@ Deno.serve(async request => {
       .from('students')
       .update({ guardian_user_id: guardianUser.id })
       .eq('id', student.id)
-      .eq('school_id', callerProfile.school_id);
+      .eq('school_id', targetSchoolId);
     if (linkExistingError) return json({ error: 'Öğrenci mevcut veli hesabına bağlanamadı.' }, 500);
     return json({ status: 'linked', email, userId: guardianUser.id, verified: true });
   }
@@ -151,7 +156,7 @@ Deno.serve(async request => {
     .from('access_requests')
     .upsert({
       user_id: guardianUser.id,
-      school_id: callerProfile.school_id,
+      school_id: targetSchoolId,
       email,
       full_name: fullName,
       requested_role: 'parent',
