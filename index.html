@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.09.246">
+  <link rel="stylesheet" href="styles.css?v=2026.08.09.247">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -266,11 +266,27 @@
     </form>
   </dialog>
 
+  <dialog id="subscriptionDialog">
+    <form method="dialog" id="subscriptionForm">
+      <div class="dialog-heading"><div><span class="eyebrow">ABONELİK AYARLARI</span><h2 id="subscriptionDialogSchoolName">Okul aboneliği</h2><p>Paket, ücret ve abonelik dönemini güncelleyin.</p></div><button class="icon-button" type="button" data-dialog-close="subscriptionDialog">×</button></div>
+      <input name="schoolId" type="hidden">
+      <div class="form-grid">
+        <label>Paket<select name="plan" required><option value="starter">Başlangıç</option><option value="professional">Profesyonel</option><option value="enterprise">Kurumsal</option><option value="custom">Özel</option></select></label>
+        <label>Abonelik durumu<select name="status" required><option value="trial">Deneme</option><option value="active">Aktif</option><option value="past_due">Ödeme bekliyor</option><option value="suspended">Askıda</option><option value="cancelled">İptal edildi</option></select></label>
+        <label>Aylık ücret (₺)<input name="monthlyPrice" type="number" min="0" step="1" inputmode="numeric" required></label>
+        <label>Başlangıç tarihi<input name="startsOn" type="date"></label>
+        <label>Bitiş / yenileme tarihi<input name="endsOn" type="date"></label>
+      </div>
+      <small class="form-hint">Henüz fiyat belirlemediyseniz aylık ücreti 0 ₺ bırakabilirsiniz.</small>
+      <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="subscriptionDialog">Vazgeç</button><button class="primary-button" type="submit">Aboneliği kaydet</button></div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.09.246"></script>
-  <script src="app.js?v=2026.08.09.246"></script>
+  <script src="supabase-data.js?v=2026.08.09.247"></script>
+  <script src="app.js?v=2026.08.09.247"></script>
 </body>
 </html>

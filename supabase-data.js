@@ -242,18 +242,43 @@
         if (fallback.error) throw error;
         rows = fallback.data || [];
       }
-      return rows.map(school => ({
-        id: school.id,
-        name: school.name,
-        slug: school.slug,
-        active: school.is_active !== false,
-        monthlyFeeAmount: Number(school.monthly_fee_amount || 0),
-        studentCount: Number(school.student_count || 0),
-        activeStudentCount: Number(school.active_student_count || 0),
-        adminCount: Number(school.admin_count || 0),
-        unpaidTotal: Number(school.unpaid_total || 0),
-        createdAt: school.created_at
-      }));
+      const subscriptionResult = await client
+        .from('schools')
+        .select('id, subscription_plan, subscription_status, subscription_monthly_price, subscription_starts_on, subscription_ends_on');
+      const subscriptionBySchool = new Map((subscriptionResult.data || []).map(item => [item.id, item]));
+      return rows.map(school => {
+        const subscription = subscriptionBySchool.get(school.id) || {};
+        return {
+          subscriptionPlan: subscription.subscription_plan || 'starter',
+          subscriptionStatus: subscription.subscription_status || 'trial',
+          subscriptionMonthlyPrice: Number(subscription.subscription_monthly_price || 0),
+          subscriptionStartsOn: subscription.subscription_starts_on || '',
+          subscriptionEndsOn: subscription.subscription_ends_on || '',
+          id: school.id,
+          name: school.name,
+          slug: school.slug,
+          active: school.is_active !== false,
+          monthlyFeeAmount: Number(school.monthly_fee_amount || 0),
+          studentCount: Number(school.student_count || 0),
+          activeStudentCount: Number(school.active_student_count || 0),
+          adminCount: Number(school.admin_count || 0),
+          unpaidTotal: Number(school.unpaid_total || 0),
+          createdAt: school.created_at
+        };
+      });
+    }
+
+    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, monthlyPrice, startsOn, endsOn }) {
+      const { data, error } = await client.rpc('update_school_subscription', {
+        target_school_id: targetSchoolId,
+        plan_code: plan,
+        subscription_state: status,
+        monthly_price: monthlyPrice,
+        starts_on: startsOn,
+        ends_on: endsOn
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
     }
 
     async function createSchool({ name, slug, monthlyFeeAmount }) {
@@ -623,6 +648,7 @@
       listSchools,
       createSchool,
       updateSchool,
+      updateSchoolSubscription,
       inviteSchoolAdmin,
       saveSchoolSettings,
       saveGroup,
