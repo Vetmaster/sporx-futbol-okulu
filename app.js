@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.241';
+const APP_VERSION = '2026.08.09.243';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1262,6 +1262,11 @@ function render() {
   document.querySelector('#pageSubtitle').textContent = state.schoolName ? `${subtitle} · ${state.schoolName}` : subtitle;
   document.querySelector('#sidebarRole').textContent = roleNames[state.role];
   document.querySelector('#sidebarUser').textContent = state.userFullName || state.userEmail || 'SASA-F Kullanıcısı';
+  const bannerSubtitle = state.role === 'super_admin'
+    ? 'Futbol Okulu Yönetim Sistemi'
+    : state.schoolName || 'Futbol Okulu';
+  document.querySelector('#appBannerSubtitle').textContent = bannerSubtitle;
+  document.querySelector('#sidebarBannerSubtitle').textContent = bannerSubtitle;
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', isActualSuperAdmin() || state.role === 'parent');
@@ -1691,7 +1696,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.241', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.243', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
