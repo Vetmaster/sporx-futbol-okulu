@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.247';
+const APP_VERSION = '2026.08.09.248';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -24,10 +24,9 @@ let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
 const SUBSCRIPTION_PLANS = {
-  starter: { name: 'Başlangıç', description: 'Yeni açılan ve temel yönetim ihtiyaçları olan futbol okulları' },
-  professional: { name: 'Profesyonel', description: 'Büyüyen öğrenci ve personel yapısına sahip futbol okulları' },
-  enterprise: { name: 'Kurumsal', description: 'Çok şubeli veya özel ihtiyaçları bulunan futbol organizasyonları' },
-  custom: { name: 'Özel', description: 'Okula özel koşullarla hazırlanan abonelik paketi' }
+  standard: { name: 'Standart', price: 799, studentLimit: 100, features: ['100 öğrenciye kadar kayıt', 'Temel okul yönetimi'], unavailable: ['Online ödeme'] },
+  premium: { name: 'Premium', price: 1299, studentLimit: 500, features: ['500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online market', 'Scout video paylaşımı'] },
+  pro: { name: 'Pro', price: 1899, studentLimit: null, features: ['Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', past_due: 'Ödeme bekliyor', suspended: 'Askıda', cancelled: 'İptal edildi' };
 const ACCOUNTING_PERIODS = [
@@ -49,6 +48,7 @@ const state = {
   actualRole: 'admin',
   schoolId: null,
   schoolName: '',
+  schoolSubscriptionPlan: 'standard',
   schools: [],
   userId: null,
   userFullName: '',
@@ -836,11 +836,13 @@ function subscriptionsView() {
     .reduce((total, school) => total + Number(school.subscriptionMonthlyPrice || 0), 0);
   const planCards = Object.entries(SUBSCRIPTION_PLANS).map(([code, plan]) => {
     const count = schools.filter(school => school.subscriptionPlan === code).length;
-    return `<article class="panel subscription-plan-card"><span class="eyebrow">PAKET</span><h3>${plan.name}</h3><p>${plan.description}</p><strong>${count} okul</strong></article>`;
+    const included = plan.features.map(feature => `<li class="included"><span aria-hidden="true">✓</span>${feature}</li>`).join('');
+    const unavailable = plan.unavailable.map(feature => `<li class="unavailable"><span aria-hidden="true">×</span>${feature} yok</li>`).join('');
+    return `<article class="panel subscription-plan-card"><span class="eyebrow">PAKET</span><div class="subscription-plan-heading"><h3>${plan.name}</h3><strong>${formatCurrency(plan.price)}<small>/ ay</small></strong></div><ul class="subscription-feature-list">${included}${unavailable}</ul><span class="subscription-school-count">${count} okul</span></article>`;
   }).join('');
   const rows = schools.map(school => `<div class="subscription-school-row">
     <div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.slug)}</small></div>
-    <span>${SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Başlangıç'}</span>
+    <span>${SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart'}</span>
     ${subscriptionStatusMarkup(school.subscriptionStatus)}
     <span>${formatCurrency(school.subscriptionMonthlyPrice || 0)}<small>Aylık</small></span>
     <span>${subscriptionDateLabel(school.subscriptionEndsOn)}<small>Bitiş / yenileme</small></span>
@@ -854,7 +856,7 @@ function subscriptionsView() {
       <article class="stat-card"><span class="label">Aylık abonelik toplamı</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
     </section>
     <section class="subscription-plan-grid">${planCards}</section>
-    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Fiyatı belirlenmemiş paketler 0 ₺ olarak gösterilir.</small></div><span class="status blue">${schools.length} okul</span></div>
+    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Paket seçildiğinde aylık ücret otomatik uygulanır.</small></div><span class="status blue">${schools.length} okul</span></div>
       <div class="subscription-school-list">${rows || '<div class="empty-state">Henüz okul bulunmuyor.</div>'}</div>
     </section>
   </div>`;
@@ -1453,6 +1455,7 @@ function showPasswordSetupScreen() {
 function applyRemoteData(remoteData) {
   state.schoolId = remoteData.schoolId;
   state.schoolName = remoteData.schoolName || state.schools.find(school => school.id === remoteData.schoolId)?.name || '';
+  state.schoolSubscriptionPlan = remoteData.subscriptionPlan || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionPlan || 'standard';
   state.students = remoteData.students;
   state.trainings = remoteData.trainings;
   state.accountingEntries = remoteData.accountingEntries;
@@ -1756,7 +1759,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.247', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.248', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2049,6 +2052,11 @@ function openAttendance(id) {
 }
 
 function openStudentDialog(student = null) {
+  const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
+  if (!student && currentPlan.studentLimit !== null && state.students.length >= currentPlan.studentLimit) {
+    showToast(`${currentPlan.name} paketi en fazla ${currentPlan.studentLimit} öğrenci kaydına izin verir. Yeni kayıt için paket yükseltilmelidir.`);
+    return;
+  }
   const form = document.querySelector('#studentForm');
   form.reset();
   state.editingStudentId = student?.id || null;
@@ -2360,9 +2368,9 @@ document.addEventListener('click', async event => {
     const form = document.querySelector('#subscriptionForm');
     form.reset();
     form.elements.schoolId.value = school.id;
-    form.elements.plan.value = school.subscriptionPlan || 'starter';
+    form.elements.plan.value = school.subscriptionPlan || 'standard';
     form.elements.status.value = school.subscriptionStatus || 'trial';
-    form.elements.monthlyPrice.value = Number(school.subscriptionMonthlyPrice || 0);
+    form.elements.monthlyPrice.value = SUBSCRIPTION_PLANS[form.elements.plan.value]?.price || 799;
     form.elements.startsOn.value = school.subscriptionStartsOn || '';
     form.elements.endsOn.value = school.subscriptionEndsOn || '';
     document.querySelector('#subscriptionDialogSchoolName').textContent = school.name;
@@ -2681,6 +2689,9 @@ document.querySelector('#schoolEditForm').addEventListener('submit', async event
   render();
   showToast('Okul adı güncellendi.');
 });
+document.querySelector('#subscriptionForm [name="plan"]').addEventListener('change', event => {
+  document.querySelector('#subscriptionForm [name="monthlyPrice"]').value = SUBSCRIPTION_PLANS[event.target.value]?.price || '';
+});
 document.querySelector('#subscriptionForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
@@ -2688,7 +2699,7 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
   const schoolId = String(data.get('schoolId') || '');
   const plan = String(data.get('plan') || '');
   const status = String(data.get('status') || '');
-  const monthlyPrice = Number(data.get('monthlyPrice'));
+  const monthlyPrice = SUBSCRIPTION_PLANS[plan]?.price;
   const startsOn = String(data.get('startsOn') || '');
   const endsOn = String(data.get('endsOn') || '');
   if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_PLANS[plan] || !SUBSCRIPTION_STATUSES[status] || !Number.isFinite(monthlyPrice) || monthlyPrice < 0) {
@@ -2699,9 +2710,10 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
     showToast('Bitiş tarihi başlangıç tarihinden önce olamaz.');
     return;
   }
-  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, monthlyPrice, startsOn: startsOn || null, endsOn: endsOn || null }));
+  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, startsOn: startsOn || null, endsOn: endsOn || null }));
   if (!saved) return;
   await refreshSchools();
+  if (schoolId === state.schoolId) state.schoolSubscriptionPlan = plan;
   state.editingSubscriptionSchoolId = null;
   document.querySelector('#subscriptionDialog').close();
   event.currentTarget.reset();
@@ -2714,6 +2726,11 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   const data = new FormData(event.currentTarget);
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
   const wasEditing = Boolean(state.editingStudentId);
+  const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
+  if (!wasEditing && currentPlan.studentLimit !== null && state.students.length >= currentPlan.studentLimit) {
+    showToast(`${currentPlan.name} paketinin ${currentPlan.studentLimit} öğrenci sınırına ulaşıldı.`);
+    return;
+  }
   const prepaymentMonths = wasEditing
     ? []
     : [...new Set(data.getAll('prepaymentMonth').map(String).filter(month => /^\d{4}-\d{2}$/.test(month)))];
