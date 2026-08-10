@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.10.258';
+const APP_VERSION = '2026.08.10.259';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -922,11 +922,8 @@ function dashboardView() {
       <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>${formatCurrency(pendingFeeAmount)}</strong><button class="stat-link" type="button" data-action="pending-fees">${pendingFeeStudents.length} öğrenci</button></article>
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>${formatCurrency(currentMonthNet)}</strong><small>${currentMonthEntries.length} muhasebe kaydı</small></article>
     </section>
-    <section class="dashboard-grid">
+    <section class="dashboard-grid dashboard-grid-single">
       <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${plannedTrainings.slice(0, 4).map(t => `<div class="list-row training-summary-row"><span class="training-date-time"><small>${formatTrainingDate(t.date)}</small><b>${t.time}</b></span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${trainingAttendanceLabel(t)}</span></div>`).join('') || '<div class="empty-state">Planlanmış güncel antrenman bulunmuyor.</div>'}</article>
-      <article class="panel"><div class="panel-heading"><h3>Kulüp performansı</h3><span class="status blue">Temmuz</span></div><div class="progress-group">
-        ${progress('Aidat tahsilatı', 86)}${progress('Antrenman katılımı', 91)}${progress('Kontenjan kullanımı', 78)}
-      </div></article>
     </section>
     <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 4).map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<span class="inline-separator" aria-hidden="true">•</span><small>Grup: ${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div><div class="fee-month-badges" aria-label="Ödenmemiş aylar">${unpaidFeePeriods(s).map(month => `<span class="status danger">${formatFeeMonth(month)}</span>`).join('')}</div></div>`).join('')}</section>
   </div>`;
@@ -1833,7 +1830,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.258', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.259', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
