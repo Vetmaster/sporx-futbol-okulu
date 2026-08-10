@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.10.258';
+const APP_VERSION = '2026.08.10.260';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -23,6 +23,8 @@ let authRequestPending = false;
 let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
+// Kulübün doğrulanmış banka bilgileri tanımlanana kadar havale ekranı güvenli bir boş durum gösterir.
+const CLUB_BANK_DETAILS = null;
 const SUBSCRIPTION_PERIODS = {
   monthly: { name: '1 aylık', months: 1 },
   quarterly: { name: '3 aylık', months: 3 },
@@ -70,6 +72,7 @@ const state = {
   activeTrainingId: null,
   selectedStudentId: null,
   selectedParentStudentId: null,
+  selectedParentPaymentMonth: null,
   activeStudentsOnly: true,
   debtStudentsOnly: false,
   studentSortKey: 'enrollmentDate',
@@ -147,6 +150,9 @@ const navItems = {
   trainings: { label: 'Antrenman', icon: MENU_ICONS.training, roles: ['super_admin', 'admin', 'coach', 'parent'] },
   attendance: { label: 'Yoklama', icon: MENU_ICONS.attendance, roles: ['super_admin', 'admin', 'coach'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'parent'] },
+  parentPayment: { label: 'Ödeme Yap', icon: '₺', roles: ['parent'], hidden: true },
+  parentBankTransfer: { label: 'Havale Bilgileri', icon: '↗', roles: ['parent'], hidden: true },
+  parentCardPayment: { label: 'Kartla Ödeme', icon: '▣', roles: ['parent'], hidden: true },
   accounting: { label: 'Muhasebe', icon: MENU_ICONS.accounting, roles: ['super_admin', 'admin'] },
   accountingSettings: { label: 'Muhasebe Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['super_admin', 'admin'], hidden: true },
@@ -157,7 +163,7 @@ const navItems = {
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
   dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Sistem ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
-  trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
+  trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
 
@@ -639,7 +645,7 @@ function monthlyFeeRows(student) {
     const amount = history?.amount !== null && history?.amount !== undefined ? formatCurrency(history.amount) : history?.note === 'Yıllık ödeme' ? 'Yıllık' : history || status === 'none' ? '—' : '₺1.500';
     const sourceNote = history?.note && !(status === 'none' && history.note === 'Aidat yok') ? `<small class="muted">${history.note}</small>` : '';
     const canSelectFeeStatus = canEdit && ['none', 'late'].includes(status);
-    const statusMarkup = canSelectFeeStatus ? `${feeStatusControl(student, month, status)}${sourceNote}` : `${statusLabel(status)}${sourceNote}`;
+    const statusMarkup = canSelectFeeStatus ? `${feeStatusControl(student, month, status)}${sourceNote}` : `${parentFeeStatusMarkup(student, month, status)}${sourceNote}`;
     const paymentControl = status === 'none' ? statusLabel('none') : !['exempt', 'unknown'].includes(status) ? `<label class="fee-paid-control"><input type="checkbox" data-monthly-fee data-id="${student.id}" data-month="${month}" aria-label="${formatFeeMonth(month)} aidatını ödendi işaretle" ${status === 'paid' ? 'checked' : ''}><span>${status === 'paid' ? 'Ödendi' : 'Ödendi seç'}</span></label>` : '—';
     return `<tr><td><strong>${formatFeeMonth(month)}</strong></td><td>${amount}</td><td>${formatFeeDueDate(month)}</td><td>${statusMarkup}</td>${canEdit ? `<td>${paymentControl}</td>` : ''}</tr>`;
   }).join('');
@@ -922,11 +928,8 @@ function dashboardView() {
       <article class="stat-card"><span class="label">Bekleyen aidat</span><strong>${formatCurrency(pendingFeeAmount)}</strong><button class="stat-link" type="button" data-action="pending-fees">${pendingFeeStudents.length} öğrenci</button></article>
       <article class="stat-card"><span class="label">Aylık net durum</span><strong>${formatCurrency(currentMonthNet)}</strong><small>${currentMonthEntries.length} muhasebe kaydı</small></article>
     </section>
-    <section class="dashboard-grid">
+    <section class="dashboard-grid dashboard-grid-single">
       <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${plannedTrainings.slice(0, 4).map(t => `<div class="list-row training-summary-row"><span class="training-date-time"><small>${formatTrainingDate(t.date)}</small><b>${t.time}</b></span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${trainingAttendanceLabel(t)}</span></div>`).join('') || '<div class="empty-state">Planlanmış güncel antrenman bulunmuyor.</div>'}</article>
-      <article class="panel"><div class="panel-heading"><h3>Kulüp performansı</h3><span class="status blue">Temmuz</span></div><div class="progress-group">
-        ${progress('Aidat tahsilatı', 86)}${progress('Antrenman katılımı', 91)}${progress('Kontenjan kullanımı', 78)}
-      </div></article>
     </section>
     <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 4).map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<span class="inline-separator" aria-hidden="true">•</span><small>Grup: ${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div><div class="fee-month-badges" aria-label="Ödenmemiş aylar">${unpaidFeePeriods(s).map(month => `<span class="status danger">${formatFeeMonth(month)}</span>`).join('')}</div></div>`).join('')}</section>
   </div>`;
@@ -952,6 +955,23 @@ function progress(label, value) { return `<div><div class="progress-label"><span
 
 function currentParentStudent() {
   return state.students.find(student => Number(student.id) === Number(state.selectedParentStudentId)) || state.students[0] || null;
+}
+
+function parentPaymentContext() {
+  if (state.role !== 'parent') return null;
+  const student = currentParentStudent();
+  if (!student) return null;
+  const unpaidMonths = unpaidFeePeriods(student);
+  const month = unpaidMonths.includes(state.selectedParentPaymentMonth)
+    ? state.selectedParentPaymentMonth
+    : unpaidMonths[0];
+  if (!month) return null;
+  return { student, month, amount: monthlyFeeAmount(student, month) };
+}
+
+function parentFeeStatusMarkup(student, month, status) {
+  if (state.role !== 'parent' || status !== 'late' || Number(student.id) !== Number(currentParentStudent()?.id)) return statusLabel(status);
+  return `<div class="parent-fee-status-actions">${statusLabel(status)}<button class="primary-button parent-pay-button" type="button" data-action="parent-payment" data-month="${month}">Ödeme Yap</button></div>`;
 }
 
 function parentStudentSwitcherMarkup() {
@@ -1187,7 +1207,7 @@ function feesView() {
     : list.map(student => ({ student, month: currentMonth, status: currentFeeStatus(student) }));
   const sortedFeeRows = sortFeeListRows(feeRows);
   const tableRows = isParent
-    ? sortedFeeRows.map(row => `<tr><td>${studentNameLink(row.student)}</td><td>${formatFeeMonth(row.month)}</td><td>${formatCurrency(monthlyFeeAmount(row.student, row.month))}</td><td>${formatFeeDueDate(row.month)}</td><td>${statusLabel(row.status)}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty-state">Aidat borcunuz bulunmuyor.</div></td></tr>'
+    ? sortedFeeRows.map(row => `<tr><td>${studentNameLink(row.student)}</td><td>${formatFeeMonth(row.month)}</td><td>${formatCurrency(monthlyFeeAmount(row.student, row.month))}</td><td>${formatFeeDueDate(row.month)}</td><td>${parentFeeStatusMarkup(row.student, row.month, row.status)}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty-state">Aidat borcunuz bulunmuyor.</div></td></tr>'
     : sortedFeeRows.map(row => {
         const { student, month, status } = row;
         const paymentControl = status === 'none'
@@ -1198,6 +1218,51 @@ function feesView() {
   const subtitle = isParent ? `${parentUnpaidMonths.length} ödenmemiş dönem` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
   const searchMarkup = isParent ? '' : `<div class="toolbar fee-list-toolbar"><input class="search-input" id="feeSearch" type="search" value="${escapeHtml(state.feeSearchQuery)}" placeholder="Öğrenci, veli veya grup ara" aria-label="Aidat kayıtlarında ara"><span class="muted" aria-live="polite">${list.length} / ${unfilteredList.length} öğrenci</span></div>`;
   return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}${searchMarkup}<section class="panel table-wrap"><table><thead><tr>${feeListSortHeader('name', 'Öğrenci')}${feeListSortHeader('period', 'Dönem')}${feeListSortHeader('amount', 'Tutar')}${feeListSortHeader('due', 'Son ödeme')}${feeListSortHeader('status', 'Durum')}${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
+}
+
+function parentPaymentUnavailableView() {
+  return `<div class="page-stack parent-payment-page"><section class="panel empty-state"><h2>Ödeme yapılacak aidat bulunmuyor</h2><p>Bu ekran yalnızca ödenmemiş aidatlar için kullanılabilir.</p><button class="secondary-button" type="button" data-page="fees">Aidat sayfasına dön</button></section></div>`;
+}
+
+function parentPaymentSummaryMarkup(context) {
+  return `<section class="panel parent-payment-summary"><div><span class="eyebrow">ÖDENECEK AİDAT</span><h2>${escapeHtml(context.student.name)}</h2><p>${formatFeeMonth(context.month)} dönemi</p></div><strong>${formatCurrency(context.amount)}</strong></section>`;
+}
+
+function parentPaymentView() {
+  const context = parentPaymentContext();
+  if (!context) return parentPaymentUnavailableView();
+  return `<div class="page-stack parent-payment-page">
+    ${parentPaymentSummaryMarkup(context)}
+    <section class="parent-payment-choice-grid" aria-label="Ödeme yöntemi seçimi">
+      <button class="panel parent-payment-option" type="button" data-page="parentBankTransfer"><span class="parent-payment-option-icon" aria-hidden="true">↗</span><span><strong>Havale</strong><small>Kulübün doğrulanmış banka bilgilerini görüntüleyin.</small></span><span class="settings-link-arrow" aria-hidden="true">›</span></button>
+      <button class="panel parent-payment-option" type="button" data-page="parentCardPayment"><span class="parent-payment-option-icon" aria-hidden="true">▣</span><span><strong>Kredi Kartı</strong><small>Yakında kullanıma açılacak ödeme ekranını inceleyin.</small></span><span class="settings-link-arrow" aria-hidden="true">›</span></button>
+    </section>
+    <section class="payment-safety-note"><strong>Güvenli ödeme</strong><span>Ödeme yöntemi seçilmeden hiçbir finansal bilgi istenmez veya kaydedilmez.</span></section>
+  </div>`;
+}
+
+function parentBankTransferView() {
+  const context = parentPaymentContext();
+  if (!context) return parentPaymentUnavailableView();
+  const hasBankDetails = Boolean(CLUB_BANK_DETAILS?.iban && CLUB_BANK_DETAILS?.accountHolder);
+  const bankDetailsMarkup = hasBankDetails
+    ? `<dl class="parent-bank-details"><div><dt>Banka</dt><dd>${escapeHtml(CLUB_BANK_DETAILS.bankName || 'Belirtilmedi')}</dd></div><div><dt>Hesap sahibi</dt><dd>${escapeHtml(CLUB_BANK_DETAILS.accountHolder)}</dd></div><div class="parent-bank-iban"><dt>IBAN</dt><dd>${escapeHtml(CLUB_BANK_DETAILS.iban)}</dd></div></dl><button class="secondary-button" type="button" data-action="copy-parent-iban">IBAN'ı kopyala</button>`
+    : `<div class="parent-bank-placeholder"><span aria-hidden="true">i</span><div><strong>Banka bilgisi henüz tanımlanmadı</strong><p>IBAN ve hesap sahibi bilgileri kulüp yöneticisi tarafından doğrulanıp buraya eklenecek.</p></div></div><button class="secondary-button" type="button" disabled>IBAN'ı kopyala</button>`;
+  return `<div class="page-stack parent-payment-page">
+    ${parentPaymentSummaryMarkup(context)}
+    <section class="panel parent-bank-panel"><div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">${escapeHtml(state.schoolName || 'Futbol okulu')}</small></div></div>${bankDetailsMarkup}</section>
+    <section class="payment-safety-note warning"><strong>Havale yapmadan önce</strong><span>Yalnızca bu ekranda doğrulanmış IBAN göründüğünde işlem yapın ve alıcı adını kulüple teyit edin. Havale göndermek aidatı otomatik olarak ödendi yapmaz.</span></section>
+  </div>`;
+}
+
+function parentCardPaymentView() {
+  const context = parentPaymentContext();
+  if (!context) return parentPaymentUnavailableView();
+  return `<div class="page-stack parent-payment-page">
+    ${parentPaymentSummaryMarkup(context)}
+    <section class="panel parent-card-demo-panel"><div class="demo-label">DEMO · ÖDEME ALINMAZ</div><div class="demo-payment-card" aria-label="Temsili kredi kartı"><span class="demo-card-chip" aria-hidden="true"></span><strong>•••• •••• •••• ••••</strong><div><span>AD SOYAD</span><span>AA/YY</span></div></div><h3>Kredi kartıyla ödeme yakında</h3><p>Gerçek ödeme sağlayıcısı henüz bağlı değildir. Bu sayfa yalnızca tasarım önizlemesidir; kart bilgisi girilmez, saklanmaz ve aidat durumu değiştirilmez.</p><button class="primary-button" type="button" disabled>Ödeme altyapısı yakında</button></section>
+    <section class="payment-safety-note"><strong>Kart bilginizi paylaşmayın</strong><span>Resmî ödeme altyapısı açılana kadar uygulama sizden kart numarası, son kullanma tarihi veya güvenlik kodu istemez.</span></section>
+  </div>`;
 }
 
 function feeListSortHeader(key, label) {
@@ -1357,7 +1422,7 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -1833,7 +1898,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.258', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.260', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2399,7 +2464,29 @@ document.addEventListener('click', async event => {
     return;
   }
   const action = actionButton.dataset.action;
-  if (action === 'select-school' && state.role === 'super_admin') {
+  if (action === 'parent-payment' && state.role === 'parent') {
+    const month = String(actionButton.dataset.month || '');
+    const student = currentParentStudent();
+    if (!student || !unpaidFeePeriods(student).includes(month)) {
+      showToast('Bu aidat için ödeme işlemi başlatılamıyor.');
+      return;
+    }
+    state.selectedParentPaymentMonth = month;
+    navigateToPage('parentPayment');
+  }
+  else if (action === 'copy-parent-iban' && state.role === 'parent') {
+    if (!CLUB_BANK_DETAILS?.iban) {
+      showToast('Kulübün doğrulanmış IBAN bilgisi henüz tanımlanmadı.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(CLUB_BANK_DETAILS.iban);
+      showToast('IBAN kopyalandı.');
+    } catch (error) {
+      showToast('IBAN kopyalanamadı. Lütfen tekrar deneyin.');
+    }
+  }
+  else if (action === 'select-school' && state.role === 'super_admin') {
     await switchSchool(actionButton.dataset.id);
   }
   else if (action === 'invite-school-admin' && state.role === 'super_admin') {
@@ -2665,6 +2752,7 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'parentStudentSelect') {
     state.selectedParentStudentId = Number(event.target.value) || null;
+    state.selectedParentPaymentMonth = null;
     state.expandedTimelineStudentId = null;
     persistNavigationState();
     render();
