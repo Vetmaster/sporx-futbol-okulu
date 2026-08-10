@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.09.252';
+const APP_VERSION = '2026.08.10.253';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -23,10 +23,15 @@ let authRequestPending = false;
 let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
+const SUBSCRIPTION_PERIODS = {
+  monthly: { name: '1 aylık', months: 1 },
+  quarterly: { name: '3 aylık', months: 3 },
+  yearly: { name: 'Yıllık', months: 12 }
+};
 const SUBSCRIPTION_PLANS = {
-  standard: { name: 'Standart', price: 799, studentLimit: 100, features: ['100 öğrenciye kadar kayıt', 'Temel okul yönetimi'], unavailable: ['Online ödeme'] },
-  premium: { name: 'Premium', price: 1299, studentLimit: 500, features: ['500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online market', 'Scout video paylaşımı'] },
-  pro: { name: 'Pro', price: 1899, studentLimit: null, features: ['Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
+  standard: { name: 'Standart', prices: { monthly: 799, quarterly: 2199, yearly: 7990 }, studentLimit: 100, features: ['100 öğrenciye kadar kayıt', 'Temel okul yönetimi'], unavailable: ['Online ödeme'] },
+  premium: { name: 'Premium', prices: { monthly: 1299, quarterly: 3599, yearly: 12990 }, studentLimit: 500, features: ['500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online market', 'Scout video paylaşımı'] },
+  pro: { name: 'Pro', prices: { monthly: 1899, quarterly: 5199, yearly: 18990 }, studentLimit: null, features: ['Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', past_due: 'Ödeme bekliyor', suspended: 'Askıda', cancelled: 'İptal edildi' };
 const ACCOUNTING_PERIODS = [
@@ -828,6 +833,14 @@ function subscriptionStatusMarkup(status) {
   return `<span class="status ${tone}">${SUBSCRIPTION_STATUSES[status] || 'Belirlenmedi'}</span>`;
 }
 
+function subscriptionPrice(planCode, billingPeriod = 'monthly') {
+  return SUBSCRIPTION_PLANS[planCode]?.prices?.[billingPeriod] ?? SUBSCRIPTION_PLANS.standard.prices.monthly;
+}
+
+function subscriptionPeriodLabel(billingPeriod) {
+  return SUBSCRIPTION_PERIODS[billingPeriod]?.name || SUBSCRIPTION_PERIODS.monthly.name;
+}
+
 function subscriptionsView() {
   const schools = state.schools;
   const activeCount = schools.filter(school => school.subscriptionStatus === 'active').length;
@@ -835,18 +848,23 @@ function subscriptionsView() {
   const waitingCount = schools.filter(school => school.subscriptionStatus === 'past_due').length;
   const recurringTotal = schools
     .filter(school => ['active', 'trial'].includes(school.subscriptionStatus))
-    .reduce((total, school) => total + Number(school.subscriptionMonthlyPrice || 0), 0);
+    .reduce((total, school) => {
+      const billingPeriod = school.subscriptionBillingPeriod || 'monthly';
+      const periodPrice = Number(school.subscriptionPeriodPrice) || subscriptionPrice(school.subscriptionPlan, billingPeriod);
+      return total + periodPrice / (SUBSCRIPTION_PERIODS[billingPeriod]?.months || 1);
+    }, 0);
   const planCards = Object.entries(SUBSCRIPTION_PLANS).map(([code, plan]) => {
     const count = schools.filter(school => school.subscriptionPlan === code).length;
     const included = plan.features.map(feature => `<li class="included"><span aria-hidden="true">✓</span>${feature}</li>`).join('');
     const unavailable = plan.unavailable.map(feature => `<li class="unavailable"><span aria-hidden="true">×</span>${feature} yok</li>`).join('');
-    return `<article class="panel subscription-plan-card"><span class="eyebrow">PAKET</span><div class="subscription-plan-heading"><h3>${plan.name}</h3><strong>${formatCurrency(plan.price)}<small>/ ay</small></strong></div><ul class="subscription-feature-list">${included}${unavailable}</ul><span class="subscription-school-count">${count} okul</span></article>`;
+    const prices = Object.entries(SUBSCRIPTION_PERIODS).map(([periodCode, period]) => `<div class="subscription-price-option"><span>${period.name}</span><strong>${formatCurrency(subscriptionPrice(code, periodCode))}</strong>${periodCode === 'quarterly' ? '<small>Yaklaşık %8 avantaj</small>' : periodCode === 'yearly' ? '<small>Yaklaşık 2 ay avantaj</small>' : '<small>Aylık ödeme</small>'}</div>`).join('');
+    return `<article class="panel subscription-plan-card"><span class="eyebrow">PAKET</span><div class="subscription-plan-heading"><h3>${plan.name}</h3></div><div class="subscription-price-list">${prices}</div><ul class="subscription-feature-list">${included}${unavailable}</ul><span class="subscription-school-count">${count} okul</span></article>`;
   }).join('');
   const rows = schools.map(school => `<div class="subscription-school-row">
     <div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.slug)}</small></div>
     <span>${SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart'}</span>
     ${subscriptionStatusMarkup(school.subscriptionStatus)}
-    <span>${formatCurrency(school.subscriptionMonthlyPrice || 0)}<small>Aylık</small></span>
+    <span>${formatCurrency(school.subscriptionPeriodPrice || subscriptionPrice(school.subscriptionPlan, school.subscriptionBillingPeriod))}<small>${subscriptionPeriodLabel(school.subscriptionBillingPeriod)}</small></span>
     <span>${subscriptionDateLabel(school.subscriptionEndsOn)}<small>Bitiş / yenileme</small></span>
     <button class="secondary-button" type="button" data-action="edit-subscription" data-id="${school.id}">Düzenle</button>
   </div>`).join('');
@@ -855,10 +873,10 @@ function subscriptionsView() {
     <section class="stats-grid subscription-summary-grid">
       <article class="stat-card"><span class="label">Aktif abonelik</span><strong>${activeCount}</strong><small>${trialCount} deneme hesabı</small></article>
       <article class="stat-card"><span class="label">Ödeme bekleyen</span><strong>${waitingCount}</strong><small>Takip edilmesi gereken okul</small></article>
-      <article class="stat-card"><span class="label">Aylık abonelik toplamı</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
+      <article class="stat-card"><span class="label">Aylık eşdeğer gelir</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
     </section>
     <section class="subscription-plan-grid">${planCards}</section>
-    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Paket seçildiğinde aylık ücret otomatik uygulanır.</small></div><span class="status blue">${schools.length} okul</span></div>
+    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Paket ve ödeme dönemi seçildiğinde dönem ücreti otomatik uygulanır.</small></div><span class="status blue">${schools.length} okul</span></div>
       <div class="subscription-school-list">${rows || '<div class="empty-state">Henüz okul bulunmuyor.</div>'}</div>
     </section>
   </div>`;
@@ -1796,7 +1814,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.09.252', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.253', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2407,7 +2425,8 @@ document.addEventListener('click', async event => {
     form.elements.schoolId.value = school.id;
     form.elements.plan.value = school.subscriptionPlan || 'standard';
     form.elements.status.value = school.subscriptionStatus || 'trial';
-    form.elements.monthlyPrice.value = SUBSCRIPTION_PLANS[form.elements.plan.value]?.price || 799;
+    form.elements.billingPeriod.value = school.subscriptionBillingPeriod || 'monthly';
+    form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, form.elements.billingPeriod.value);
     form.elements.startsOn.value = school.subscriptionStartsOn || '';
     form.elements.endsOn.value = school.subscriptionEndsOn || '';
     document.querySelector('#subscriptionDialogSchoolName').textContent = school.name;
@@ -2735,9 +2754,12 @@ document.querySelector('#schoolEditForm').addEventListener('submit', async event
   render();
   showToast('Okul adı güncellendi.');
 });
-document.querySelector('#subscriptionForm [name="plan"]').addEventListener('change', event => {
-  document.querySelector('#subscriptionForm [name="monthlyPrice"]').value = SUBSCRIPTION_PLANS[event.target.value]?.price || '';
-});
+function updateSubscriptionPriceField() {
+  const form = document.querySelector('#subscriptionForm');
+  form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, form.elements.billingPeriod.value);
+}
+document.querySelector('#subscriptionForm [name="plan"]').addEventListener('change', updateSubscriptionPriceField);
+document.querySelector('#subscriptionForm [name="billingPeriod"]').addEventListener('change', updateSubscriptionPriceField);
 document.querySelector('#subscriptionForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
@@ -2745,10 +2767,11 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
   const schoolId = String(data.get('schoolId') || '');
   const plan = String(data.get('plan') || '');
   const status = String(data.get('status') || '');
-  const monthlyPrice = SUBSCRIPTION_PLANS[plan]?.price;
+  const billingPeriod = String(data.get('billingPeriod') || '');
+  const periodPrice = subscriptionPrice(plan, billingPeriod);
   const startsOn = String(data.get('startsOn') || '');
   const endsOn = String(data.get('endsOn') || '');
-  if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_PLANS[plan] || !SUBSCRIPTION_STATUSES[status] || !Number.isFinite(monthlyPrice) || monthlyPrice < 0) {
+  if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_PLANS[plan] || !SUBSCRIPTION_STATUSES[status] || !SUBSCRIPTION_PERIODS[billingPeriod] || !Number.isFinite(periodPrice) || periodPrice < 0) {
     showToast('Paket ve abonelik bilgilerini kontrol edin.');
     return;
   }
@@ -2756,7 +2779,7 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
     showToast('Bitiş tarihi başlangıç tarihinden önce olamaz.');
     return;
   }
-  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, startsOn: startsOn || null, endsOn: endsOn || null }));
+  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, billingPeriod, startsOn: startsOn || null, endsOn: endsOn || null }));
   if (!saved) return;
   await refreshSchools();
   if (schoolId === state.schoolId) state.schoolSubscriptionPlan = plan;
