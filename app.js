@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.10.255';
+const APP_VERSION = '2026.08.10.256';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -29,9 +29,9 @@ const SUBSCRIPTION_PERIODS = {
   yearly: { name: 'Yıllık', months: 12 }
 };
 const SUBSCRIPTION_PLANS = {
-  standard: { name: 'Standart', prices: { monthly: 799, quarterly: 2199, yearly: 7990 }, studentLimit: 100, features: ['100 öğrenciye kadar kayıt', 'Temel okul yönetimi'], unavailable: ['Online Ödeme', 'Online Market', 'Scoutlarla Video Paylaşımı'] },
-  premium: { name: 'Premium', prices: { monthly: 1299, quarterly: 3599, yearly: 12990 }, studentLimit: 500, features: ['500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online Market', 'Scoutlarla Video Paylaşımı'] },
-  pro: { name: 'Pro', prices: { monthly: 1899, quarterly: 5199, yearly: 18990 }, studentLimit: null, features: ['Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
+  standard: { name: 'Standart', prices: { monthly: 799, quarterly: 2199, yearly: 7990 }, studentLimit: 100, features: ['Temel Okul Yönetimi', '100 öğrenciye kadar kayıt'], unavailable: ['Online Ödeme', 'Online Market', 'Scoutlarla Video Paylaşımı'] },
+  premium: { name: 'Premium', prices: { monthly: 1299, quarterly: 3599, yearly: 12990 }, studentLimit: 500, features: ['Temel Okul Yönetimi', '500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online Market', 'Scoutlarla Video Paylaşımı'] },
+  pro: { name: 'Pro', prices: { monthly: 1899, quarterly: 5199, yearly: 18990 }, studentLimit: null, features: ['Temel Okul Yönetimi', 'Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', past_due: 'Ödeme bekliyor', suspended: 'Askıda', cancelled: 'İptal edildi' };
 const ACCOUNTING_PERIODS = [
@@ -1814,7 +1814,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.255', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.256', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
