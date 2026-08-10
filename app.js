@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.10.257';
+const APP_VERSION = '2026.08.10.258';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -137,7 +137,8 @@ function persistLocalData() {
 const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'coach', 'parent'] },
   schools: { label: 'Okullar', icon: MENU_ICONS.schools, roles: ['super_admin'] },
-  subscriptions: { label: 'Paket ve Abonelik', icon: MENU_ICONS.subscriptions, roles: ['super_admin'] },
+  settings: { label: 'Ayarlar', icon: MENU_ICONS.settings, roles: ['super_admin'], hidden: true },
+  subscriptions: { label: 'Paket ve Abonelik', icon: MENU_ICONS.subscriptions, roles: ['super_admin'], hidden: true },
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'coach'] },
   studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'coach', 'parent'], hidden: true },
@@ -155,7 +156,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Sistem ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -763,6 +764,11 @@ function navMarkup(key, item) {
 function renderNavigation() {
   const items = allowedItems();
   mainNav.innerHTML = items.map(([key, item]) => navMarkup(key, item)).join('');
+  const settingsItem = navItems.settings;
+  const showSettings = settingsItem.roles.includes(state.role);
+  const sidebarSettings = document.querySelector('#sidebarSettings');
+  sidebarSettings.innerHTML = showSettings ? navMarkup('settings', settingsItem) : '';
+  sidebarSettings.classList.toggle('is-hidden', !showSettings);
   const mobileKeys = state.role === 'parent' ? ['dashboard', 'child', 'trainings', 'fees'] : ['dashboard', 'students', 'trainings', isAdminRole() ? 'accounting' : 'attendance'];
   bottomNav.innerHTML = mobileKeys.filter(key => navItems[key]?.roles.includes(state.role)).map(key => navMarkup(key, navItems[key])).join('');
 }
@@ -878,6 +884,19 @@ function subscriptionsView() {
     <section class="subscription-plan-grid">${planCards}</section>
     <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Paket ve ödeme dönemi seçildiğinde dönem ücreti otomatik uygulanır.</small></div><span class="status blue">${schools.length} okul</span></div>
       <div class="subscription-school-list">${rows || '<div class="empty-state">Henüz okul bulunmuyor.</div>'}</div>
+    </section>
+  </div>`;
+}
+
+function settingsView() {
+  return `<div class="page-stack">
+    <div class="section-heading"><div><h2>Ayarlar</h2><p>Sistem ve abonelik ayarlarını yönetin</p></div></div>
+    <section class="settings-hub-grid" aria-label="Ayarlar seçenekleri">
+      <button class="panel settings-link-card" type="button" data-page="subscriptions">
+        <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.subscriptions}</span>
+        <span class="settings-link-copy"><strong>Paket ve Abonelik</strong><small>Okulların paket, ücret ve abonelik durumlarını yönetin.</small></span>
+        <span class="settings-link-arrow" aria-hidden="true">›</span>
+      </button>
     </section>
   </div>`;
 }
@@ -1338,7 +1357,7 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, schools: schoolsView, subscriptions: subscriptionsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, attendance: attendanceView, fees: feesView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -1814,7 +1833,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.257', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.258', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
