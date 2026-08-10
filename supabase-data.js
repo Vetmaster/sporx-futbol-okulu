@@ -9,8 +9,13 @@
     return ({ starter: 'standard', professional: 'premium', enterprise: 'pro', custom: 'pro' })[value] || value || 'standard';
   }
 
-  function subscriptionPlanPrice(value) {
-    return ({ standard: 799, premium: 1299, pro: 1899 })[normalizeSubscriptionPlan(value)] || 799;
+  function subscriptionPlanPrice(value, billingPeriod = 'monthly') {
+    const prices = {
+      standard: { monthly: 799, quarterly: 2199, yearly: 7990 },
+      premium: { monthly: 1299, quarterly: 3599, yearly: 12990 },
+      pro: { monthly: 1899, quarterly: 5199, yearly: 18990 }
+    };
+    return prices[normalizeSubscriptionPlan(value)]?.[billingPeriod] || prices.standard.monthly;
   }
 
   function notificationDate(value) {
@@ -254,14 +259,16 @@
       }
       const subscriptionResult = await client
         .from('schools')
-        .select('id, subscription_plan, subscription_status, subscription_monthly_price, subscription_starts_on, subscription_ends_on');
+        .select('id, subscription_plan, subscription_status, subscription_monthly_price, subscription_billing_period, subscription_period_price, subscription_starts_on, subscription_ends_on');
       const subscriptionBySchool = new Map((subscriptionResult.data || []).map(item => [item.id, item]));
       return rows.map(school => {
         const subscription = subscriptionBySchool.get(school.id) || {};
         return {
           subscriptionPlan: normalizeSubscriptionPlan(subscription.subscription_plan),
           subscriptionStatus: subscription.subscription_status || 'trial',
-          subscriptionMonthlyPrice: Number(subscription.subscription_monthly_price) || subscriptionPlanPrice(subscription.subscription_plan),
+          subscriptionMonthlyPrice: Number(subscription.subscription_monthly_price) || subscriptionPlanPrice(subscription.subscription_plan, 'monthly'),
+          subscriptionBillingPeriod: subscription.subscription_billing_period || 'monthly',
+          subscriptionPeriodPrice: Number(subscription.subscription_period_price) || subscriptionPlanPrice(subscription.subscription_plan, subscription.subscription_billing_period),
           subscriptionStartsOn: subscription.subscription_starts_on || '',
           subscriptionEndsOn: subscription.subscription_ends_on || '',
           id: school.id,
@@ -278,11 +285,12 @@
       });
     }
 
-    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, startsOn, endsOn }) {
+    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, billingPeriod, startsOn, endsOn }) {
       const { data, error } = await client.rpc('update_school_subscription', {
         target_school_id: targetSchoolId,
         plan_code: plan,
         subscription_state: status,
+        billing_period_code: billingPeriod,
         starts_on: startsOn,
         ends_on: endsOn
       });

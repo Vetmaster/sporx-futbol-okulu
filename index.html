@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.09.252">
+  <link rel="stylesheet" href="styles.css?v=2026.08.10.253">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -273,11 +273,12 @@
       <div class="form-grid">
         <label>Paket<select name="plan" required><option value="standard">Standart</option><option value="premium">Premium</option><option value="pro">Pro</option></select></label>
         <label>Abonelik durumu<select name="status" required><option value="trial">Deneme</option><option value="active">Aktif</option><option value="past_due">Ödeme bekliyor</option><option value="suspended">Askıda</option><option value="cancelled">İptal edildi</option></select></label>
-        <label>Aylık ücret (₺)<input name="monthlyPrice" type="number" min="0" step="1" inputmode="numeric" readonly required></label>
+        <label>Ödeme dönemi<select name="billingPeriod" required><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label>
+        <label>Dönem ücreti (₺)<input name="periodPrice" type="number" min="0" step="1" inputmode="numeric" readonly required></label>
         <label>Başlangıç tarihi<input name="startsOn" type="date"></label>
         <label>Bitiş / yenileme tarihi<input name="endsOn" type="date"></label>
       </div>
-      <small class="form-hint">Aylık ücret seçilen pakete göre otomatik belirlenir.</small>
+      <small class="form-hint">Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.</small>
       <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="subscriptionDialog">Vazgeç</button><button class="primary-button" type="submit">Aboneliği kaydet</button></div>
     </form>
   </dialog>
@@ -286,7 +287,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.09.252"></script>
-  <script src="app.js?v=2026.08.09.252"></script>
+  <script src="supabase-data.js?v=2026.08.10.253"></script>
+  <script src="app.js?v=2026.08.10.253"></script>
 </body>
 </html>
