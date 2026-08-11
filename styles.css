@@ -209,6 +209,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .bank-settings-iban .iban-prefix-control input { min-width: 0; border: 0; border-radius: 0; box-shadow: none; padding-left: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 800; letter-spacing: .025em; }
 .parent-bank-account-list { display: grid; gap: 14px; }
 .parent-bank-account { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft); }
+.parent-bank-account.bank-theme-akbank { border-color: rgba(211, 25, 35, .28); background: rgba(211, 25, 35, .10); }
+.parent-bank-account.bank-theme-garanti { border-color: rgba(0, 135, 81, .28); background: rgba(0, 135, 81, .10); }
+.parent-bank-account.bank-theme-yapi-kredi { border-color: rgba(0, 91, 150, .28); background: rgba(0, 91, 150, .10); }
+.parent-bank-account.bank-theme-is-bankasi { border-color: rgba(0, 66, 120, .28); background: rgba(0, 66, 120, .10); }
+.parent-bank-account:is(.bank-theme-akbank, .bank-theme-garanti, .bank-theme-yapi-kredi, .bank-theme-is-bankasi) .parent-bank-details > div { background: rgba(255, 255, 255, .68); }
 .parent-bank-account .secondary-button { justify-self: start; }
 .section-heading { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 12px; }
 .section-heading h2 { margin: 0 0 5px; font-size: 20px; }
