@@ -201,6 +201,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .bank-settings-form input { width: 100%; }
 .bank-settings-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .bank-settings-actions .primary-button { min-height: 42px; margin-left: auto; }
+.bank-settings-actions [hidden], .bank-account-settings-heading [hidden] { display: none !important; }
 .bank-settings-iban input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 800; letter-spacing: .025em; text-transform: uppercase; }
 .parent-bank-account-list { display: grid; gap: 14px; }
 .parent-bank-account { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft); }

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.11.265';
+const APP_VERSION = '2026.08.11.266';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -926,8 +926,8 @@ function settingsView() {
   </div>`;
 }
 
-function bankAccountSettingsCardMarkup(account = {}, index = 0, accountCount = 1) {
-  return `<fieldset class="bank-account-settings-card">
+function bankAccountSettingsCardMarkup(account = {}, index = 0, accountCount = 1, isUnsaved = false) {
+  return `<fieldset class="bank-account-settings-card" ${isUnsaved ? 'data-bank-unsaved="true"' : ''}>
     <div class="bank-account-settings-heading"><strong>Hesap ${index + 1}</strong><button class="text-button bank-account-remove-button" type="button" data-action="remove-bank-account" ${accountCount === 1 ? 'hidden' : ''}>Kaldır</button></div>
     <div class="bank-account-settings-fields">
       <label>Banka adı<input name="bankName${index}" data-bank-field="bankName" maxlength="80" value="${escapeHtml(account.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
@@ -945,20 +945,20 @@ function syncBankAccountFormControls(form) {
     card.querySelector('[data-action="remove-bank-account"]').hidden = cards.length === 1;
   });
   const addButton = form.querySelector('[data-action="add-bank-account"]');
-  addButton.disabled = cards.length >= 4;
-  addButton.textContent = cards.length >= 4 ? 'En fazla 4 hesap eklenebilir' : '+ Hesap Ekle';
+  addButton.hidden = cards.length >= 4 || cards.some(card => card.dataset.bankUnsaved === 'true');
 }
 
 function bankSettingsView() {
-  const bankAccounts = state.schoolBankAccounts.length ? state.schoolBankAccounts.slice(0, 4) : [{}];
-  const accountFields = bankAccounts.map((account, index) => bankAccountSettingsCardMarkup(account, index, bankAccounts.length)).join('');
+  const hasSavedAccount = state.schoolBankAccounts.length > 0;
+  const bankAccounts = hasSavedAccount ? state.schoolBankAccounts.slice(0, 4) : [{}];
+  const accountFields = bankAccounts.map((account, index) => bankAccountSettingsCardMarkup(account, index, bankAccounts.length, !hasSavedAccount)).join('');
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Havale bilgileri</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} için veli ödeme hesabı</p></div></div>
     <section class="panel bank-settings-panel">
       <div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">Velilere gösterilmek üzere en fazla 4 doğrulanmış hesap ekleyebilirsiniz.</small></div></div>
       <form id="schoolBankSettingsForm" class="bank-settings-form">
         <div class="bank-account-settings-list">${accountFields}</div>
-        <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${bankAccounts.length >= 4 ? 'disabled' : ''}>${bankAccounts.length >= 4 ? 'En fazla 4 hesap eklenebilir' : '+ Hesap Ekle'}</button><button class="primary-button" type="submit">Kaydet</button></div>
+        <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${!hasSavedAccount || bankAccounts.length >= 4 ? 'hidden' : ''}>+ Hesap Ekle</button><button class="primary-button" type="submit">Kaydet</button></div>
       </form>
       <small class="form-hint settings-form-hint">Her hesapta üç alan birlikte kaydedilir. Tamamen boş bırakılan hesaplar gösterilmez. Kaydetmeden önce IBAN ve hesap sahibini bankanızdan doğrulayın.</small>
     </section>
@@ -1964,7 +1964,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.265', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.266', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2535,7 +2535,7 @@ document.addEventListener('click', async event => {
     const list = form?.querySelector('.bank-account-settings-list');
     const accountCount = list?.querySelectorAll('.bank-account-settings-card').length || 0;
     if (!form || !list || accountCount >= 4) return;
-    list.insertAdjacentHTML('beforeend', bankAccountSettingsCardMarkup({}, accountCount, accountCount + 1));
+    list.insertAdjacentHTML('beforeend', bankAccountSettingsCardMarkup({}, accountCount, accountCount + 1, true));
     syncBankAccountFormControls(form);
     list.querySelector('.bank-account-settings-card:last-child input')?.focus();
   }
