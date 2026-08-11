@@ -63,7 +63,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .sidebar-brand strong { display: block; font-family: "Anta", var(--font); font-size: 23px; letter-spacing: .04em; }
 .sidebar-brand small, .sidebar-footer small { display: block; margin-top: 2px; opacity: .64; }
 .main-nav { min-height: 0; flex: 1 1 auto; display: grid; align-content: start; gap: 5px; overflow-y: auto; }
-.sidebar-settings { flex-shrink: 0; display: grid; gap: 5px; margin-top: 8px; padding: 8px 0; }
+.sidebar-settings { flex-shrink: 0; display: grid; gap: 5px; margin-top: 8px; padding: 10px 0 8px; border-top: 1px solid rgba(255,255,255,.16); }
 .nav-button { min-height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 13px; color: rgba(255,255,255,.72); border: 0; border-radius: 10px; background: transparent; text-align: left; font-weight: 500; }
 .nav-button:hover, .nav-button.active { color: white; background: rgba(255,255,255,.12); }
 .nav-icon { width: 24px; text-align: center; font-size: 18px; }
