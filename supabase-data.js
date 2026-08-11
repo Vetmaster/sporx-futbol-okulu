@@ -66,10 +66,10 @@
   }
 
   async function fetchSchoolSettings(client, schoolId, role) {
-    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, is_active, subscription_plan, subscription_status';
+    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, bank_accounts, is_active, subscription_plan, subscription_status';
     let result = await client.from('schools').select(columns).eq('id', schoolId).single();
-    if (result.error && /bank_name|bank_account_holder|bank_iban/i.test(String(result.error.message || ''))) {
-      const compatibilityColumns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, is_active, subscription_plan, subscription_status';
+    if (result.error && /bank_name|bank_account_holder|bank_iban|bank_accounts/i.test(String(result.error.message || ''))) {
+      const compatibilityColumns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, is_active, subscription_plan, subscription_status';
       result = await client.from('schools').select(compatibilityColumns).eq('id', schoolId).single();
     }
     if (result.error && String(result.error.message || '').includes('is_active')) {
@@ -252,11 +252,15 @@
         subscriptionPlan: normalizeSubscriptionPlan(schoolSettingsResult.data?.subscription_plan),
         subscriptionStatus: schoolSettingsResult.data?.subscription_status || 'trial',
         monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
-        bankDetails: {
-          bankName: schoolSettingsResult.data?.bank_name || '',
-          accountHolder: schoolSettingsResult.data?.bank_account_holder || '',
-          iban: schoolSettingsResult.data?.bank_iban || ''
-        },
+        bankAccounts: Array.isArray(schoolSettingsResult.data?.bank_accounts) && schoolSettingsResult.data.bank_accounts.length
+          ? schoolSettingsResult.data.bank_accounts.slice(0, 4)
+          : schoolSettingsResult.data?.bank_iban
+            ? [{
+                bankName: schoolSettingsResult.data.bank_name || '',
+                accountHolder: schoolSettingsResult.data.bank_account_holder || '',
+                iban: schoolSettingsResult.data.bank_iban || ''
+              }]
+            : [],
         groups,
         students,
         trainings,
@@ -370,29 +374,34 @@
       return Number(data.monthly_fee_amount);
     }
 
-    async function saveSchoolBankDetails({ bankName, accountHolder, iban }) {
+    async function saveSchoolBankDetails(accounts) {
       requireContext();
-      const normalized = {
-        bank_name: String(bankName || '').trim().replace(/\s+/g, ' ') || null,
-        bank_account_holder: String(accountHolder || '').trim().replace(/\s+/g, ' ') || null,
-        bank_iban: String(iban || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || null
-      };
-      const hasAnyValue = Boolean(normalized.bank_name || normalized.bank_account_holder || normalized.bank_iban);
-      if (hasAnyValue && (!normalized.bank_name || !normalized.bank_account_holder || !isValidTurkishIban(normalized.bank_iban))) {
-        throw new Error('Banka adı, hesap sahibi ve geçerli TR IBAN bilgisini birlikte girin.');
+      const normalizedAccounts = (Array.isArray(accounts) ? accounts : []).slice(0, 4).map(account => ({
+        bankName: String(account?.bankName || '').trim().replace(/\s+/g, ' '),
+        accountHolder: String(account?.accountHolder || '').trim().replace(/\s+/g, ' '),
+        iban: String(account?.iban || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+      })).filter(account => account.bankName || account.accountHolder || account.iban);
+      if (normalizedAccounts.some(account => !account.bankName || !account.accountHolder || !isValidTurkishIban(account.iban))) {
+        throw new Error('Her hesap için banka adı, hesap sahibi ve geçerli TR IBAN bilgisini birlikte girin.');
       }
+      if (new Set(normalizedAccounts.map(account => account.iban)).size !== normalizedAccounts.length) {
+        throw new Error('Aynı IBAN birden fazla kez eklenemez.');
+      }
+      const primaryAccount = normalizedAccounts[0] || {};
+      const normalized = {
+        bank_accounts: normalizedAccounts,
+        bank_name: primaryAccount.bankName || null,
+        bank_account_holder: primaryAccount.accountHolder || null,
+        bank_iban: primaryAccount.iban || null
+      };
       const { data, error } = await client
         .from('schools')
         .update(normalized)
         .eq('id', schoolId)
-        .select('bank_name, bank_account_holder, bank_iban')
+        .select('bank_accounts')
         .single();
       if (error) throw error;
-      return {
-        bankName: data.bank_name || '',
-        accountHolder: data.bank_account_holder || '',
-        iban: data.bank_iban || ''
-      };
+      return Array.isArray(data.bank_accounts) ? data.bank_accounts.slice(0, 4) : [];
     }
 
     async function saveGroup(groupName) {
