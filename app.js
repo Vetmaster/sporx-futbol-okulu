@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.11.268';
+const APP_VERSION = '2026.08.11.269';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -506,6 +506,19 @@ function normalizeTurkishIbanEntry(value) {
   if (!normalized) return '';
   const digits = (normalized.startsWith('TR') ? normalized.slice(2) : normalized).replace(/\D/g, '').slice(0, 24);
   return digits ? `TR${digits}` : '';
+}
+function parentBankThemeClass(bankName) {
+  const normalized = String(bankName || '')
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]/g, '');
+  if (normalized.includes('akbank')) return 'bank-theme-akbank';
+  if (normalized.includes('garanti')) return 'bank-theme-garanti';
+  if (normalized.includes('yapikredi')) return 'bank-theme-yapi-kredi';
+  if (normalized.includes('isbankasi') || normalized.includes('turkiyeisbankasi')) return 'bank-theme-is-bankasi';
+  return '';
 }
 function isValidTurkishIban(value) {
   const iban = normalizeIban(value);
@@ -1323,7 +1336,7 @@ function parentBankTransferView() {
   if (!context) return parentPaymentUnavailableView();
   const bankAccounts = (state.schoolBankAccounts || []).filter(account => account.iban && account.accountHolder && account.bankName);
   const bankDetailsMarkup = bankAccounts.length
-    ? `<div class="parent-bank-account-list">${bankAccounts.map((account, index) => `<article class="parent-bank-account"><dl class="parent-bank-details"><div><dt>Banka</dt><dd>${escapeHtml(account.bankName)}</dd></div><div><dt>Hesap sahibi</dt><dd>${escapeHtml(account.accountHolder)}</dd></div><div class="parent-bank-iban"><dt>IBAN</dt><dd>${escapeHtml(formatIban(account.iban))}</dd></div></dl><button class="secondary-button" type="button" data-action="copy-parent-iban" data-account-index="${index}">IBAN'ı kopyala</button></article>`).join('')}</div>`
+    ? `<div class="parent-bank-account-list">${bankAccounts.map((account, index) => `<article class="parent-bank-account ${parentBankThemeClass(account.bankName)}"><dl class="parent-bank-details"><div><dt>Banka</dt><dd>${escapeHtml(account.bankName)}</dd></div><div><dt>Hesap sahibi</dt><dd>${escapeHtml(account.accountHolder)}</dd></div><div class="parent-bank-iban"><dt>IBAN</dt><dd>${escapeHtml(formatIban(account.iban))}</dd></div></dl><button class="secondary-button" type="button" data-action="copy-parent-iban" data-account-index="${index}">IBAN'ı kopyala</button></article>`).join('')}</div>`
     : `<div class="parent-bank-placeholder"><span aria-hidden="true">i</span><div><strong>Banka bilgisi henüz tanımlanmadı</strong><p>IBAN ve hesap sahibi bilgileri kulüp yöneticisi tarafından doğrulanıp buraya eklenecek.</p></div></div><button class="secondary-button" type="button" disabled>IBAN'ı kopyala</button>`;
   return `<div class="page-stack parent-payment-page">
     ${parentPaymentSummaryMarkup(context)}
@@ -1983,7 +1996,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.268', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.269', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
