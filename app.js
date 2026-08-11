@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.11.266';
+const APP_VERSION = '2026.08.11.267';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -488,6 +488,10 @@ function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
 function normalizeIban(value) { return String(value || '').toLocaleUpperCase('tr-TR').replace(/[^A-Z0-9]/g, ''); }
 function formatIban(value) { return normalizeIban(value).replace(/(.{4})/g, '$1 ').trim(); }
+function formatTurkishIbanLocalPart(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 24);
+  return formatIban(`TR${digits}`).slice(2).trim();
+}
 function isValidTurkishIban(value) {
   const iban = normalizeIban(value);
   if (!/^TR\d{24}$/.test(iban)) return false;
@@ -932,7 +936,7 @@ function bankAccountSettingsCardMarkup(account = {}, index = 0, accountCount = 1
     <div class="bank-account-settings-fields">
       <label>Banka adı<input name="bankName${index}" data-bank-field="bankName" maxlength="80" value="${escapeHtml(account.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
       <label>Hesap sahibi<input name="accountHolder${index}" data-bank-field="accountHolder" maxlength="120" value="${escapeHtml(account.accountHolder || '')}" placeholder="Resmî hesap sahibini yazın" autocomplete="off"></label>
-      <label class="bank-settings-iban">IBAN<input name="iban${index}" data-bank-field="iban" maxlength="34" value="${escapeHtml(formatIban(account.iban || ''))}" placeholder="TR__ ____ ____ ____ ____ ____ __" autocomplete="off" spellcheck="false"></label>
+      <label class="bank-settings-iban">IBAN<span class="iban-prefix-control"><span class="iban-prefix" aria-hidden="true">TR</span><input name="iban${index}" data-bank-field="iban" maxlength="30" inputmode="numeric" value="${escapeHtml(formatTurkishIbanLocalPart(normalizeIban(account.iban || '').slice(2)))}" placeholder="__ ____ ____ ____ ____ ____ __" autocomplete="off" spellcheck="false" aria-label="IBAN numarası, TR sonrası 24 rakam"></span></label>
     </div>
   </fieldset>`;
 }
@@ -1964,7 +1968,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.266', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.267', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2808,6 +2812,12 @@ document.addEventListener('click', async event => {
 });
 
 appContent.addEventListener('input', event => {
+  if (event.target.matches('[data-bank-field="iban"]')) {
+    const cursorAtEnd = event.target.selectionStart === event.target.value.length;
+    event.target.value = formatTurkishIbanLocalPart(event.target.value);
+    if (cursorAtEnd) event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+    return;
+  }
   if (event.target.closest('#notificationForm')) {
     if (event.target.name === 'audience') state.notificationDraft.audience = event.target.value;
     if (event.target.name === 'title') state.notificationDraft.title = event.target.value;
@@ -3354,11 +3364,14 @@ appContent.addEventListener('submit', async event => {
     if (!isAdminRole()) return;
     const data = new FormData(event.target);
     const accountCount = event.target.querySelectorAll('.bank-account-settings-card').length;
-    const accounts = Array.from({ length: accountCount }, (_, index) => ({
-      bankName: String(data.get(`bankName${index}`) || '').trim().replace(/\s+/g, ' '),
-      accountHolder: String(data.get(`accountHolder${index}`) || '').trim().replace(/\s+/g, ' '),
-      iban: normalizeIban(data.get(`iban${index}`))
-    })).filter(account => account.bankName || account.accountHolder || account.iban);
+    const accounts = Array.from({ length: accountCount }, (_, index) => {
+      const ibanDigits = String(data.get(`iban${index}`) || '').replace(/\D/g, '').slice(0, 24);
+      return {
+        bankName: String(data.get(`bankName${index}`) || '').trim().replace(/\s+/g, ' '),
+        accountHolder: String(data.get(`accountHolder${index}`) || '').trim().replace(/\s+/g, ' '),
+        iban: ibanDigits ? `TR${ibanDigits}` : ''
+      };
+    }).filter(account => account.bankName || account.accountHolder || account.iban);
     if (accounts.some(account => !account.bankName || !account.accountHolder || !isValidTurkishIban(account.iban))) {
       showToast('Her hesap için banka adı, hesap sahibi ve doğrulanabilir bir TR IBAN bilgisini birlikte girin.');
       return;
