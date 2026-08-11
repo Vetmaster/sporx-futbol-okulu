@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.11.264';
+const APP_VERSION = '2026.08.11.265';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -926,23 +926,39 @@ function settingsView() {
   </div>`;
 }
 
-function bankSettingsView() {
-  const bankAccounts = Array.from({ length: 4 }, (_, index) => state.schoolBankAccounts[index] || {});
-  const accountFields = bankAccounts.map((account, index) => `<fieldset class="bank-account-settings-card">
-    <legend>Hesap ${index + 1}</legend>
+function bankAccountSettingsCardMarkup(account = {}, index = 0, accountCount = 1) {
+  return `<fieldset class="bank-account-settings-card">
+    <div class="bank-account-settings-heading"><strong>Hesap ${index + 1}</strong><button class="text-button bank-account-remove-button" type="button" data-action="remove-bank-account" ${accountCount === 1 ? 'hidden' : ''}>Kaldır</button></div>
     <div class="bank-account-settings-fields">
-      <label>Banka adı<input name="bankName${index}" maxlength="80" value="${escapeHtml(account.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
-      <label>Hesap sahibi<input name="accountHolder${index}" maxlength="120" value="${escapeHtml(account.accountHolder || '')}" placeholder="Resmî hesap sahibini yazın" autocomplete="off"></label>
-      <label class="bank-settings-iban">IBAN<input name="iban${index}" maxlength="34" value="${escapeHtml(formatIban(account.iban || ''))}" placeholder="TR__ ____ ____ ____ ____ ____ __" autocomplete="off" spellcheck="false"></label>
+      <label>Banka adı<input name="bankName${index}" data-bank-field="bankName" maxlength="80" value="${escapeHtml(account.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
+      <label>Hesap sahibi<input name="accountHolder${index}" data-bank-field="accountHolder" maxlength="120" value="${escapeHtml(account.accountHolder || '')}" placeholder="Resmî hesap sahibini yazın" autocomplete="off"></label>
+      <label class="bank-settings-iban">IBAN<input name="iban${index}" data-bank-field="iban" maxlength="34" value="${escapeHtml(formatIban(account.iban || ''))}" placeholder="TR__ ____ ____ ____ ____ ____ __" autocomplete="off" spellcheck="false"></label>
     </div>
-  </fieldset>`).join('');
+  </fieldset>`;
+}
+
+function syncBankAccountFormControls(form) {
+  const cards = [...form.querySelectorAll('.bank-account-settings-card')];
+  cards.forEach((card, index) => {
+    card.querySelector('.bank-account-settings-heading strong').textContent = `Hesap ${index + 1}`;
+    card.querySelectorAll('[data-bank-field]').forEach(input => { input.name = `${input.dataset.bankField}${index}`; });
+    card.querySelector('[data-action="remove-bank-account"]').hidden = cards.length === 1;
+  });
+  const addButton = form.querySelector('[data-action="add-bank-account"]');
+  addButton.disabled = cards.length >= 4;
+  addButton.textContent = cards.length >= 4 ? 'En fazla 4 hesap eklenebilir' : '+ Hesap Ekle';
+}
+
+function bankSettingsView() {
+  const bankAccounts = state.schoolBankAccounts.length ? state.schoolBankAccounts.slice(0, 4) : [{}];
+  const accountFields = bankAccounts.map((account, index) => bankAccountSettingsCardMarkup(account, index, bankAccounts.length)).join('');
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Havale bilgileri</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} için veli ödeme hesabı</p></div></div>
     <section class="panel bank-settings-panel">
       <div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">Velilere gösterilmek üzere en fazla 4 doğrulanmış hesap ekleyebilirsiniz.</small></div></div>
       <form id="schoolBankSettingsForm" class="bank-settings-form">
         <div class="bank-account-settings-list">${accountFields}</div>
-        <button class="primary-button" type="submit">Kaydet</button>
+        <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${bankAccounts.length >= 4 ? 'disabled' : ''}>${bankAccounts.length >= 4 ? 'En fazla 4 hesap eklenebilir' : '+ Hesap Ekle'}</button><button class="primary-button" type="submit">Kaydet</button></div>
       </form>
       <small class="form-hint settings-form-hint">Her hesapta üç alan birlikte kaydedilir. Tamamen boş bırakılan hesaplar gösterilmez. Kaydetmeden önce IBAN ve hesap sahibini bankanızdan doğrulayın.</small>
     </section>
@@ -1948,7 +1964,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.264', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.265', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2514,7 +2530,23 @@ document.addEventListener('click', async event => {
     return;
   }
   const action = actionButton.dataset.action;
-  if (action === 'parent-payment' && state.role === 'parent') {
+  if (action === 'add-bank-account' && isAdminRole()) {
+    const form = actionButton.closest('#schoolBankSettingsForm');
+    const list = form?.querySelector('.bank-account-settings-list');
+    const accountCount = list?.querySelectorAll('.bank-account-settings-card').length || 0;
+    if (!form || !list || accountCount >= 4) return;
+    list.insertAdjacentHTML('beforeend', bankAccountSettingsCardMarkup({}, accountCount, accountCount + 1));
+    syncBankAccountFormControls(form);
+    list.querySelector('.bank-account-settings-card:last-child input')?.focus();
+  }
+  else if (action === 'remove-bank-account' && isAdminRole()) {
+    const form = actionButton.closest('#schoolBankSettingsForm');
+    const cards = form ? [...form.querySelectorAll('.bank-account-settings-card')] : [];
+    if (!form || cards.length <= 1) return;
+    actionButton.closest('.bank-account-settings-card')?.remove();
+    syncBankAccountFormControls(form);
+  }
+  else if (action === 'parent-payment' && state.role === 'parent') {
     const month = String(actionButton.dataset.month || '');
     const student = currentParentStudent();
     if (!student || !unpaidFeePeriods(student).includes(month)) {
@@ -3321,7 +3353,8 @@ appContent.addEventListener('submit', async event => {
     event.preventDefault();
     if (!isAdminRole()) return;
     const data = new FormData(event.target);
-    const accounts = Array.from({ length: 4 }, (_, index) => ({
+    const accountCount = event.target.querySelectorAll('.bank-account-settings-card').length;
+    const accounts = Array.from({ length: accountCount }, (_, index) => ({
       bankName: String(data.get(`bankName${index}`) || '').trim().replace(/\s+/g, ' '),
       accountHolder: String(data.get(`accountHolder${index}`) || '').trim().replace(/\s+/g, ' '),
       iban: normalizeIban(data.get(`iban${index}`))
