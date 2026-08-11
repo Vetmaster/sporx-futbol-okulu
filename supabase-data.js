@@ -9,6 +9,15 @@
     return ({ starter: 'standard', professional: 'premium', enterprise: 'pro', custom: 'pro' })[value] || value || 'standard';
   }
 
+  function isValidTurkishIban(value) {
+    const iban = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!/^TR\d{24}$/.test(iban)) return false;
+    const checksumValue = `${iban.slice(4)}2927${iban.slice(2, 4)}`;
+    let remainder = 0;
+    for (const digit of checksumValue) remainder = (remainder * 10 + Number(digit)) % 97;
+    return remainder === 1;
+  }
+
   function subscriptionPlanPrice(value, billingPeriod = 'monthly') {
     const prices = {
       standard: { monthly: 799, quarterly: 2199, yearly: 7990 },
@@ -57,8 +66,12 @@
   }
 
   async function fetchSchoolSettings(client, schoolId, role) {
-    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, is_active, subscription_plan, subscription_status';
+    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, is_active, subscription_plan, subscription_status';
     let result = await client.from('schools').select(columns).eq('id', schoolId).single();
+    if (result.error && /bank_name|bank_account_holder|bank_iban/i.test(String(result.error.message || ''))) {
+      const compatibilityColumns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, is_active, subscription_plan, subscription_status';
+      result = await client.from('schools').select(compatibilityColumns).eq('id', schoolId).single();
+    }
     if (result.error && String(result.error.message || '').includes('is_active')) {
       const fallbackColumns = role === 'coach' ? 'name, slug' : 'name, slug, monthly_fee_amount';
       result = await client.from('schools').select(fallbackColumns).eq('id', schoolId).single();
@@ -239,6 +252,11 @@
         subscriptionPlan: normalizeSubscriptionPlan(schoolSettingsResult.data?.subscription_plan),
         subscriptionStatus: schoolSettingsResult.data?.subscription_status || 'trial',
         monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
+        bankDetails: {
+          bankName: schoolSettingsResult.data?.bank_name || '',
+          accountHolder: schoolSettingsResult.data?.bank_account_holder || '',
+          iban: schoolSettingsResult.data?.bank_iban || ''
+        },
         groups,
         students,
         trainings,
@@ -350,6 +368,31 @@
         .single();
       if (error) throw error;
       return Number(data.monthly_fee_amount);
+    }
+
+    async function saveSchoolBankDetails({ bankName, accountHolder, iban }) {
+      requireContext();
+      const normalized = {
+        bank_name: String(bankName || '').trim().replace(/\s+/g, ' ') || null,
+        bank_account_holder: String(accountHolder || '').trim().replace(/\s+/g, ' ') || null,
+        bank_iban: String(iban || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || null
+      };
+      const hasAnyValue = Boolean(normalized.bank_name || normalized.bank_account_holder || normalized.bank_iban);
+      if (hasAnyValue && (!normalized.bank_name || !normalized.bank_account_holder || !isValidTurkishIban(normalized.bank_iban))) {
+        throw new Error('Banka adı, hesap sahibi ve geçerli TR IBAN bilgisini birlikte girin.');
+      }
+      const { data, error } = await client
+        .from('schools')
+        .update(normalized)
+        .eq('id', schoolId)
+        .select('bank_name, bank_account_holder, bank_iban')
+        .single();
+      if (error) throw error;
+      return {
+        bankName: data.bank_name || '',
+        accountHolder: data.bank_account_holder || '',
+        iban: data.bank_iban || ''
+      };
     }
 
     async function saveGroup(groupName) {
@@ -668,6 +711,7 @@
       updateSchoolSubscription,
       inviteSchoolAdmin,
       saveSchoolSettings,
+      saveSchoolBankDetails,
       saveGroup,
       deleteGroup,
       updateGroup,

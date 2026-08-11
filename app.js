@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.10.260';
+const APP_VERSION = '2026.08.11.261';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -23,8 +23,6 @@ let authRequestPending = false;
 let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
-// Kulübün doğrulanmış banka bilgileri tanımlanana kadar havale ekranı güvenli bir boş durum gösterir.
-const CLUB_BANK_DETAILS = null;
 const SUBSCRIPTION_PERIODS = {
   monthly: { name: '1 aylık', months: 1 },
   quarterly: { name: '3 aylık', months: 3 },
@@ -92,6 +90,7 @@ const state = {
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
   monthlyFeeAmount: 1500,
+  schoolBankDetails: { bankName: '', accountHolder: '', iban: '' },
   pushStatus: 'checking',
   pushBusy: false,
   nativeFcmToken: NATIVE_FCM_TOKEN,
@@ -140,7 +139,7 @@ function persistLocalData() {
 const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'coach', 'parent'] },
   schools: { label: 'Okullar', icon: MENU_ICONS.schools, roles: ['super_admin'] },
-  settings: { label: 'Ayarlar', icon: MENU_ICONS.settings, roles: ['super_admin'], hidden: true },
+  settings: { label: 'Ayarlar', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   subscriptions: { label: 'Paket ve Abonelik', icon: MENU_ICONS.subscriptions, roles: ['super_admin'], hidden: true },
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'coach'] },
   studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
@@ -162,7 +161,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Sistem ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -485,6 +484,16 @@ function isActualSuperAdmin() { return state.actualRole === 'super_admin'; }
 function isRolePreview() { return isActualSuperAdmin() && state.role !== 'super_admin'; }
 function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2).join(''); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
+function normalizeIban(value) { return String(value || '').toLocaleUpperCase('tr-TR').replace(/[^A-Z0-9]/g, ''); }
+function formatIban(value) { return normalizeIban(value).replace(/(.{4})/g, '$1 ').trim(); }
+function isValidTurkishIban(value) {
+  const iban = normalizeIban(value);
+  if (!/^TR\d{24}$/.test(iban)) return false;
+  const checksumValue = `${iban.slice(4)}2927${iban.slice(2, 4)}`;
+  let remainder = 0;
+  for (const digit of checksumValue) remainder = (remainder * 10 + Number(digit)) % 97;
+  return remainder === 1;
+}
 function statusLabel(fee) {
   if (fee === 'paid') return '<span class="status">Ödendi</span>';
   if (fee === 'late') return '<span class="status danger">Ödenmedi</span>';
@@ -895,14 +904,26 @@ function subscriptionsView() {
 }
 
 function settingsView() {
-  return `<div class="page-stack">
-    <div class="section-heading"><div><h2>Ayarlar</h2><p>Sistem ve abonelik ayarlarını yönetin</p></div></div>
-    <section class="settings-hub-grid" aria-label="Ayarlar seçenekleri">
-      <button class="panel settings-link-card" type="button" data-page="subscriptions">
+  const bankDetails = state.schoolBankDetails || {};
+  const subscriptionSettingsMarkup = state.role === 'super_admin'
+    ? `<section class="settings-hub-grid" aria-label="Abonelik ayarları"><button class="panel settings-link-card" type="button" data-page="subscriptions">
         <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.subscriptions}</span>
         <span class="settings-link-copy"><strong>Paket ve Abonelik</strong><small>Okulların paket, ücret ve abonelik durumlarını yönetin.</small></span>
         <span class="settings-link-arrow" aria-hidden="true">›</span>
-      </button>
+      </button></section>`
+    : '';
+  return `<div class="page-stack">
+    <div class="section-heading"><div><h2>Ayarlar</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} ayarlarını yönetin</p></div></div>
+    ${subscriptionSettingsMarkup}
+    <section class="panel bank-settings-panel">
+      <div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">Velilerin aidat ödemesinde göreceği doğrulanmış hesap bilgileri</small></div></div>
+      <form id="schoolBankSettingsForm" class="bank-settings-form">
+        <label>Banka adı<input name="bankName" maxlength="80" value="${escapeHtml(bankDetails.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
+        <label>Hesap sahibi<input name="accountHolder" maxlength="120" value="${escapeHtml(bankDetails.accountHolder || '')}" placeholder="Resmî hesap sahibini yazın" autocomplete="off"></label>
+        <label class="bank-settings-iban">IBAN<input name="iban" maxlength="34" value="${escapeHtml(formatIban(bankDetails.iban || ''))}" placeholder="TR__ ____ ____ ____ ____ ____ __" autocomplete="off" spellcheck="false"></label>
+        <button class="primary-button" type="submit">Kaydet</button>
+      </form>
+      <small class="form-hint settings-form-hint">Üç alan birlikte kaydedilir. Bilgileri boş kaydederseniz veli ekranında havale hesabı gösterilmez. Kaydetmeden önce IBAN ve hesap sahibini bankanızdan doğrulayın.</small>
     </section>
   </div>`;
 }
@@ -1244,9 +1265,10 @@ function parentPaymentView() {
 function parentBankTransferView() {
   const context = parentPaymentContext();
   if (!context) return parentPaymentUnavailableView();
-  const hasBankDetails = Boolean(CLUB_BANK_DETAILS?.iban && CLUB_BANK_DETAILS?.accountHolder);
+  const bankDetails = state.schoolBankDetails || {};
+  const hasBankDetails = Boolean(bankDetails.iban && bankDetails.accountHolder && bankDetails.bankName);
   const bankDetailsMarkup = hasBankDetails
-    ? `<dl class="parent-bank-details"><div><dt>Banka</dt><dd>${escapeHtml(CLUB_BANK_DETAILS.bankName || 'Belirtilmedi')}</dd></div><div><dt>Hesap sahibi</dt><dd>${escapeHtml(CLUB_BANK_DETAILS.accountHolder)}</dd></div><div class="parent-bank-iban"><dt>IBAN</dt><dd>${escapeHtml(CLUB_BANK_DETAILS.iban)}</dd></div></dl><button class="secondary-button" type="button" data-action="copy-parent-iban">IBAN'ı kopyala</button>`
+    ? `<dl class="parent-bank-details"><div><dt>Banka</dt><dd>${escapeHtml(bankDetails.bankName)}</dd></div><div><dt>Hesap sahibi</dt><dd>${escapeHtml(bankDetails.accountHolder)}</dd></div><div class="parent-bank-iban"><dt>IBAN</dt><dd>${escapeHtml(formatIban(bankDetails.iban))}</dd></div></dl><button class="secondary-button" type="button" data-action="copy-parent-iban">IBAN'ı kopyala</button>`
     : `<div class="parent-bank-placeholder"><span aria-hidden="true">i</span><div><strong>Banka bilgisi henüz tanımlanmadı</strong><p>IBAN ve hesap sahibi bilgileri kulüp yöneticisi tarafından doğrulanıp buraya eklenecek.</p></div></div><button class="secondary-button" type="button" disabled>IBAN'ı kopyala</button>`;
   return `<div class="page-stack parent-payment-page">
     ${parentPaymentSummaryMarkup(context)}
@@ -1581,6 +1603,11 @@ function applyRemoteData(remoteData) {
   state.attendanceRecords = remoteData.attendanceRecords;
   state.accessRequests = remoteData.accessRequests || [];
   state.monthlyFeeAmount = Number(remoteData.monthlyFeeAmount) > 0 ? Number(remoteData.monthlyFeeAmount) : 1500;
+  state.schoolBankDetails = {
+    bankName: remoteData.bankDetails?.bankName || '',
+    accountHolder: remoteData.bankDetails?.accountHolder || '',
+    iban: normalizeIban(remoteData.bankDetails?.iban)
+  };
   if (state.role === 'parent' && !state.students.some(student => Number(student.id) === Number(state.selectedParentStudentId))) {
     state.selectedParentStudentId = state.students[0]?.id || null;
   }
@@ -1898,7 +1925,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.10.260', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.261', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2475,12 +2502,13 @@ document.addEventListener('click', async event => {
     navigateToPage('parentPayment');
   }
   else if (action === 'copy-parent-iban' && state.role === 'parent') {
-    if (!CLUB_BANK_DETAILS?.iban) {
+    const iban = normalizeIban(state.schoolBankDetails?.iban);
+    if (!iban) {
       showToast('Kulübün doğrulanmış IBAN bilgisi henüz tanımlanmadı.');
       return;
     }
     try {
-      await navigator.clipboard.writeText(CLUB_BANK_DETAILS.iban);
+      await navigator.clipboard.writeText(iban);
       showToast('IBAN kopyalandı.');
     } catch (error) {
       showToast('IBAN kopyalanamadı. Lütfen tekrar deneyin.');
@@ -3263,6 +3291,25 @@ appContent.addEventListener('submit', async event => {
     state.monthlyFeeAmount = Number(savedAmount);
     render();
     showToast('Aylık aidat tutarı kaydedildi.');
+    return;
+  }
+  if (event.target.id === 'schoolBankSettingsForm') {
+    event.preventDefault();
+    if (!isAdminRole()) return;
+    const data = new FormData(event.target);
+    const bankName = String(data.get('bankName') || '').trim().replace(/\s+/g, ' ');
+    const accountHolder = String(data.get('accountHolder') || '').trim().replace(/\s+/g, ' ');
+    const iban = normalizeIban(data.get('iban'));
+    const hasAnyValue = Boolean(bankName || accountHolder || iban);
+    if (hasAnyValue && (!bankName || !accountHolder || !isValidTurkishIban(iban))) {
+      showToast('Banka adı, hesap sahibi ve doğrulanabilir bir TR IBAN bilgisini birlikte girin.');
+      return;
+    }
+    const savedDetails = await runRemoteMutation(() => remoteDataStore.saveSchoolBankDetails({ bankName, accountHolder, iban }));
+    if (!savedDetails) return;
+    state.schoolBankDetails = savedDetails;
+    render();
+    showToast(hasAnyValue ? 'Havale bilgileri kaydedildi.' : 'Havale bilgileri kaldırıldı.');
     return;
   }
   if (event.target.id !== 'notificationForm') return;
