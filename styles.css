@@ -205,6 +205,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .iban-prefix-control { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: white; overflow: hidden; }
 .iban-prefix-control:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(57,117,143,.12); }
 .iban-prefix { align-self: stretch; display: grid; place-items: center; padding: 0 0 0 14px; color: var(--brand-dark); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 900; letter-spacing: .025em; }
+.iban-prefix[hidden] { display: none !important; }
 .bank-settings-iban .iban-prefix-control input { min-width: 0; border: 0; border-radius: 0; box-shadow: none; padding-left: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 800; letter-spacing: .025em; }
 .parent-bank-account-list { display: grid; gap: 14px; }
 .parent-bank-account { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft); }
