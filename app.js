@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.11.263';
+const APP_VERSION = '2026.08.11.264';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -90,7 +90,7 @@ const state = {
   accountingFilter: 'all',
   accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
   monthlyFeeAmount: 1500,
-  schoolBankDetails: { bankName: '', accountHolder: '', iban: '' },
+  schoolBankAccounts: [],
   pushStatus: 'checking',
   pushBusy: false,
   nativeFcmToken: NATIVE_FCM_TOKEN,
@@ -927,18 +927,24 @@ function settingsView() {
 }
 
 function bankSettingsView() {
-  const bankDetails = state.schoolBankDetails || {};
+  const bankAccounts = Array.from({ length: 4 }, (_, index) => state.schoolBankAccounts[index] || {});
+  const accountFields = bankAccounts.map((account, index) => `<fieldset class="bank-account-settings-card">
+    <legend>Hesap ${index + 1}</legend>
+    <div class="bank-account-settings-fields">
+      <label>Banka adı<input name="bankName${index}" maxlength="80" value="${escapeHtml(account.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
+      <label>Hesap sahibi<input name="accountHolder${index}" maxlength="120" value="${escapeHtml(account.accountHolder || '')}" placeholder="Resmî hesap sahibini yazın" autocomplete="off"></label>
+      <label class="bank-settings-iban">IBAN<input name="iban${index}" maxlength="34" value="${escapeHtml(formatIban(account.iban || ''))}" placeholder="TR__ ____ ____ ____ ____ ____ __" autocomplete="off" spellcheck="false"></label>
+    </div>
+  </fieldset>`).join('');
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Havale bilgileri</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} için veli ödeme hesabı</p></div></div>
     <section class="panel bank-settings-panel">
-      <div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">Velilerin aidat ödemesinde göreceği doğrulanmış hesap bilgileri</small></div></div>
+      <div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">Velilere gösterilmek üzere en fazla 4 doğrulanmış hesap ekleyebilirsiniz.</small></div></div>
       <form id="schoolBankSettingsForm" class="bank-settings-form">
-        <label>Banka adı<input name="bankName" maxlength="80" value="${escapeHtml(bankDetails.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
-        <label>Hesap sahibi<input name="accountHolder" maxlength="120" value="${escapeHtml(bankDetails.accountHolder || '')}" placeholder="Resmî hesap sahibini yazın" autocomplete="off"></label>
-        <label class="bank-settings-iban">IBAN<input name="iban" maxlength="34" value="${escapeHtml(formatIban(bankDetails.iban || ''))}" placeholder="TR__ ____ ____ ____ ____ ____ __" autocomplete="off" spellcheck="false"></label>
+        <div class="bank-account-settings-list">${accountFields}</div>
         <button class="primary-button" type="submit">Kaydet</button>
       </form>
-      <small class="form-hint settings-form-hint">Üç alan birlikte kaydedilir. Bilgileri boş kaydederseniz veli ekranında havale hesabı gösterilmez. Kaydetmeden önce IBAN ve hesap sahibini bankanızdan doğrulayın.</small>
+      <small class="form-hint settings-form-hint">Her hesapta üç alan birlikte kaydedilir. Tamamen boş bırakılan hesaplar gösterilmez. Kaydetmeden önce IBAN ve hesap sahibini bankanızdan doğrulayın.</small>
     </section>
   </div>`;
 }
@@ -1280,10 +1286,9 @@ function parentPaymentView() {
 function parentBankTransferView() {
   const context = parentPaymentContext();
   if (!context) return parentPaymentUnavailableView();
-  const bankDetails = state.schoolBankDetails || {};
-  const hasBankDetails = Boolean(bankDetails.iban && bankDetails.accountHolder && bankDetails.bankName);
-  const bankDetailsMarkup = hasBankDetails
-    ? `<dl class="parent-bank-details"><div><dt>Banka</dt><dd>${escapeHtml(bankDetails.bankName)}</dd></div><div><dt>Hesap sahibi</dt><dd>${escapeHtml(bankDetails.accountHolder)}</dd></div><div class="parent-bank-iban"><dt>IBAN</dt><dd>${escapeHtml(formatIban(bankDetails.iban))}</dd></div></dl><button class="secondary-button" type="button" data-action="copy-parent-iban">IBAN'ı kopyala</button>`
+  const bankAccounts = (state.schoolBankAccounts || []).filter(account => account.iban && account.accountHolder && account.bankName);
+  const bankDetailsMarkup = bankAccounts.length
+    ? `<div class="parent-bank-account-list">${bankAccounts.map((account, index) => `<article class="parent-bank-account"><dl class="parent-bank-details"><div><dt>Banka</dt><dd>${escapeHtml(account.bankName)}</dd></div><div><dt>Hesap sahibi</dt><dd>${escapeHtml(account.accountHolder)}</dd></div><div class="parent-bank-iban"><dt>IBAN</dt><dd>${escapeHtml(formatIban(account.iban))}</dd></div></dl><button class="secondary-button" type="button" data-action="copy-parent-iban" data-account-index="${index}">IBAN'ı kopyala</button></article>`).join('')}</div>`
     : `<div class="parent-bank-placeholder"><span aria-hidden="true">i</span><div><strong>Banka bilgisi henüz tanımlanmadı</strong><p>IBAN ve hesap sahibi bilgileri kulüp yöneticisi tarafından doğrulanıp buraya eklenecek.</p></div></div><button class="secondary-button" type="button" disabled>IBAN'ı kopyala</button>`;
   return `<div class="page-stack parent-payment-page">
     ${parentPaymentSummaryMarkup(context)}
@@ -1618,11 +1623,14 @@ function applyRemoteData(remoteData) {
   state.attendanceRecords = remoteData.attendanceRecords;
   state.accessRequests = remoteData.accessRequests || [];
   state.monthlyFeeAmount = Number(remoteData.monthlyFeeAmount) > 0 ? Number(remoteData.monthlyFeeAmount) : 1500;
-  state.schoolBankDetails = {
-    bankName: remoteData.bankDetails?.bankName || '',
-    accountHolder: remoteData.bankDetails?.accountHolder || '',
-    iban: normalizeIban(remoteData.bankDetails?.iban)
-  };
+  const remoteBankAccounts = Array.isArray(remoteData.bankAccounts)
+    ? remoteData.bankAccounts
+    : remoteData.bankDetails?.iban ? [remoteData.bankDetails] : [];
+  state.schoolBankAccounts = remoteBankAccounts.slice(0, 4).map(account => ({
+    bankName: account?.bankName || '',
+    accountHolder: account?.accountHolder || '',
+    iban: normalizeIban(account?.iban)
+  })).filter(account => account.bankName || account.accountHolder || account.iban);
   if (state.role === 'parent' && !state.students.some(student => Number(student.id) === Number(state.selectedParentStudentId))) {
     state.selectedParentStudentId = state.students[0]?.id || null;
   }
@@ -1940,7 +1948,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.263', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.264', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2517,7 +2525,8 @@ document.addEventListener('click', async event => {
     navigateToPage('parentPayment');
   }
   else if (action === 'copy-parent-iban' && state.role === 'parent') {
-    const iban = normalizeIban(state.schoolBankDetails?.iban);
+    const accountIndex = Number(actionButton.dataset.accountIndex || 0);
+    const iban = normalizeIban(state.schoolBankAccounts?.[accountIndex]?.iban);
     if (!iban) {
       showToast('Kulübün doğrulanmış IBAN bilgisi henüz tanımlanmadı.');
       return;
@@ -3312,19 +3321,24 @@ appContent.addEventListener('submit', async event => {
     event.preventDefault();
     if (!isAdminRole()) return;
     const data = new FormData(event.target);
-    const bankName = String(data.get('bankName') || '').trim().replace(/\s+/g, ' ');
-    const accountHolder = String(data.get('accountHolder') || '').trim().replace(/\s+/g, ' ');
-    const iban = normalizeIban(data.get('iban'));
-    const hasAnyValue = Boolean(bankName || accountHolder || iban);
-    if (hasAnyValue && (!bankName || !accountHolder || !isValidTurkishIban(iban))) {
-      showToast('Banka adı, hesap sahibi ve doğrulanabilir bir TR IBAN bilgisini birlikte girin.');
+    const accounts = Array.from({ length: 4 }, (_, index) => ({
+      bankName: String(data.get(`bankName${index}`) || '').trim().replace(/\s+/g, ' '),
+      accountHolder: String(data.get(`accountHolder${index}`) || '').trim().replace(/\s+/g, ' '),
+      iban: normalizeIban(data.get(`iban${index}`))
+    })).filter(account => account.bankName || account.accountHolder || account.iban);
+    if (accounts.some(account => !account.bankName || !account.accountHolder || !isValidTurkishIban(account.iban))) {
+      showToast('Her hesap için banka adı, hesap sahibi ve doğrulanabilir bir TR IBAN bilgisini birlikte girin.');
       return;
     }
-    const savedDetails = await runRemoteMutation(() => remoteDataStore.saveSchoolBankDetails({ bankName, accountHolder, iban }));
-    if (!savedDetails) return;
-    state.schoolBankDetails = savedDetails;
+    if (new Set(accounts.map(account => account.iban)).size !== accounts.length) {
+      showToast('Aynı IBAN birden fazla kez eklenemez.');
+      return;
+    }
+    const savedAccounts = await runRemoteMutation(() => remoteDataStore.saveSchoolBankDetails(accounts));
+    if (!savedAccounts) return;
+    state.schoolBankAccounts = savedAccounts;
     render();
-    showToast(hasAnyValue ? 'Havale bilgileri kaydedildi.' : 'Havale bilgileri kaldırıldı.');
+    showToast(accounts.length ? `${accounts.length} havale hesabı kaydedildi.` : 'Havale bilgileri kaldırıldı.');
     return;
   }
   if (event.target.id !== 'notificationForm') return;
