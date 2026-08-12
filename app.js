@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.12.270';
+const APP_VERSION = '2026.08.12.271';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -481,14 +481,17 @@ function syncGroupOptions() {
   });
 }
 syncGroupOptions();
-function syncTrainingTypeOptions() {
-  const datalist = document.querySelector('#trainingTypes');
-  if (!datalist) return;
-  datalist.replaceChildren(...state.trainingTypes.map(type => {
-    const option = document.createElement('option');
-    option.value = type;
-    return option;
-  }));
+function syncTrainingTypeOptions(selectedType = '') {
+  const select = document.querySelector('#trainingTypeSelect');
+  if (!select) return;
+  const currentType = selectedType || select.value;
+  const options = [...state.trainingTypes];
+  if (currentType && !options.includes(currentType)) options.push(currentType);
+  select.replaceChildren(
+    new Option('Seçiniz', ''),
+    ...options.map(type => new Option(type, type))
+  );
+  if (currentType) select.value = currentType;
 }
 syncTrainingTypeOptions();
 document.querySelector('#headerVersionLabel').textContent = `v${APP_VERSION}`;
@@ -2359,8 +2362,8 @@ function updateStudentPrepaymentSummary() {
 
 function openTrainingDialog(training = null) {
   const form = document.querySelector('#trainingForm');
-  syncTrainingTypeOptions();
   form.reset();
+  syncTrainingTypeOptions(training?.title || '');
   state.editingTrainingId = training?.id || null;
   form.elements.date.value = training?.date || localDateValue();
   form.elements.time.value = training?.time || '09:00';
