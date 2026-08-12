@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.12.270">
+  <link rel="stylesheet" href="styles.css?v=2026.08.12.271">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -179,11 +179,10 @@
         <label>Başlangıç saati<input name="time" type="time" required></label>
         <label>Grup<select name="group" required><option value="">Seçiniz</option><option>Saat 09:00</option><option>Saat 10:00</option><option>Saat 11:00</option><option>Saat 12:00</option><option>U11</option><option>U12</option><option>U13</option><option>U14</option></select></label>
         <label>Süre<select name="duration" required><option value="60">60 dakika</option><option value="75">75 dakika</option><option value="90" selected>90 dakika</option><option value="120">120 dakika</option></select></label>
-        <label>Antrenman türü<input name="title" list="trainingTypes" placeholder="Örn. Teknik Antrenman" required></label>
+        <label>Antrenman türü<select id="trainingTypeSelect" name="title" required><option value="">Seçiniz</option></select></label>
         <label>Antrenör<input name="coach" placeholder="Adı soyadı" required></label>
         <label class="full-field">Saha<input name="field" placeholder="Örn. Ana saha" required></label>
       </div>
-      <datalist id="trainingTypes"><option value="Teknik Antrenman"><option value="Taktik Çalışma"><option value="Kondisyon"><option value="Kaleci Çalışması"><option value="Maç Hazırlığı"></datalist>
       <div class="dialog-actions training-dialog-actions"><button type="button" class="danger-button dialog-delete-button is-hidden" id="deleteTrainingButton" data-action="delete-training">Antrenmanı sil</button><button type="button" data-dialog-close="trainingDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button" id="trainingSubmitButton">Antrenmanı kaydet</button></div>
     </form>
   </dialog>
@@ -288,7 +287,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.12.270"></script>
-  <script src="app.js?v=2026.08.12.270"></script>
+  <script src="supabase-data.js?v=2026.08.12.271"></script>
+  <script src="app.js?v=2026.08.12.271"></script>
 </body>
 </html>
