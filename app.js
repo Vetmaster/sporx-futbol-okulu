@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.12.271';
+const APP_VERSION = '2026.08.12.272';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -92,6 +92,7 @@ const state = {
   monthlyFeeAmount: 1500,
   schoolBankAccounts: [],
   trainingTypes: ['Teknik Antrenman', 'Taktik Çalışma', 'Kondisyon', 'Kaleci Çalışması', 'Maç Hazırlığı'],
+  trainingCoaches: [],
   pushStatus: 'checking',
   pushBusy: false,
   nativeFcmToken: NATIVE_FCM_TOKEN,
@@ -101,11 +102,13 @@ const state = {
   editingStudentId: null,
   editingGroupName: null,
   editingTrainingTypeName: null,
+  editingTrainingCoachName: null,
   invitingSchoolId: null,
   editingSchoolId: null,
   editingSubscriptionSchoolId: null,
   groupSettingsOpen: false,
   trainingTypeSettingsOpen: false,
+  trainingCoachSettingsOpen: false,
   newestGroupPinned: false,
   newestGroupName: '',
   editingTrainingId: null,
@@ -168,7 +171,7 @@ const navItems = {
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
   dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
-  trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
+  trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini ve antrenörleri yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
 
@@ -268,7 +271,10 @@ function navigateToPage(page, updates = {}) {
     if (state.pageHistory.length > 30) state.pageHistory.shift();
   }
   if (pageChanged && targetPage === 'studentSettings') state.groupSettingsOpen = false;
-  if (pageChanged && targetPage === 'trainingSettings') state.trainingTypeSettingsOpen = false;
+  if (pageChanged && targetPage === 'trainingSettings') {
+    state.trainingTypeSettingsOpen = false;
+    state.trainingCoachSettingsOpen = false;
+  }
   Object.assign(state, updates);
   state.page = targetPage;
   document.querySelector('#sidebar').classList.remove('open');
@@ -494,6 +500,19 @@ function syncTrainingTypeOptions(selectedType = '') {
   if (currentType) select.value = currentType;
 }
 syncTrainingTypeOptions();
+function syncTrainingCoachOptions(selectedCoach = '') {
+  const select = document.querySelector('#trainingCoachSelect');
+  if (!select) return;
+  const currentCoach = selectedCoach || select.value;
+  const options = [...state.trainingCoaches];
+  if (currentCoach && !options.includes(currentCoach)) options.push(currentCoach);
+  select.replaceChildren(
+    new Option('Seçiniz', ''),
+    ...options.map(coach => new Option(coach, coach))
+  );
+  if (currentCoach) select.value = currentCoach;
+}
+syncTrainingCoachOptions();
 document.querySelector('#headerVersionLabel').textContent = `v${APP_VERSION}`;
 document.querySelector('#authVersionLabel').textContent = `v${APP_VERSION}`;
 
@@ -1279,14 +1298,24 @@ function trainingsView() {
 
 function trainingSettingsView() {
   const sortedTypes = [...state.trainingTypes].sort((left, right) => left.localeCompare(right, 'tr-TR', { numeric: true, sensitivity: 'base' }));
-  const rows = sortedTypes.map(type => {
-    const usageCount = state.trainings.filter(training => training.title.localeCompare(type, 'tr-TR', { sensitivity: 'base' }) === 0).length;
+  const typeRows = sortedTypes.map(type => {
+    const usageCount = state.trainings.filter(training => String(training.title || '').localeCompare(type, 'tr-TR', { sensitivity: 'base' }) === 0).length;
     if (state.editingTrainingTypeName === type) {
       return `<form class="group-settings-row training-type-rename-form" data-original-type="${escapeHtml(type)}"><div><label for="editTrainingTypeName">Antrenman adını düzenle</label><input id="editTrainingTypeName" name="trainingTypeName" maxlength="60" value="${escapeHtml(type)}" required><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-training-type">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
     }
     return `<div class="group-settings-row"><div><strong>${escapeHtml(type)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-type" data-type="${escapeHtml(type)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-type" data-type="${escapeHtml(type)}">Sil</button></div></div>`;
   }).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman ayarları</h2><p>Antrenman planlarken kullanılacak isimler</p></div></div><details class="panel group-settings-panel training-type-settings-panel"${state.trainingTypeSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Antrenman isimleri</h3><small class="muted">${state.trainingTypes.length} kayıtlı isim</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingTypeSettingsForm" class="group-settings-form"><label for="newTrainingTypeName">Yeni antrenman adı</label><input id="newTrainingTypeName" name="trainingTypeName" maxlength="60" placeholder="Örn. Şut çalışması" required><button class="primary-button" type="submit">İsim ekle</button></form><div class="group-settings-list">${rows || '<div class="empty-state">Henüz antrenman ismi eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki isimler yeni antrenman formunda öneri olarak gösterilir. Geçmiş antrenman kayıtları silme işleminden etkilenmez.</small></div></details></div>`;
+  const sortedCoaches = [...state.trainingCoaches].sort((left, right) => left.localeCompare(right, 'tr-TR', { numeric: true, sensitivity: 'base' }));
+  const coachRows = sortedCoaches.map(coach => {
+    const usageCount = state.trainings.filter(training => String(training.coach || '').localeCompare(coach, 'tr-TR', { sensitivity: 'base' }) === 0).length;
+    if (state.editingTrainingCoachName === coach) {
+      return `<form class="group-settings-row training-coach-rename-form" data-original-coach="${escapeHtml(coach)}"><div><label for="editTrainingCoachName">Antrenör adını düzenle</label><input id="editTrainingCoachName" name="trainingCoachName" maxlength="80" value="${escapeHtml(coach)}" required><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-training-coach">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
+    }
+    return `<div class="group-settings-row"><div><strong>${escapeHtml(coach)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-coach" data-coach="${escapeHtml(coach)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-coach" data-coach="${escapeHtml(coach)}">Sil</button></div></div>`;
+  }).join('');
+  const typePanel = `<details class="panel group-settings-panel training-type-settings-panel"${state.trainingTypeSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Antrenman isimleri</h3><small class="muted">${state.trainingTypes.length} kayıtlı isim</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingTypeSettingsForm" class="group-settings-form"><label for="newTrainingTypeName">Yeni antrenman adı</label><input id="newTrainingTypeName" name="trainingTypeName" maxlength="60" placeholder="Örn. Şut çalışması" required><button class="primary-button" type="submit">İsim ekle</button></form><div class="group-settings-list">${typeRows || '<div class="empty-state">Henüz antrenman ismi eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki isimler yeni antrenman formunda gösterilir. Geçmiş antrenman kayıtları silme işleminden etkilenmez.</small></div></details>`;
+  const coachPanel = `<details class="panel group-settings-panel training-coach-settings-panel"${state.trainingCoachSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Antrenör isimleri</h3><small class="muted">${state.trainingCoaches.length} kayıtlı antrenör</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingCoachSettingsForm" class="group-settings-form"><label for="newTrainingCoachName">Yeni antrenör adı</label><input id="newTrainingCoachName" name="trainingCoachName" maxlength="80" placeholder="Adı soyadı" required><button class="primary-button" type="submit">Antrenör ekle</button></form><div class="group-settings-list">${coachRows || '<div class="empty-state">Henüz antrenör eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki antrenörler yeni antrenman formundaki açılır menüde gösterilir. Geçmiş kayıtlar silme işleminden etkilenmez.</small></div></details>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman ayarları</h2><p>Antrenman isimlerini ve antrenörleri yönetin</p></div></div>${typePanel}${coachPanel}</div>`;
 }
 
 function attendanceView() {
@@ -1711,6 +1740,7 @@ function applyRemoteData(remoteData) {
     iban: normalizeIban(account?.iban)
   })).filter(account => account.bankName || account.accountHolder || account.iban);
   state.trainingTypes = Array.isArray(remoteData.trainingTypes) ? remoteData.trainingTypes : state.trainingTypes;
+  state.trainingCoaches = Array.isArray(remoteData.trainingCoaches) ? remoteData.trainingCoaches : state.trainingCoaches;
   if (state.role === 'parent' && !state.students.some(student => Number(student.id) === Number(state.selectedParentStudentId))) {
     state.selectedParentStudentId = state.students[0]?.id || null;
   }
@@ -1720,6 +1750,7 @@ function applyRemoteData(remoteData) {
     : remoteGroups;
   syncGroupOptions();
   syncTrainingTypeOptions();
+  syncTrainingCoachOptions();
   persistLocalData();
 }
 
@@ -2364,6 +2395,7 @@ function openTrainingDialog(training = null) {
   const form = document.querySelector('#trainingForm');
   form.reset();
   syncTrainingTypeOptions(training?.title || '');
+  syncTrainingCoachOptions(training?.coach || '');
   state.editingTrainingId = training?.id || null;
   form.elements.date.value = training?.date || localDateValue();
   form.elements.time.value = training?.time || '09:00';
@@ -2819,6 +2851,29 @@ document.addEventListener('click', async event => {
     syncTrainingTypeOptions();
     render();
     showToast('Antrenman ismi kaldırıldı.');
+  }
+  else if (action === 'edit-training-coach' && ['super_admin', 'admin'].includes(state.role)) {
+    state.editingTrainingCoachName = String(actionButton.dataset.coach || '');
+    state.trainingCoachSettingsOpen = true;
+    render();
+    window.setTimeout(() => document.querySelector('#editTrainingCoachName')?.focus(), 0);
+  }
+  else if (action === 'cancel-edit-training-coach' && ['super_admin', 'admin'].includes(state.role)) {
+    state.editingTrainingCoachName = null;
+    state.trainingCoachSettingsOpen = true;
+    render();
+  }
+  else if (action === 'delete-training-coach' && ['super_admin', 'admin'].includes(state.role)) {
+    const coachName = String(actionButton.dataset.coach || '');
+    if (!coachName || !window.confirm(`“${coachName}” antrenör listesinden kaldırılsın mı? Geçmiş antrenman kayıtları değişmeyecek.`)) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.deleteTrainingCoach(coachName));
+    if (!saved) return;
+    state.trainingCoaches = state.trainingCoaches.filter(coach => coach !== coachName);
+    state.editingTrainingCoachName = null;
+    state.trainingCoachSettingsOpen = true;
+    syncTrainingCoachOptions();
+    render();
+    showToast('Antrenör listeden kaldırıldı.');
   }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = key === 'enrollmentDate' ? 'desc' : 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'monthly-fee-sort') {
@@ -3348,6 +3403,10 @@ appContent.addEventListener('toggle', event => {
     state.trainingTypeSettingsOpen = details.open;
     return;
   }
+  if (details.classList.contains('training-coach-settings-panel')) {
+    state.trainingCoachSettingsOpen = details.open;
+    return;
+  }
   state.groupSettingsOpen = details.open;
   if (!details.open) {
     state.newestGroupPinned = false;
@@ -3452,6 +3511,57 @@ appContent.addEventListener('submit', async event => {
     event.target.reset();
     render();
     showToast('Yeni antrenman ismi eklendi.');
+    return;
+  }
+  if (event.target.matches('.training-coach-rename-form')) {
+    event.preventDefault();
+    if (!['super_admin', 'admin'].includes(state.role)) return;
+    const currentName = String(event.target.dataset.originalCoach || '');
+    const coachName = String(new FormData(event.target).get('trainingCoachName') || '').trim().replace(/\s+/g, ' ');
+    if (!/^[\p{L} .()'\-]{2,80}$/u.test(coachName)) {
+      showToast('Geçerli bir antrenör adı ve soyadı girin.');
+      return;
+    }
+    if (state.trainingCoaches.some(coach => coach !== currentName && coach.localeCompare(coachName, 'tr-TR', { sensitivity: 'base' }) === 0)) {
+      showToast('Bu antrenör zaten kayıtlı.');
+      return;
+    }
+    if (coachName === currentName) {
+      state.editingTrainingCoachName = null;
+      state.trainingCoachSettingsOpen = true;
+      render();
+      return;
+    }
+    const saved = await runRemoteMutation(() => remoteDataStore.updateTrainingCoach(currentName, coachName));
+    if (!saved) return;
+    state.trainingCoaches = state.trainingCoaches.map(coach => coach === currentName ? coachName : coach);
+    state.editingTrainingCoachName = null;
+    state.trainingCoachSettingsOpen = true;
+    syncTrainingCoachOptions();
+    render();
+    showToast('Antrenör adı güncellendi.');
+    return;
+  }
+  if (event.target.id === 'trainingCoachSettingsForm') {
+    event.preventDefault();
+    if (!['super_admin', 'admin'].includes(state.role)) return;
+    const coachName = String(new FormData(event.target).get('trainingCoachName') || '').trim().replace(/\s+/g, ' ');
+    if (!/^[\p{L} .()'\-]{2,80}$/u.test(coachName)) {
+      showToast('Geçerli bir antrenör adı ve soyadı girin.');
+      return;
+    }
+    if (state.trainingCoaches.some(coach => coach.localeCompare(coachName, 'tr-TR', { sensitivity: 'base' }) === 0)) {
+      showToast('Bu antrenör zaten kayıtlı.');
+      return;
+    }
+    const saved = await runRemoteMutation(() => remoteDataStore.saveTrainingCoach(coachName));
+    if (!saved) return;
+    state.trainingCoaches = [...state.trainingCoaches, coachName];
+    state.trainingCoachSettingsOpen = true;
+    syncTrainingCoachOptions();
+    event.target.reset();
+    render();
+    showToast('Yeni antrenör eklendi.');
     return;
   }
   if (event.target.id === 'groupSettingsForm') {
