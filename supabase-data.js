@@ -82,6 +82,19 @@
     };
   }
 
+  async function fetchTrainingCoaches(client, schoolId) {
+    const result = await client
+      .from('training_coaches')
+      .select('id, name, sort_order')
+      .eq('school_id', schoolId)
+      .order('sort_order');
+    if (!result.error) return result;
+    const missingTable = ['42P01', 'PGRST205'].includes(result.error.code)
+      || /training_coaches.*(?:does not exist|schema cache)/i.test(String(result.error.message || ''));
+    if (!missingTable) return result;
+    return { data: [], error: null };
+  }
+
   async function fetchSchoolSettings(client, schoolId, role) {
     const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, bank_accounts, is_active, subscription_plan, subscription_status';
     let result = await client.from('schools').select(columns).eq('id', schoolId).single();
@@ -122,6 +135,7 @@
         schoolSettingsResult,
         groupsResult,
         trainingTypesResult,
+        trainingCoachesResult,
         studentsRows,
         feeRows,
         trainingRows,
@@ -134,6 +148,7 @@
         fetchSchoolSettings(client, schoolId, role),
         client.from('training_groups').select('id, name, sort_order').eq('school_id', schoolId).order('sort_order'),
         fetchTrainingTypes(client, schoolId),
+        fetchTrainingCoaches(client, schoolId),
         isCoach
           ? client.rpc('coach_student_directory', { target_school_id: schoolId }).then(({ data, error }) => { if (error) throw error; return data || []; })
           : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, training_groups(name)', 'id', { school_id: schoolId }),
@@ -149,6 +164,7 @@
       if (schoolSettingsResult.error) throw schoolSettingsResult.error;
       if (groupsResult.error) throw groupsResult.error;
       if (trainingTypesResult.error) throw trainingTypesResult.error;
+      if (trainingCoachesResult.error) throw trainingCoachesResult.error;
       const groups = groupsResult.data || [];
       groupsByName = new Map(groups.map(group => [group.name, group.id]));
 
@@ -283,6 +299,7 @@
             : [],
         groups,
         trainingTypes: (trainingTypesResult.data || []).map(item => item.name),
+        trainingCoaches: (trainingCoachesResult.data || []).map(item => item.name),
         students,
         trainings,
         accountingEntries,
@@ -513,6 +530,42 @@
       const current = (existing || []).find(item => item.name === trainingTypeName);
       if (!current) throw new Error('Antrenman adı bulunamadı.');
       const { error } = await client.from('training_types').delete().eq('id', current.id).eq('school_id', schoolId);
+      if (error) throw error;
+    }
+
+    async function saveTrainingCoach(trainingCoachName) {
+      requireContext();
+      const name = String(trainingCoachName || '').trim().replace(/\s+/g, ' ');
+      if (!/^[\p{L} .()'\-]{2,80}$/u.test(name)) throw new Error('Geçerli bir antrenör adı ve soyadı girin.');
+      const { data: existing, error: existingError } = await client.from('training_coaches').select('id, name').eq('school_id', schoolId);
+      if (existingError) throw existingError;
+      if ((existing || []).some(item => item.name.localeCompare(name, 'tr-TR', { sensitivity: 'base' }) === 0)) throw new Error('Bu antrenör zaten kayıtlı.');
+      const { data, error } = await client.from('training_coaches').insert({ school_id: schoolId, name, sort_order: (existing || []).length + 1 }).select('id, name, sort_order').single();
+      if (error) throw error;
+      return data;
+    }
+
+    async function updateTrainingCoach(currentName, trainingCoachName) {
+      requireContext();
+      const name = String(trainingCoachName || '').trim().replace(/\s+/g, ' ');
+      if (!/^[\p{L} .()'\-]{2,80}$/u.test(name)) throw new Error('Geçerli bir antrenör adı ve soyadı girin.');
+      const { data: existing, error: existingError } = await client.from('training_coaches').select('id, name').eq('school_id', schoolId);
+      if (existingError) throw existingError;
+      const current = (existing || []).find(item => item.name === currentName);
+      if (!current) throw new Error('Antrenör bulunamadı.');
+      if ((existing || []).some(item => item.id !== current.id && item.name.localeCompare(name, 'tr-TR', { sensitivity: 'base' }) === 0)) throw new Error('Bu antrenör zaten kayıtlı.');
+      const { data, error } = await client.from('training_coaches').update({ name }).eq('id', current.id).eq('school_id', schoolId).select('id, name, sort_order').single();
+      if (error) throw error;
+      return data;
+    }
+
+    async function deleteTrainingCoach(trainingCoachName) {
+      requireContext();
+      const { data: existing, error: existingError } = await client.from('training_coaches').select('id, name').eq('school_id', schoolId);
+      if (existingError) throw existingError;
+      const current = (existing || []).find(item => item.name === trainingCoachName);
+      if (!current) throw new Error('Antrenör bulunamadı.');
+      const { error } = await client.from('training_coaches').delete().eq('id', current.id).eq('school_id', schoolId);
       if (error) throw error;
     }
 
@@ -784,6 +837,9 @@
       saveTrainingType,
       updateTrainingType,
       deleteTrainingType,
+      saveTrainingCoach,
+      updateTrainingCoach,
+      deleteTrainingCoach,
       saveStudent,
       inviteGuardian,
       saveTraining,
