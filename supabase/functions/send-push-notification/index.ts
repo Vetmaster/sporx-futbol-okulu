@@ -17,15 +17,6 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function tokenAssuranceLevel(token: string) {
-  try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return String(JSON.parse(atob(payload)).aal || 'aal1');
-  } catch {
-    return 'aal1';
-  }
-}
-
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -67,10 +58,6 @@ Deno.serve(async request => {
   if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Forbidden' }, 403);
   }
-  if (callerProfile.role === 'super_admin' && tokenAssuranceLevel(accessToken) !== 'aal2') {
-    return json({ error: 'Multi-factor authentication required' }, 403);
-  }
-
   const requestedSchoolId = String(body.schoolId || callerProfile.school_id || '');
   const targetSchoolId = callerProfile.role === 'super_admin' ? requestedSchoolId : callerProfile.school_id;
   if (!targetSchoolId || (callerProfile.role !== 'super_admin' && requestedSchoolId !== callerProfile.school_id)) {
