@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tezeflsiljqprrqbsypl.supabase.co wss://tezeflsiljqprrqbsypl.supabase.co https://api.github.com https://github.com; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests">
   <meta name="theme-color" content="#39758f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.12.273">
+  <link rel="stylesheet" href="styles.css?v=2026.08.13.274">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -35,7 +37,6 @@
         <h1 id="authTitle">Kulübünüz tek ekranda</h1>
         <p class="muted" id="authDescription">Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.</p>
       </div>
-      <label class="is-hidden" id="authFullNameField">Adınız soyadınız<input id="signupFullName" name="fullName" autocomplete="name"></label>
       <label id="authEmailField">E-posta adresi<input id="loginEmail" name="email" type="email" autocomplete="email" required></label>
       <label id="authPasswordField">Şifre<input id="loginPassword" name="password" type="password" minlength="8" autocomplete="current-password" required></label>
       <label class="is-hidden" id="authPasswordConfirmField">Şifre tekrar<input id="loginPasswordConfirm" name="passwordConfirm" type="password" minlength="8" autocomplete="new-password"></label>
@@ -46,6 +47,22 @@
       </div>
       <a class="auth-link-button auth-android-download is-hidden" data-android-apk-download href="#">↓ Android uygulamasını indir</a>
       <button class="auth-link-button is-hidden" id="backToLoginButton" type="button">Giriş ekranına dön</button>
+    </form>
+    <form class="auth-card is-hidden" id="adminMfaForm" autocomplete="one-time-code">
+      <div>
+        <span class="eyebrow">YÖNETİCİ GÜVENLİĞİ</span>
+        <h1>İki aşamalı doğrulama</h1>
+        <p class="muted" id="adminMfaDescription">Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.</p>
+      </div>
+      <div class="mfa-enrollment is-hidden" id="adminMfaEnrollment">
+        <img id="adminMfaQrCode" alt="Kimlik doğrulama uygulaması QR kodu">
+        <p>QR kodunu Google Authenticator, Microsoft Authenticator veya uyumlu bir uygulamayla tarayın.</p>
+        <div class="mfa-secret"><span>Kurulum anahtarı</span><code id="adminMfaSecret"></code></div>
+      </div>
+      <label>Doğrulama kodu<input id="adminMfaCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label>
+      <p class="auth-message is-hidden" id="adminMfaMessage" role="status" aria-live="polite"></p>
+      <button class="primary-button" id="adminMfaSubmitButton" type="submit">Doğrula ve devam et</button>
+      <button class="auth-link-button" id="adminMfaCancelButton" type="button">Güvenli çıkış yap</button>
     </form>
   </section>
 
@@ -284,10 +301,11 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js" integrity="sha384-ZuC+DIACqSIZTsp+7YF57cR5Y+6qXa7YFbEKdA/EHA/R0T+41dtorqucYl71Zp+t" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
   <script src="supabase-data.js?v=2026.08.12.273"></script>
-  <script src="app.js?v=2026.08.12.273"></script>
+  <script src="app.js?v=2026.08.13.274"></script>
 </body>
 </html>

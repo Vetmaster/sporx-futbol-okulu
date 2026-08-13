@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.12.273';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.22-beta/SASA-F-v1.0.22-beta.apk';
+const APP_VERSION = '2026.08.13.274';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
@@ -20,6 +20,7 @@ const NATIVE_NOTIFICATION_PERMISSION = initialFragmentParameters.get('nativeNoti
 const authCallbackType = initialFragmentParameters.get('type');
 let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
+let pendingAdminMfa = null;
 let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
@@ -47,7 +48,14 @@ const savedAccountingPeriod = window.localStorage.getItem('sporx_accounting_peri
 const NAVIGATION_STORAGE_KEY = 'sasa_navigation_state';
 const BROWSER_NAVIGATION_STATE_KEY = 'sasaAppNavigation';
 const SELECTED_SCHOOL_STORAGE_KEY = 'sasa_selected_school_id';
-const localData = window.SporXDB.load();
+if (window.top !== window.self) {
+  document.documentElement.replaceChildren();
+  throw new Error('SASA-F güvenlik nedeniyle başka bir sayfa içinde çalıştırılamaz.');
+}
+if (window.SporXDB?.storageKey) window.localStorage.removeItem(window.SporXDB.storageKey);
+const localData = remoteDataStore
+  ? { students: [], trainings: [], accountingEntries: [], notifications: [], attendanceRecords: [] }
+  : window.SporXDB.load();
 const state = {
   role: 'admin',
   actualRole: 'admin',
@@ -134,6 +142,7 @@ const BASE_GROUPS = ['Saat 09:00', 'Saat 10:00', 'Saat 11:00', 'Saat 12:00', 'U1
 let GROUPS = [...new Set([...BASE_GROUPS, ...localData.students.map(student => student.group).filter(Boolean)])];
 
 function persistLocalData() {
+  if (remoteDataStore) return;
   window.SporXDB.save({
     students: state.students,
     trainings: state.trainings,
@@ -141,6 +150,47 @@ function persistLocalData() {
     notifications: state.notifications,
     attendanceRecords: state.attendanceRecords
   });
+}
+function clearSensitiveState() {
+  state.students = [];
+  state.trainings = [];
+  state.accountingEntries = [];
+  state.notifications = [];
+  state.attendanceRecords = [];
+  state.accessRequests = [];
+  state.schoolBankAccounts = [];
+  state.schools = [];
+  state.schoolId = null;
+  state.schoolName = '';
+  state.selectedStudentId = null;
+  state.selectedParentStudentId = null;
+  state.selectedParentPaymentMonth = null;
+  state.trainingCoaches = [];
+  state.trainingTypes = ['Teknik Antrenman', 'Taktik Çalışma', 'Kondisyon', 'Kaleci Çalışması', 'Maç Hazırlığı'];
+  window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
+  window.localStorage.removeItem(SELECTED_SCHOOL_STORAGE_KEY);
+  if (window.SporXDB?.storageKey) window.localStorage.removeItem(window.SporXDB.storageKey);
+}
+
+const SAFE_HTML_CONFIG = {
+  USE_PROFILES: { html: true, svg: true, svgFilters: false },
+  ALLOW_DATA_ATTR: true,
+  FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+  FORBID_ATTR: ['srcdoc']
+};
+function sanitizedHtml(markup) {
+  if (!window.DOMPurify) throw new Error('Güvenli içerik filtresi yüklenemedi.');
+  return window.DOMPurify.sanitize(String(markup || ''), SAFE_HTML_CONFIG);
+}
+function setSafeHtml(element, markup) {
+  if (!element) return;
+  element.innerHTML = sanitizedHtml(markup);
+}
+function appendSafeHtml(element, markup) {
+  if (!element) return;
+  const template = document.createElement('template');
+  template.innerHTML = sanitizedHtml(markup);
+  element.append(template.content);
 }
 
 const navItems = {
@@ -318,9 +368,15 @@ const loginForm = document.querySelector('#loginForm');
 const loginEmail = document.querySelector('#loginEmail');
 const loginPassword = document.querySelector('#loginPassword');
 const loginPasswordConfirm = document.querySelector('#loginPasswordConfirm');
-const signupFullName = document.querySelector('#signupFullName');
 const loginSubmitButton = document.querySelector('#loginSubmitButton');
 const authMessage = document.querySelector('#authMessage');
+const adminMfaForm = document.querySelector('#adminMfaForm');
+const adminMfaCode = document.querySelector('#adminMfaCode');
+const adminMfaMessage = document.querySelector('#adminMfaMessage');
+const adminMfaSubmitButton = document.querySelector('#adminMfaSubmitButton');
+const adminMfaEnrollment = document.querySelector('#adminMfaEnrollment');
+const adminMfaQrCode = document.querySelector('#adminMfaQrCode');
+const adminMfaSecret = document.querySelector('#adminMfaSecret');
 const installPrompt = document.querySelector('#installPrompt');
 const installAppButton = document.querySelector('#installAppButton');
 const appUpdatePrompt = document.querySelector('#appUpdatePrompt');
@@ -857,14 +913,14 @@ function navMarkup(key, item) {
 
 function renderNavigation() {
   const items = allowedItems();
-  mainNav.innerHTML = items.map(([key, item]) => navMarkup(key, item)).join('');
+  setSafeHtml(mainNav, items.map(([key, item]) => navMarkup(key, item)).join(''));
   const settingsItem = navItems.settings;
   const showSettings = settingsItem.roles.includes(state.role);
   const sidebarSettings = document.querySelector('#sidebarSettings');
-  sidebarSettings.innerHTML = showSettings ? navMarkup('settings', settingsItem) : '';
+  setSafeHtml(sidebarSettings, showSettings ? navMarkup('settings', settingsItem) : '');
   sidebarSettings.classList.toggle('is-hidden', !showSettings);
   const mobileKeys = state.role === 'parent' ? ['dashboard', 'child', 'trainings', 'fees'] : ['dashboard', 'students', 'trainings', isAdminRole() ? 'accounting' : 'attendance'];
-  bottomNav.innerHTML = mobileKeys.filter(key => navItems[key]?.roles.includes(state.role)).map(key => navMarkup(key, navItems[key])).join('');
+  setSafeHtml(bottomNav, mobileKeys.filter(key => navItems[key]?.roles.includes(state.role)).map(key => navMarkup(key, navItems[key])).join(''));
 }
 
 function dashboardNotificationPromptMarkup() {
@@ -1214,7 +1270,7 @@ function filteredAndSortedStudents() {
 function updateStudentsTable() {
   const filtered = filteredAndSortedStudents();
   const studentsBody = document.querySelector('#studentsBody');
-  if (studentsBody) studentsBody.innerHTML = studentRows(filtered);
+  setSafeHtml(studentsBody, studentRows(filtered));
   const countSummary = document.querySelector('#studentsCountSummary');
   if (countSummary) countSummary.textContent = filtered.length;
 }
@@ -1606,14 +1662,14 @@ function render() {
   const schoolSelect = document.querySelector('#schoolSelect');
   schoolSwitcher.classList.toggle('is-hidden', !isActualSuperAdmin());
   if (isActualSuperAdmin()) {
-    schoolSelect.innerHTML = state.schools.map(school => `<option value="${school.id}" ${school.id === state.schoolId ? 'selected' : ''}>${escapeHtml(school.name)}${school.active ? '' : ' (Pasif)'}</option>`).join('');
+    setSafeHtml(schoolSelect, state.schools.map(school => `<option value="${school.id}" ${school.id === state.schoolId ? 'selected' : ''}>${escapeHtml(school.name)}${school.active ? '' : ' (Pasif)'}</option>`).join(''));
     schoolSelect.disabled = state.schools.length < 2;
   }
   updateNotificationUnreadBadge();
   globalBackButton.classList.toggle('is-hidden', state.page === 'dashboard');
   globalBackButton.disabled = state.page === 'dashboard';
   document.querySelector('.user-avatar').textContent = initials(state.userFullName || state.userEmail || 'SF');
-  appContent.innerHTML = views[state.page]();
+  setSafeHtml(appContent, views[state.page]());
   appContent.focus({ preventScroll: true });
 }
 
@@ -1669,35 +1725,29 @@ function showAuthMessage(message = '', isError = false) {
 function setAuthPending(pending) {
   authRequestPending = pending;
   loginSubmitButton.disabled = pending;
-  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : authMode === 'signup' ? 'Kayıt ol' : authMode === 'reset-password' ? 'Bağlantı gönder' : 'Giriş yap';
+  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : authMode === 'reset-password' ? 'Bağlantı gönder' : 'Giriş yap';
 }
 
 function configureAuthForm(mode = 'login') {
-  authMode = mode;
+  authMode = ['login', 'set-password', 'reset-password'].includes(mode) ? mode : 'login';
   const settingPassword = mode === 'set-password';
-  const signingUp = mode === 'signup';
   const resettingPassword = mode === 'reset-password';
-  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : signingUp ? 'YENİ KULLANICI' : resettingPassword ? 'ŞİFRE YENİLEME' : 'HOŞ GELDİNİZ';
-  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : signingUp ? 'Hesap oluşturun' : resettingPassword ? 'E-posta adresinizi yazın' : 'Kulübünüz tek ekranda';
+  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : resettingPassword ? 'ŞİFRE YENİLEME' : 'HOŞ GELDİNİZ';
+  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : resettingPassword ? 'E-posta adresinizi yazın' : 'Kulübünüz tek ekranda';
   document.querySelector('#authDescription').textContent = settingPassword
     ? 'SASA-F hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
-    : signingUp
-      ? 'E-posta adresiniz öğrenci kayıtlarındaki irtibat adresiyle eşleşmelidir. Talebiniz Süper Admin onayına gönderilir.'
-      : resettingPassword
-        ? 'Şifre yenileme bağlantısını gönderebilmemiz için kayıtlı e-posta adresinizi girin.'
-        : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
-  document.querySelector('#authFullNameField').classList.toggle('is-hidden', !signingUp);
+    : resettingPassword
+      ? 'Şifre yenileme bağlantısını gönderebilmemiz için kayıtlı e-posta adresinizi girin.'
+      : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
   document.querySelector('#authEmailField').classList.toggle('is-hidden', settingPassword);
   document.querySelector('#authPasswordField').classList.toggle('is-hidden', resettingPassword);
-  document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword && !signingUp);
-  document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || signingUp || resettingPassword);
-  document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !signingUp && !resettingPassword);
+  document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword);
+  document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || resettingPassword);
+  document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !resettingPassword);
   loginEmail.required = !settingPassword;
   loginPassword.required = !resettingPassword;
-  signupFullName.required = signingUp;
-  loginPasswordConfirm.required = settingPassword || signingUp;
-  loginPassword.autocomplete = settingPassword || signingUp ? 'new-password' : 'current-password';
-  signupFullName.value = '';
+  loginPasswordConfirm.required = settingPassword;
+  loginPassword.autocomplete = settingPassword ? 'new-password' : 'current-password';
   loginPassword.value = '';
   loginPasswordConfirm.value = '';
   showAuthMessage();
@@ -1707,10 +1757,70 @@ function configureAuthForm(mode = 'login') {
 function showLoginScreen(message = '', isError = false) {
   appShell.classList.add('is-hidden');
   authScreen.classList.remove('is-hidden');
+  adminMfaForm.classList.add('is-hidden');
+  loginForm.classList.remove('is-hidden');
   configureAuthForm('login');
   loginSubmitButton.classList.remove('is-hidden');
   showAuthMessage(message, isError);
   window.setTimeout(() => loginEmail.focus(), 0);
+}
+
+function showAdminMfaMessage(message = '', isError = false) {
+  adminMfaMessage.textContent = message;
+  adminMfaMessage.classList.toggle('is-hidden', !message);
+  adminMfaMessage.classList.toggle('error', Boolean(message) && isError);
+}
+
+function finishAdminMfa(result) {
+  const pending = pendingAdminMfa;
+  pendingAdminMfa = null;
+  adminMfaSubmitButton.disabled = false;
+  adminMfaSubmitButton.textContent = 'Doğrula ve devam et';
+  adminMfaCode.value = '';
+  adminMfaForm.classList.add('is-hidden');
+  pending?.resolve(result);
+}
+
+async function requireAdminMfa(profile) {
+  if (!['super_admin', 'admin'].includes(profile.role)) return true;
+  const { data: assurance, error: assuranceError } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (assuranceError) throw assuranceError;
+  if (assurance?.currentLevel === 'aal2') return true;
+
+  const { data: factors, error: factorsError } = await supabaseClient.auth.mfa.listFactors();
+  if (factorsError) throw factorsError;
+  let factor = factors?.totp?.find(item => item.status === 'verified');
+  let enrolledNow = false;
+
+  if (!factor) {
+    const staleFactors = (factors?.all || []).filter(item => item.factor_type === 'totp' && item.status !== 'verified');
+    for (const staleFactor of staleFactors) await supabaseClient.auth.mfa.unenroll({ factorId: staleFactor.id });
+    const { data: enrollment, error: enrollmentError } = await supabaseClient.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: 'SASA-F Yönetici'
+    });
+    if (enrollmentError) throw enrollmentError;
+    factor = enrollment;
+    enrolledNow = true;
+    adminMfaQrCode.src = enrollment.totp.qr_code;
+    adminMfaSecret.textContent = enrollment.totp.secret;
+  }
+
+  authScreen.classList.remove('is-hidden');
+  appShell.classList.add('is-hidden');
+  loginForm.classList.add('is-hidden');
+  adminMfaForm.classList.remove('is-hidden');
+  adminMfaEnrollment.classList.toggle('is-hidden', !enrolledNow);
+  document.querySelector('#adminMfaDescription').textContent = enrolledNow
+    ? 'Yönetici hesabınızı korumak için uygulamanızı bağlayın ve oluşan 6 haneli kodu girin.'
+    : 'Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.';
+  showAdminMfaMessage();
+  adminMfaCode.value = '';
+  window.setTimeout(() => adminMfaCode.focus(), 0);
+
+  return new Promise(resolve => {
+    pendingAdminMfa = { resolve, factorId: factor.id, enrolledNow };
+  });
 }
 
 function showSubscriptionBlockedScreen() {
@@ -1802,6 +1912,7 @@ const REALTIME_TABLES = [
   'trainings',
   'accounting_entries',
   'notifications',
+  'notification_recipients',
   'notification_reads',
   'attendance_sessions',
   'attendance_records',
@@ -1900,6 +2011,14 @@ async function showAuthenticatedApp(user) {
   if (error || !roleNames[profile.role]) {
     await supabaseClient.auth.signOut();
     showLoginScreen('Kullanıcı yetkisi kontrol edilemedi. Lütfen tekrar deneyin.', true);
+    return;
+  }
+
+  try {
+    if (!(await requireAdminMfa(profile))) return;
+  } catch (mfaError) {
+    await supabaseClient.auth.signOut();
+    showLoginScreen(`İki aşamalı doğrulama başlatılamadı: ${mfaError.message || 'Bağlantı hatası'}`, true);
     return;
   }
 
@@ -2005,6 +2124,7 @@ async function logout() {
   state.userId = null;
   state.actualRole = 'admin';
   state.role = 'admin';
+  clearSensitiveState();
   stopRealtimeSync();
 }
 
@@ -2016,7 +2136,7 @@ function friendlyAuthError(error) {
   if (/password should be at least/i.test(message)) return 'Şifreniz en az 8 karakter olmalıdır.';
   if (/already registered|already been registered/i.test(message)) return 'Bu e-posta adresiyle daha önce kullanıcı kaydı oluşturulmuş.';
   if (/database error saving new user|kayıtlı veli e-posta adresi/i.test(message)) return 'Bu e-posta adresi öğrenci kayıtlarındaki irtibat adresleriyle eşleşmiyor.';
-  if (/confirmation email|sending.*email|smtp|email.*authorized/i.test(message)) return 'Kullanıcı kaydı tamamlanamadı. Supabase e-posta doğrulama ayarı kapatılmalıdır.';
+  if (/confirmation email|sending.*email|smtp|email.*authorized/i.test(message)) return 'Güvenli e-posta işlemi tamamlanamadı. Lütfen yöneticiyle iletişime geçin.';
   if (/rate limit/i.test(message)) return 'Çok fazla deneme yapıldı. Lütfen kısa bir süre sonra tekrar deneyin.';
   return message || 'Kullanıcı kaydı tamamlanamadı. Lütfen tekrar deneyin.';
 }
@@ -2356,7 +2476,7 @@ function openAttendance(id) {
   const latestAttendance = latestAttendanceForTraining(training);
   state.activeTrainingId = training.id;
   document.querySelector('#attendanceTitle').textContent = `${training.group} · ${training.title}`;
-  document.querySelector('#attendanceList').innerHTML = trainingStudents.map(s => `<div class="attendance-item"><input id="attendance-${s.id}" type="checkbox" data-student-id="${s.id}" aria-label="${s.name} antrenmana katıldı" ${!latestAttendance || latestAttendance.presentStudentIds.includes(s.id) ? 'checked' : ''}><span>${studentNameLink(s)} <small class="muted">· ${s.group}</small></span></div>`).join('') || '<div class="empty-state">Bu gruba kayıtlı öğrenci bulunmuyor.</div>';
+  setSafeHtml(document.querySelector('#attendanceList'), trainingStudents.map(s => `<div class="attendance-item"><input id="attendance-${s.id}" type="checkbox" data-student-id="${s.id}" aria-label="${escapeHtml(s.name)} antrenmana katıldı" ${!latestAttendance || latestAttendance.presentStudentIds.includes(s.id) ? 'checked' : ''}><span>${studentNameLink(s)} <small class="muted">· ${escapeHtml(s.group)}</small></span></div>`).join('') || '<div class="empty-state">Bu gruba kayıtlı öğrenci bulunmuyor.</div>');
   document.querySelector('#attendanceDialog').showModal();
 }
 
@@ -2384,7 +2504,7 @@ function openStudentDialog(student = null) {
   const prepaymentSection = document.querySelector('#studentPrepaymentSection');
   prepaymentSection.classList.toggle('is-hidden', Boolean(student));
   prepaymentSection.open = false;
-  document.querySelector('#studentPrepaymentMonths').innerHTML = upcomingFeeMonths().map(month => `<label class="student-prepayment-month"><input type="checkbox" name="prepaymentMonth" value="${month}"><span>${formatFeeMonth(month)}</span><small>${formatCurrency(state.monthlyFeeAmount)}</small></label>`).join('');
+  setSafeHtml(document.querySelector('#studentPrepaymentMonths'), upcomingFeeMonths().map(month => `<label class="student-prepayment-month"><input type="checkbox" name="prepaymentMonth" value="${month}"><span>${formatFeeMonth(month)}</span><small>${formatCurrency(state.monthlyFeeAmount)}</small></label>`).join(''));
   form.elements.prepaymentMethod.value = 'cash';
   updateStudentPrepaymentSummary();
   document.querySelector('#studentDialog').showModal();
@@ -2448,7 +2568,7 @@ function openFeeDefinitionDialog() {
   form.elements.studentSearch.value = '';
   form.elements.studentId.value = '';
   document.querySelector('#feeDefinitionStudentResults').classList.add('is-hidden');
-  document.querySelector('#feeDefinitionStudentResults').innerHTML = '';
+  setSafeHtml(document.querySelector('#feeDefinitionStudentResults'), '');
   form.elements.studentSearch.setAttribute('aria-expanded', 'false');
   form.elements.period.value = feeMonthKey();
   form.elements.amount.value = String(state.monthlyFeeAmount);
@@ -2481,7 +2601,7 @@ function updateFeeDefinitionStudentResults() {
         .sort((left, right) => left.name.localeCompare(right.name, 'tr-TR'))
         .slice(0, 8)
     : [];
-  results.innerHTML = matches.map(student => `<button class="student-search-option" type="button" role="option" data-action="select-fee-student" data-id="${student.id}"><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.group)} · ${escapeHtml(studentBirthYearLabel(student))}</small></button>`).join('');
+  setSafeHtml(results, matches.map(student => `<button class="student-search-option" type="button" role="option" data-action="select-fee-student" data-id="${student.id}"><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.group)} · ${escapeHtml(studentBirthYearLabel(student))}</small></button>`).join(''));
   results.classList.toggle('is-hidden', matches.length === 0);
   form.elements.studentSearch.setAttribute('aria-expanded', String(matches.length > 0));
 }
@@ -2513,36 +2633,6 @@ loginForm.addEventListener('submit', async event => {
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: AUTH_REDIRECT_URL });
     setAuthPending(false);
     showAuthMessage(error ? friendlyAuthError(error) : 'Şifre yenileme bağlantısı e-posta adresinize gönderildi.', Boolean(error));
-    return;
-  }
-
-  if (authMode === 'signup') {
-    if (loginPassword.value !== loginPasswordConfirm.value) {
-      setAuthPending(false);
-      showAuthMessage('Şifreler birbiriyle aynı olmalıdır.', true);
-      return;
-    }
-    if (loginPassword.value.length < 8) {
-      setAuthPending(false);
-      showAuthMessage('Şifreniz en az 8 karakter olmalıdır.', true);
-      return;
-    }
-    const { error } = await supabaseClient.auth.signUp({
-      email: loginEmail.value.trim(),
-      password: loginPassword.value,
-      options: {
-        data: {
-          full_name: signupFullName.value.trim(),
-          access_request: true
-        }
-      }
-    });
-    if (error) {
-      setAuthPending(false);
-      showAuthMessage(friendlyAuthError(error), true);
-      return;
-    }
-    showLoginScreen('Kayıt talebiniz oluşturuldu ve Süper Admin onayına gönderildi. Onaylandıktan sonra giriş yapabilirsiniz.');
     return;
   }
 
@@ -2587,6 +2677,36 @@ loginForm.addEventListener('submit', async event => {
 
 document.querySelector('#forgotPasswordButton').addEventListener('click', () => configureAuthForm('reset-password'));
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
+
+adminMfaForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!pendingAdminMfa || adminMfaSubmitButton.disabled) return;
+  const code = adminMfaCode.value.replace(/\D/g, '');
+  if (!/^\d{6}$/.test(code)) {
+    showAdminMfaMessage('Lütfen 6 haneli doğrulama kodunu girin.', true);
+    return;
+  }
+  adminMfaSubmitButton.disabled = true;
+  adminMfaSubmitButton.textContent = 'Doğrulanıyor…';
+  showAdminMfaMessage();
+  const { error } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: pendingAdminMfa.factorId, code });
+  if (error) {
+    adminMfaSubmitButton.disabled = false;
+    adminMfaSubmitButton.textContent = 'Doğrula ve devam et';
+    showAdminMfaMessage('Kod doğrulanamadı. Uygulamanızdaki güncel kodu tekrar deneyin.', true);
+    return;
+  }
+  finishAdminMfa(true);
+});
+
+document.querySelector('#adminMfaCancelButton').addEventListener('click', async () => {
+  if (!pendingAdminMfa) return;
+  const { factorId, enrolledNow } = pendingAdminMfa;
+  if (enrolledNow) await supabaseClient.auth.mfa.unenroll({ factorId });
+  finishAdminMfa(false);
+  signedOutMessage = 'İki aşamalı doğrulama tamamlanmadığı için oturum kapatıldı.';
+  await supabaseClient.auth.signOut();
+});
 
 document.querySelector('#logoutButton').addEventListener('click', logout);
 globalBackButton.addEventListener('click', requestAppBack);
@@ -2641,7 +2761,7 @@ document.addEventListener('click', async event => {
     const list = form?.querySelector('.bank-account-settings-list');
     const accountCount = list?.querySelectorAll('.bank-account-settings-card').length || 0;
     if (!form || !list || accountCount >= 4) return;
-    list.insertAdjacentHTML('beforeend', bankAccountSettingsCardMarkup({}, accountCount, accountCount + 1, true));
+    appendSafeHtml(list, bankAccountSettingsCardMarkup({}, accountCount, accountCount + 1, true));
     syncBankAccountFormControls(form);
     list.querySelector('.bank-account-settings-card:last-child input')?.focus();
   }
@@ -3681,6 +3801,7 @@ async function handleAuthStateChange(event, session) {
 
   if (!session?.user) {
     stopRealtimeSync();
+    clearSensitiveState();
     const message = signedOutMessage;
     signedOutMessage = '';
     if (message === 'SUBSCRIPTION_CANCELLED') {

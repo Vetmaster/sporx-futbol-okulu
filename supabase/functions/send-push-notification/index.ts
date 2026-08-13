@@ -17,6 +17,15 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function tokenAssuranceLevel(token: string) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return String(JSON.parse(atob(payload)).aal || 'aal1');
+  } catch {
+    return 'aal1';
+  }
+}
+
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -57,6 +66,9 @@ Deno.serve(async request => {
 
   if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Forbidden' }, 403);
+  }
+  if (tokenAssuranceLevel(accessToken) !== 'aal2') {
+    return json({ error: 'Multi-factor authentication required' }, 403);
   }
 
   const requestedSchoolId = String(body.schoolId || callerProfile.school_id || '');
@@ -231,6 +243,22 @@ Deno.serve(async request => {
   }
 
   recipientIds = [...new Set(recipientIds.filter(Boolean))];
+  const { error: clearRecipientsError } = await admin
+    .from('notification_recipients')
+    .delete()
+    .eq('notification_id', notification.id);
+  if (clearRecipientsError) return json({ error: clearRecipientsError.message }, 500);
+
+  if (recipientIds.length) {
+    const { error: recipientsError } = await admin
+      .from('notification_recipients')
+      .upsert(
+        recipientIds.map(userId => ({ notification_id: notification.id, user_id: userId })),
+        { onConflict: 'notification_id,user_id' }
+      );
+    if (recipientsError) return json({ error: recipientsError.message }, 500);
+  }
+
   let fcmTokens: Array<{ id: number; user_id: string; token: string }> = [];
   let subscriptions: Array<{ id: number; user_id: string; endpoint: string; p256dh: string; auth_secret: string }> = [];
   if (recipientIds.length) {
