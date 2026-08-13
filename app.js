@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.275';
+const APP_VERSION = '2026.08.13.276';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -377,6 +377,8 @@ const adminMfaSubmitButton = document.querySelector('#adminMfaSubmitButton');
 const adminMfaEnrollment = document.querySelector('#adminMfaEnrollment');
 const adminMfaQrCode = document.querySelector('#adminMfaQrCode');
 const adminMfaSecret = document.querySelector('#adminMfaSecret');
+const adminMfaCopySecretButton = document.querySelector('#adminMfaCopySecretButton');
+const adminMfaOpenAuthenticator = document.querySelector('#adminMfaOpenAuthenticator');
 const installPrompt = document.querySelector('#installPrompt');
 const installAppButton = document.querySelector('#installAppButton');
 const appUpdatePrompt = document.querySelector('#appUpdatePrompt');
@@ -1804,6 +1806,8 @@ async function requireAdminMfa(profile) {
     enrolledNow = true;
     adminMfaQrCode.src = enrollment.totp.qr_code;
     adminMfaSecret.textContent = enrollment.totp.secret;
+    adminMfaOpenAuthenticator.href = enrollment.totp.uri || '#';
+    adminMfaOpenAuthenticator.classList.toggle('is-hidden', !enrollment.totp.uri);
   }
 
   authScreen.classList.remove('is-hidden');
@@ -2711,6 +2715,17 @@ adminMfaForm.addEventListener('submit', async event => {
     return;
   }
   finishAdminMfa(true);
+});
+
+adminMfaCopySecretButton.addEventListener('click', async () => {
+  const secret = adminMfaSecret.textContent.trim();
+  if (!secret) return;
+  try {
+    await navigator.clipboard.writeText(secret);
+    showAdminMfaMessage('Kurulum anahtarı kopyalandı. Authenticator uygulamasına boşluksuz olarak yapıştırın.');
+  } catch (error) {
+    showAdminMfaMessage('Kurulum anahtarı kopyalanamadı. Anahtarın üzerine basılı tutarak kopyalayın.', true);
+  }
 });
 
 document.querySelector('#adminMfaCancelButton').addEventListener('click', async () => {
