@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.277';
+const APP_VERSION = '2026.08.13.278';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1783,48 +1783,8 @@ function finishAdminMfa(result) {
   pending?.resolve(result);
 }
 
-async function requireAdminMfa(profile) {
-  if (profile.role !== 'super_admin') return true;
-  const { data: assurance, error: assuranceError } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (assuranceError) throw assuranceError;
-  if (assurance?.currentLevel === 'aal2') return true;
-
-  const { data: factors, error: factorsError } = await supabaseClient.auth.mfa.listFactors();
-  if (factorsError) throw factorsError;
-  let factor = factors?.totp?.find(item => item.status === 'verified');
-  let enrolledNow = false;
-
-  if (!factor) {
-    const staleFactors = (factors?.all || []).filter(item => item.factor_type === 'totp' && item.status !== 'verified');
-    for (const staleFactor of staleFactors) await supabaseClient.auth.mfa.unenroll({ factorId: staleFactor.id });
-    const { data: enrollment, error: enrollmentError } = await supabaseClient.auth.mfa.enroll({
-      factorType: 'totp',
-      friendlyName: 'SASA-F Yönetici'
-    });
-    if (enrollmentError) throw enrollmentError;
-    factor = enrollment;
-    enrolledNow = true;
-    adminMfaQrCode.src = enrollment.totp.qr_code;
-    adminMfaSecret.textContent = enrollment.totp.secret;
-    adminMfaOpenAuthenticator.href = enrollment.totp.uri || '#';
-    adminMfaOpenAuthenticator.classList.toggle('is-hidden', !enrollment.totp.uri);
-  }
-
-  authScreen.classList.remove('is-hidden');
-  appShell.classList.add('is-hidden');
-  loginForm.classList.add('is-hidden');
-  adminMfaForm.classList.remove('is-hidden');
-  adminMfaEnrollment.classList.toggle('is-hidden', !enrolledNow);
-  document.querySelector('#adminMfaDescription').textContent = enrolledNow
-    ? 'Yönetici hesabınızı korumak için uygulamanızı bağlayın ve oluşan 6 haneli kodu girin.'
-    : 'Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.';
-  showAdminMfaMessage();
-  adminMfaCode.value = '';
-  window.setTimeout(() => adminMfaCode.focus(), 0);
-
-  return new Promise(resolve => {
-    pendingAdminMfa = { resolve, factorId: factor.id, enrolledNow };
-  });
+async function requireAdminMfa() {
+  return true;
 }
 
 function showSubscriptionBlockedScreen() {

@@ -23,15 +23,6 @@ function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function tokenAssuranceLevel(token: string) {
-  try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return String(JSON.parse(atob(payload)).aal || 'aal1');
-  } catch {
-    return 'aal1';
-  }
-}
-
 async function findUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
   const perPage = 1000;
   for (let page = 1; page <= 20; page += 1) {
@@ -71,10 +62,6 @@ Deno.serve(async request => {
   if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Veli daveti göndermek için yetkiniz bulunmuyor.' }, 403);
   }
-  if (callerProfile.role === 'super_admin' && tokenAssuranceLevel(accessToken) !== 'aal2') {
-    return json({ error: 'Bu işlem için iki aşamalı doğrulama gereklidir.' }, 403);
-  }
-
   const body = await request.json().catch(() => ({}));
   const requestedSchoolId = String(body.schoolId || callerProfile.school_id || '');
   const targetSchoolId = callerProfile.role === 'super_admin' ? requestedSchoolId : callerProfile.school_id;
