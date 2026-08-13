@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.276';
+const APP_VERSION = '2026.08.13.277';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1784,7 +1784,7 @@ function finishAdminMfa(result) {
 }
 
 async function requireAdminMfa(profile) {
-  if (!['super_admin', 'admin'].includes(profile.role)) return true;
+  if (profile.role !== 'super_admin') return true;
   const { data: assurance, error: assuranceError } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
   if (assuranceError) throw assuranceError;
   if (assurance?.currentLevel === 'aal2') return true;
