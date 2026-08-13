@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.278';
+const APP_VERSION = '2026.08.13.280';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -959,6 +959,7 @@ function schoolsView() {
         <button class="secondary-button" type="button" data-action="invite-school-admin" data-id="${school.id}" ${school.active ? '' : 'disabled'}>Kullanıcı davet et</button>
         <button class="secondary-button" type="button" data-action="rename-school" data-id="${school.id}">Adını düzenle</button>
         <button class="secondary-button" type="button" data-action="toggle-school-status" data-id="${school.id}">${school.active ? 'Pasife al' : 'Aktifleştir'}</button>
+        <button class="danger-button" type="button" data-action="delete-school" data-id="${school.id}">Sil</button>
       </div>
     </article>`).join('');
   return `<div class="page-stack">
@@ -2426,8 +2427,8 @@ async function disablePhoneNotifications() {
 
 async function runRemoteMutation(action) {
   try {
-    await action();
-    return true;
+    const result = await action();
+    return result === undefined ? true : result;
   } catch (error) {
     showToast(`Supabase kaydı tamamlanamadı: ${error.message || 'Bağlantı hatası'}`);
     return false;
@@ -2820,6 +2821,28 @@ document.addEventListener('click', async event => {
     school.active = updated.is_active !== false;
     render();
     showToast(school.active ? 'Okul yeniden aktifleştirildi.' : 'Okul pasife alındı; verileri korunuyor.');
+  }
+  else if (action === 'delete-school' && state.role === 'super_admin') {
+    const school = state.schools.find(item => item.id === actionButton.dataset.id);
+    if (!school) return;
+    const confirmed = window.confirm(`“${school.name}” kalıcı olarak silinsin mi? Bu okula ait öğrenciler, kullanıcı profilleri, aidatlar, antrenmanlar, yoklamalar, muhasebe ve bildirim kayıtları silinecek. Bu işlem geri alınamaz.`);
+    if (!confirmed) return;
+    const deleted = await runRemoteMutation(() => remoteDataStore.deleteSchool(school.id));
+    if (!deleted) return;
+    const deletedActiveSchool = school.id === state.schoolId;
+    await refreshSchools();
+    if (deletedActiveSchool) {
+      const replacementSchool = state.schools.find(item => item.active) || state.schools[0];
+      if (replacementSchool) await switchSchool(replacementSchool.id, { navigate: false });
+      else {
+        stopRealtimeSync();
+        clearSensitiveState();
+        render();
+      }
+    } else {
+      render();
+    }
+    showToast(`${school.name} ve okula bağlı kayıtlar silindi.`);
   }
   else if (action === 'edit-subscription' && state.role === 'super_admin') {
     const school = state.schools.find(item => item.id === actionButton.dataset.id);
@@ -3542,11 +3565,11 @@ appContent.addEventListener('submit', async event => {
       return;
     }
     const created = await runRemoteMutation(() => remoteDataStore.createSchool({ name, slug, monthlyFeeAmount }));
-    if (!created?.id) return;
+    if (!created) return;
     await refreshSchools();
     event.target.reset();
-    await switchSchool(created.id);
-    showToast(`${name} oluşturuldu ve yönetim ekranı açıldı.`);
+    render();
+    showToast(`${name} oluşturuldu ve listeye eklendi.`);
     return;
   }
   if (event.target.matches('.group-rename-form')) {

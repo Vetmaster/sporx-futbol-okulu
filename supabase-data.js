@@ -380,6 +380,14 @@
       return school;
     }
 
+    async function deleteSchool(targetSchoolId) {
+      const { data, error } = await client.rpc('delete_school', {
+        target_school_id: targetSchoolId
+      });
+      if (error) throw error;
+      return data;
+    }
+
     async function inviteSchoolAdmin({ schoolId: targetSchoolId, fullName, email, role }) {
       const { data, error } = await client.functions.invoke('invite-school-admin', {
         body: { schoolId: targetSchoolId, fullName, email, role }
@@ -827,6 +835,7 @@
       listSchools,
       createSchool,
       updateSchool,
+      deleteSchool,
       updateSchoolSubscription,
       inviteSchoolAdmin,
       saveSchoolSettings,
