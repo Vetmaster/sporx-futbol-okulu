@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.13.275">
+  <link rel="stylesheet" href="styles.css?v=2026.08.13.276">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -57,7 +57,7 @@
       <div class="mfa-enrollment is-hidden" id="adminMfaEnrollment">
         <img id="adminMfaQrCode" alt="Kimlik doğrulama uygulaması QR kodu">
         <p>QR kodunu Google Authenticator, Microsoft Authenticator veya uyumlu bir uygulamayla tarayın.</p>
-        <div class="mfa-secret"><span>Kurulum anahtarı</span><code id="adminMfaSecret"></code></div>
+        <div class="mfa-secret"><span>Kurulum anahtarı</span><code id="adminMfaSecret"></code><div class="mfa-secret-actions"><button class="secondary-button" id="adminMfaCopySecretButton" type="button">Anahtarı kopyala</button><a class="primary-button" id="adminMfaOpenAuthenticator" href="#">Authenticator’da aç</a></div></div>
       </div>
       <label>Doğrulama kodu<input id="adminMfaCode" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required></label>
       <p class="auth-message is-hidden" id="adminMfaMessage" role="status" aria-live="polite"></p>
@@ -306,6 +306,6 @@
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
   <script src="supabase-data.js?v=2026.08.12.273"></script>
-  <script src="app.js?v=2026.08.13.275"></script>
+  <script src="app.js?v=2026.08.13.276"></script>
 </body>
 </html>
