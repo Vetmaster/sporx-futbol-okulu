@@ -67,7 +67,7 @@ Deno.serve(async request => {
   if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Forbidden' }, 403);
   }
-  if (tokenAssuranceLevel(accessToken) !== 'aal2') {
+  if (callerProfile.role === 'super_admin' && tokenAssuranceLevel(accessToken) !== 'aal2') {
     return json({ error: 'Multi-factor authentication required' }, 403);
   }
 

@@ -71,7 +71,7 @@ Deno.serve(async request => {
   if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Veli daveti göndermek için yetkiniz bulunmuyor.' }, 403);
   }
-  if (tokenAssuranceLevel(accessToken) !== 'aal2') {
+  if (callerProfile.role === 'super_admin' && tokenAssuranceLevel(accessToken) !== 'aal2') {
     return json({ error: 'Bu işlem için iki aşamalı doğrulama gereklidir.' }, 403);
   }
 
