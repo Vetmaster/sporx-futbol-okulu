@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.274';
+const APP_VERSION = '2026.08.13.275';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2689,11 +2689,25 @@ adminMfaForm.addEventListener('submit', async event => {
   adminMfaSubmitButton.disabled = true;
   adminMfaSubmitButton.textContent = 'Doğrulanıyor…';
   showAdminMfaMessage();
-  const { error } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: pendingAdminMfa.factorId, code });
-  if (error) {
+  const { data: challenge, error: challengeError } = await supabaseClient.auth.mfa.challenge({
+    factorId: pendingAdminMfa.factorId
+  });
+  if (challengeError || !challenge?.id) {
     adminMfaSubmitButton.disabled = false;
     adminMfaSubmitButton.textContent = 'Doğrula ve devam et';
-    showAdminMfaMessage('Kod doğrulanamadı. Uygulamanızdaki güncel kodu tekrar deneyin.', true);
+    showAdminMfaMessage(`Doğrulama başlatılamadı: ${challengeError?.message || 'Geçici bağlantı hatası'}`, true);
+    return;
+  }
+  const { error: verifyError } = await supabaseClient.auth.mfa.verify({
+    factorId: pendingAdminMfa.factorId,
+    challengeId: challenge.id,
+    code
+  });
+  if (verifyError) {
+    adminMfaSubmitButton.disabled = false;
+    adminMfaSubmitButton.textContent = 'Doğrula ve devam et';
+    const errorDetail = verifyError.code || verifyError.message || 'Kod geçersiz';
+    showAdminMfaMessage(`Kod doğrulanamadı (${errorDetail}). Telefonunuzun tarih ve saat ayarının otomatik olduğunu kontrol edip yeni kodu deneyin.`, true);
     return;
   }
   finishAdminMfa(true);
