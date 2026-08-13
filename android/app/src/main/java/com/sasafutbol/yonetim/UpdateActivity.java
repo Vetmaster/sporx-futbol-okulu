@@ -110,9 +110,13 @@ public class UpdateActivity extends Activity {
         Uri parsedUrl = Uri.parse(apkUrl);
         if (!"https".equals(parsedUrl.getScheme())) return null;
         String host = parsedUrl.getHost();
-        if (host == null || !(host.equals("github.com") || host.endsWith(".githubusercontent.com"))) {
-            return null;
-        }
+        String path = parsedUrl.getPath();
+        if (!"github.com".equals(host)
+                || parsedUrl.getUserInfo() != null
+                || parsedUrl.getPort() != -1
+                || path == null
+                || !path.startsWith("/Vetmaster/sporx-futbol-okulu/releases/download/")
+                || !path.matches("/Vetmaster/sporx-futbol-okulu/releases/download/[^/]+/SASA-F-v[^/]+\\.apk")) return null;
         return apkUrl;
     }
 

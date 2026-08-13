@@ -23,11 +23,11 @@ additional_redirect_urls = [
   "http://127.0.0.1:8765",
   "http://localhost:8765"
 ]
-enable_signup = true
+enable_signup = false
 
 [auth.email]
-enable_signup = true
-enable_confirmations = false
+enable_signup = false
+enable_confirmations = true
 double_confirm_changes = true
 secure_password_change = true
 max_frequency = "1m"

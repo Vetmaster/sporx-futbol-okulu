@@ -23,6 +23,15 @@ function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function tokenAssuranceLevel(token: string) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return String(JSON.parse(atob(payload)).aal || 'aal1');
+  } catch {
+    return 'aal1';
+  }
+}
+
 async function findUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
   const perPage = 1000;
   for (let page = 1; page <= 20; page += 1) {
@@ -61,6 +70,9 @@ Deno.serve(async request => {
   if (callerProfileError || !callerProfile) return json({ error: 'Yetkili kullanıcı profili bulunamadı.' }, 403);
   if (!['super_admin', 'admin'].includes(callerProfile.role)) {
     return json({ error: 'Veli daveti göndermek için yetkiniz bulunmuyor.' }, 403);
+  }
+  if (tokenAssuranceLevel(accessToken) !== 'aal2') {
+    return json({ error: 'Bu işlem için iki aşamalı doğrulama gereklidir.' }, 403);
   }
 
   const body = await request.json().catch(() => ({}));

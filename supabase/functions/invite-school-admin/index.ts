@@ -19,6 +19,15 @@ function normalizedEmail(value: unknown) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
+function tokenAssuranceLevel(token: string) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return String(JSON.parse(atob(payload)).aal || 'aal1');
+  } catch {
+    return 'aal1';
+  }
+}
+
 async function findUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
   const perPage = 1000;
   for (let page = 1; page <= 20; page += 1) {
@@ -55,6 +64,9 @@ Deno.serve(async request => {
     .eq('id', callerResult.user.id)
     .maybeSingle();
   if (callerProfile?.role !== 'super_admin') return json({ error: 'Süper Admin yetkisi gereklidir.' }, 403);
+  if (tokenAssuranceLevel(accessToken) !== 'aal2') {
+    return json({ error: 'Bu işlem için iki aşamalı doğrulama gereklidir.' }, 403);
+  }
 
   const body = await request.json().catch(() => ({}));
   const schoolId = String(body.schoolId || '');
