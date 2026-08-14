@@ -10,6 +10,11 @@
     return ({ starter: 'standard', professional: 'premium', enterprise: 'pro', custom: 'pro' })[value] || value || 'standard';
   }
 
+  function normalizeSubscriptionStatus(value) {
+    if (!value) return 'trial';
+    return ['trial', 'active'].includes(value) ? value : 'stopped';
+  }
+
   function isValidTurkishIban(value) {
     const iban = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!/^TR\d{24}$/.test(iban)) return false;
@@ -286,7 +291,7 @@
         schoolSlug: schoolSettingsResult.data?.slug || '',
         schoolActive: schoolSettingsResult.data?.is_active !== false,
         subscriptionPlan: normalizeSubscriptionPlan(schoolSettingsResult.data?.subscription_plan),
-        subscriptionStatus: schoolSettingsResult.data?.subscription_status || 'trial',
+        subscriptionStatus: normalizeSubscriptionStatus(schoolSettingsResult.data?.subscription_status),
         monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
         bankAccounts: Array.isArray(schoolSettingsResult.data?.bank_accounts) && schoolSettingsResult.data.bank_accounts.length
           ? schoolSettingsResult.data.bank_accounts.slice(0, 4)
@@ -325,7 +330,7 @@
         const subscription = subscriptionBySchool.get(school.id) || {};
         return {
           subscriptionPlan: normalizeSubscriptionPlan(subscription.subscription_plan),
-          subscriptionStatus: subscription.subscription_status || 'trial',
+          subscriptionStatus: normalizeSubscriptionStatus(subscription.subscription_status),
           subscriptionMonthlyPrice: Number(subscription.subscription_monthly_price) || subscriptionPlanPrice(subscription.subscription_plan, 'monthly'),
           subscriptionBillingPeriod: subscription.subscription_billing_period || 'monthly',
           subscriptionPeriodPrice: Number(subscription.subscription_period_price) || subscriptionPlanPrice(subscription.subscription_plan, subscription.subscription_billing_period),
