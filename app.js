@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.280';
+const APP_VERSION = '2026.08.14.281';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -34,7 +34,7 @@ const SUBSCRIPTION_PLANS = {
   premium: { name: 'Premium', prices: { monthly: 1299, quarterly: 3599, yearly: 12990 }, studentLimit: 500, features: ['Temel Okul Yönetimi', '500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online Market', 'Scoutlarla Video Paylaşımı'] },
   pro: { name: 'Pro', prices: { monthly: 1899, quarterly: 5199, yearly: 18990 }, studentLimit: null, features: ['Temel Okul Yönetimi', 'Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
 };
-const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', past_due: 'Ödeme bekliyor', suspended: 'Askıda', cancelled: 'İptal edildi' };
+const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', stopped: 'Durduruldu' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün', type: 'days', value: 1 },
   { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
@@ -988,7 +988,7 @@ function subscriptionDateLabel(value) {
 }
 
 function subscriptionStatusMarkup(status) {
-  const tone = status === 'active' ? '' : status === 'trial' ? 'blue' : status === 'past_due' ? 'danger' : 'warning';
+  const tone = status === 'active' ? '' : status === 'trial' ? 'blue' : 'warning';
   return `<span class="status ${tone}">${SUBSCRIPTION_STATUSES[status] || 'Belirlenmedi'}</span>`;
 }
 
@@ -1004,7 +1004,7 @@ function subscriptionsView() {
   const schools = state.schools;
   const activeCount = schools.filter(school => school.subscriptionStatus === 'active').length;
   const trialCount = schools.filter(school => school.subscriptionStatus === 'trial').length;
-  const waitingCount = schools.filter(school => school.subscriptionStatus === 'past_due').length;
+  const stoppedCount = schools.filter(school => school.subscriptionStatus === 'stopped').length;
   const recurringTotal = schools
     .filter(school => ['active', 'trial'].includes(school.subscriptionStatus))
     .reduce((total, school) => {
@@ -1031,7 +1031,7 @@ function subscriptionsView() {
     <div class="section-heading"><div><h2>Paketler ve abonelikler</h2><p>Okul bazında paket, ücret ve yenileme takibi</p></div></div>
     <section class="stats-grid subscription-summary-grid">
       <article class="stat-card"><span class="label">Aktif abonelik</span><strong>${activeCount}</strong><small>${trialCount} deneme hesabı</small></article>
-      <article class="stat-card"><span class="label">Ödeme bekleyen</span><strong>${waitingCount}</strong><small>Takip edilmesi gereken okul</small></article>
+      <article class="stat-card"><span class="label">Durdurulan abonelik</span><strong>${stoppedCount}</strong><small>Erişimi durdurulan okul</small></article>
       <article class="stat-card"><span class="label">Aylık eşdeğer gelir</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
     </section>
     <section class="subscription-plan-grid">${planCards}</section>
@@ -1791,7 +1791,7 @@ async function requireAdminMfa() {
 function showSubscriptionBlockedScreen() {
   showLoginScreen('Abonelik yeniden etkinleştirildiğinde mevcut bilgilerinizle giriş yapabilirsiniz.', true);
   document.querySelector('#authEyebrow').textContent = 'ABONELİK DURUMU';
-  document.querySelector('#authTitle').textContent = 'Aboneliğiniz iptal edilmiş';
+  document.querySelector('#authTitle').textContent = 'Aboneliğiniz durduruldu';
   document.querySelector('#authDescription').textContent = 'Uygulamaya yeniden erişebilmek için okul yöneticinizin aboneliği etkinleştirmesi gerekir.';
 }
 
@@ -1926,8 +1926,8 @@ function scheduleRealtimeRefresh(payload = null) {
     supabaseClient.auth.signOut();
     return;
   }
-  if (payload?.table === 'schools' && payload.eventType === 'UPDATE' && payload.new?.id === state.schoolId && payload.new?.subscription_status === 'cancelled' && !isActualSuperAdmin()) {
-    signedOutMessage = 'SUBSCRIPTION_CANCELLED';
+  if (payload?.table === 'schools' && payload.eventType === 'UPDATE' && payload.new?.id === state.schoolId && payload.new?.subscription_status === 'stopped' && !isActualSuperAdmin()) {
+    signedOutMessage = 'SUBSCRIPTION_STOPPED';
     stopRealtimeSync();
     supabaseClient.auth.signOut();
     return;
@@ -2018,12 +2018,12 @@ async function showAuthenticatedApp(user) {
         .eq('id', initialSchoolId)
         .single();
       if (subscriptionError) throw subscriptionError;
-      if (subscriptionSchool?.subscription_status === 'cancelled') throw new Error('SUBSCRIPTION_CANCELLED');
+      if (subscriptionSchool?.subscription_status === 'stopped') throw new Error('SUBSCRIPTION_STOPPED');
     }
     remoteData = await remoteDataStore.load({ school_id: initialSchoolId, user_id: user.id, role: profile.role });
   } catch (loadError) {
-    if (loadError.message === 'SUBSCRIPTION_CANCELLED') {
-      signedOutMessage = 'SUBSCRIPTION_CANCELLED';
+    if (loadError.message === 'SUBSCRIPTION_STOPPED') {
+      signedOutMessage = 'SUBSCRIPTION_STOPPED';
       await supabaseClient.auth.signOut();
       showSubscriptionBlockedScreen();
       return;
@@ -3816,7 +3816,7 @@ async function handleAuthStateChange(event, session) {
     clearSensitiveState();
     const message = signedOutMessage;
     signedOutMessage = '';
-    if (message === 'SUBSCRIPTION_CANCELLED') {
+    if (message === 'SUBSCRIPTION_STOPPED') {
       showSubscriptionBlockedScreen();
       return;
     }
