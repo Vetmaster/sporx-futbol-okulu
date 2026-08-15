@@ -163,7 +163,7 @@ Deno.serve(async request => {
       email_verified_at: guardianUser.email_confirmed_at,
       reviewed_by: null,
       reviewed_at: null
-    }, { onConflict: 'user_id' });
+    }, { onConflict: 'user_id,school_id' });
   if (accessRequestError) return json({ error: 'Veli erişim kaydı oluşturulamadı.' }, 500);
 
   return json({
