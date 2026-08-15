@@ -491,6 +491,7 @@ tbody tr:hover { background: #f5f1eb; }
 dialog { width: min(720px, calc(100% - 28px)); padding: 0; border: 0; border-radius: 18px; color: var(--ink); box-shadow: 0 30px 90px rgba(0,0,0,.3); }
 dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
 .dialog-form { padding: 24px; display: grid; gap: 22px; }
+.dialog-form-message { padding: 11px 13px; border: 1px solid #efb9b5; border-radius: 10px; color: #a20f09; background: #fde7e5; font-size: 12px; font-weight: 700; line-height: 1.45; }
 .dialog-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
 .dialog-heading h2 { margin: 5px 0 0; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
