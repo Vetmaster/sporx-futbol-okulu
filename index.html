@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.14.282">
+  <link rel="stylesheet" href="styles.css?v=2026.08.14.283">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -261,7 +261,7 @@
   </dialog>
 
   <dialog id="schoolAdminDialog">
-    <form method="dialog" id="schoolAdminForm">
+    <form method="dialog" class="dialog-form" id="schoolAdminForm">
       <div class="dialog-heading"><div><span class="eyebrow">OKUL KULLANICISI</span><h2>Kullanıcı davet et</h2><p id="schoolAdminDialogDescription">Seçili okul için kullanıcı hesabı oluşturulur.</p></div><button class="icon-button" type="button" data-dialog-close="schoolAdminDialog">×</button></div>
       <input id="schoolAdminSchoolId" name="schoolId" type="hidden">
       <div class="form-grid">
@@ -270,6 +270,7 @@
         <label>Kullanıcı rolü<select name="role" required><option value="admin">Admin</option><option value="coach">Antrenör</option></select></label>
       </div>
       <small class="form-hint">Davet edilen kullanıcı şifresini belirledikten sonra yalnızca bu okulun verilerine erişebilir.</small>
+      <div class="dialog-form-message is-hidden" id="schoolAdminFormMessage" role="alert"></div>
       <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="schoolAdminDialog">Vazgeç</button><button class="primary-button" type="submit">Daveti gönder</button></div>
     </form>
   </dialog>
@@ -305,7 +306,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.14.282"></script>
-  <script src="app.js?v=2026.08.14.282"></script>
+  <script src="supabase-data.js?v=2026.08.14.283"></script>
+  <script src="app.js?v=2026.08.14.283"></script>
 </body>
 </html>

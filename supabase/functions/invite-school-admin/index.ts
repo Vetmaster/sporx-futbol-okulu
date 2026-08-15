@@ -114,7 +114,10 @@ Deno.serve(async request => {
     full_name: fullName,
     role
   }, { onConflict: 'id' });
-  if (profileError) return json({ error: 'Kullanıcı profili oluşturulamadı.' }, 500);
+  if (profileError) {
+    console.error('invite-school-admin profile upsert failed', profileError);
+    return json({ error: `Kullanıcı profili oluşturulamadı: ${profileError.message}` }, 500);
+  }
 
   const { error: requestError } = await admin.from('access_requests').upsert({
     user_id: invitedUser.id,
@@ -127,7 +130,10 @@ Deno.serve(async request => {
     reviewed_by: callerResult.user.id,
     reviewed_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
-  if (requestError) return json({ error: 'Admin erişim kaydı oluşturulamadı.' }, 500);
+  if (requestError) {
+    console.error('invite-school-admin access request upsert failed', requestError);
+    return json({ error: `Kullanıcı erişim kaydı oluşturulamadı: ${requestError.message}` }, 500);
+  }
 
   return json({
     status: invited ? 'invited' : 'linked',

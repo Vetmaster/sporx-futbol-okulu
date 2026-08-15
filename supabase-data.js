@@ -15,6 +15,28 @@
     return ['trial', 'active'].includes(value) ? value : 'stopped';
   }
 
+  async function edgeFunctionErrorMessage(error, data, fallback) {
+    if (data?.error) return String(data.error);
+    const context = error?.context;
+    if (context) {
+      try {
+        const response = typeof context.clone === 'function' ? context.clone() : context;
+        const responseBody = await response.json();
+        if (responseBody?.error) return String(responseBody.error);
+        if (responseBody?.message) return String(responseBody.message);
+      } catch {
+        try {
+          const response = typeof context.clone === 'function' ? context.clone() : context;
+          const responseText = await response.text();
+          if (responseText) return responseText;
+        } catch {
+          // Use the Supabase client error below when the response body cannot be read.
+        }
+      }
+    }
+    return error?.message || fallback;
+  }
+
   function isValidTurkishIban(value) {
     const iban = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!/^TR\d{24}$/.test(iban)) return false;
@@ -398,14 +420,7 @@
         body: { schoolId: targetSchoolId, fullName, email, role }
       });
       if (error) {
-        let responseMessage = '';
-        try {
-          const responseBody = await error.context?.clone().json();
-          responseMessage = responseBody?.error || '';
-        } catch {
-          responseMessage = '';
-        }
-        throw new Error(responseMessage || data?.error || error.message || 'Kullanıcı daveti gönderilemedi.');
+        throw new Error(await edgeFunctionErrorMessage(error, data, 'Kullanıcı daveti gönderilemedi.'));
       }
       if (data?.error) throw new Error(data.error);
       return data;

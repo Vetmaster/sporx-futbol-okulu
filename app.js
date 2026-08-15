@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.282';
+const APP_VERSION = '2026.08.14.283';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2795,6 +2795,9 @@ document.addEventListener('click', async event => {
     state.invitingSchoolId = school.id;
     const form = document.querySelector('#schoolAdminForm');
     form.reset();
+    const formMessage = document.querySelector('#schoolAdminFormMessage');
+    formMessage.textContent = '';
+    formMessage.classList.add('is-hidden');
     form.elements.schoolId.value = school.id;
     document.querySelector('#schoolAdminDialogDescription').textContent = `${school.name} için Admin veya Antrenör hesabı oluşturulur.`;
     document.querySelector('#schoolAdminDialog').showModal();
@@ -3194,24 +3197,43 @@ document.querySelector('#studentPrepaymentMonths').addEventListener('change', up
 document.querySelector('#schoolAdminForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formMessage = document.querySelector('#schoolAdminFormMessage');
+  const submitButton = form.querySelector('button[type="submit"]');
+  const data = new FormData(form);
   const schoolId = String(data.get('schoolId') || '');
   const fullName = String(data.get('fullName') || '').trim();
   const email = String(data.get('email') || '').trim().toLowerCase();
   const role = String(data.get('role') || '');
   if (!state.schools.some(school => school.id === schoolId && school.active) || !fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'coach'].includes(role)) {
-    showToast('Kullanıcı adı, e-posta adresi ve rolü kontrol edin.');
+    formMessage.textContent = 'Kullanıcı adı, e-posta adresi ve rolü kontrol edin.';
+    formMessage.classList.remove('is-hidden');
     return;
   }
-  const result = await runRemoteMutation(() => remoteDataStore.inviteSchoolAdmin({ schoolId, fullName, email, role }));
-  if (!result) return;
-  await refreshSchools();
-  state.invitingSchoolId = null;
-  document.querySelector('#schoolAdminDialog').close();
-  event.currentTarget.reset();
-  render();
-  const roleLabel = roleNames[role];
-  showToast(result.status === 'invited' ? `${roleLabel} daveti ${email} adresine gönderildi.` : `Mevcut kullanıcı ${roleLabel} olarak yetkilendirildi.`);
+  formMessage.textContent = '';
+  formMessage.classList.add('is-hidden');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Davet gönderiliyor…';
+  try {
+    const result = await remoteDataStore.inviteSchoolAdmin({ schoolId, fullName, email, role });
+    state.invitingSchoolId = null;
+    document.querySelector('#schoolAdminDialog').close();
+    form.reset();
+    const roleLabel = roleNames[role];
+    showToast(result.status === 'invited' ? `${roleLabel} daveti ${email} adresine gönderildi.` : `Mevcut kullanıcı ${roleLabel} olarak yetkilendirildi.`);
+    try {
+      await refreshSchools();
+      render();
+    } catch (refreshError) {
+      console.error('Davet sonrası okul listesi yenilenemedi:', refreshError);
+    }
+  } catch (error) {
+    formMessage.textContent = `Davet gönderilemedi: ${error.message || 'Bağlantı hatası'}`;
+    formMessage.classList.remove('is-hidden');
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Daveti gönder';
+  }
 });
 document.querySelector('#schoolEditForm').addEventListener('submit', async event => {
   event.preventDefault();
