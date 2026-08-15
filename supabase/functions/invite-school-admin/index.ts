@@ -176,12 +176,65 @@ Deno.serve(async request => {
     return json({ error: `Kullanıcı erişim kaydı oluşturulamadı: ${requestError.message}` }, 500);
   }
 
+  let notificationStatus = 'failed';
+  try {
+    const roleLabel = role === 'admin' ? 'Admin' : 'Antrenör';
+    const { data: createdNotification, error: notificationError } = await admin
+      .from('notifications')
+      .insert({
+        school_id: schoolId,
+        audience: 'Kişisel bildirim',
+        title: 'Yeni okul yetkisi',
+        body: `${school.name} okulunda ${roleLabel} olarak yetkilendirildiniz.`,
+        status: 'queued',
+        sent_by: callerResult.user.id,
+        recipient_count: 1,
+        delivered_count: 0,
+        read_count: 0
+      })
+      .select('id')
+      .single();
+    if (notificationError || !createdNotification) throw notificationError || new Error('Bildirim oluşturulamadı.');
+
+    const { error: recipientError } = await admin.from('notification_recipients').insert({
+      notification_id: createdNotification.id,
+      user_id: invitedUser.id
+    });
+    if (recipientError) {
+      await admin.from('notifications').delete().eq('id', createdNotification.id);
+      throw recipientError;
+    }
+    notificationStatus = 'in_app';
+
+    const notificationResponse = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: 'POST',
+      headers: {
+        Authorization: authorization,
+        apikey: serviceRoleKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'send',
+        schoolId,
+        recipientUserIds: [invitedUser.id],
+        notificationId: createdNotification.id
+      })
+    });
+    notificationStatus = notificationResponse.ok ? 'sent' : 'in_app';
+    if (!notificationResponse.ok) {
+      console.error('invite-school-admin notification failed', await notificationResponse.text());
+    }
+  } catch (notificationError) {
+    console.error('invite-school-admin notification failed', notificationError);
+  }
+
   return json({
     status: invited ? 'invited' : 'linked',
     schoolId,
     schoolName: school.name,
     email,
     role,
-    userId: invitedUser.id
+    userId: invitedUser.id,
+    notificationStatus
   });
 });
