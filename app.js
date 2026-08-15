@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.15.287';
+const APP_VERSION = '2026.08.15.288';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -14,7 +14,8 @@ const ANDROID_SHELL_SESSION_KEY = 'sasa_android_shell_session';
 const runtimeQueryParameters = new URLSearchParams(window.location.search);
 const launchedByAndroidParameter = runtimeQueryParameters.get('androidShell') === '1';
 const launchedByAndroidReferrer = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
-const launchedWithNativeVersion = Number(runtimeQueryParameters.get('nativeVersion')) > 0;
+const LAUNCHED_NATIVE_VERSION = Number(runtimeQueryParameters.get('nativeVersion')) || 0;
+const launchedWithNativeVersion = LAUNCHED_NATIVE_VERSION > 0;
 const launchedAsStandaloneAndroidApp = /Android/i.test(window.navigator.userAgent)
   && Boolean(window.matchMedia?.('(display-mode: standalone)').matches);
 let rememberedAndroidShellSession = false;
@@ -31,6 +32,9 @@ const IS_ANDROID_SHELL = launchedByAndroidParameter
 if (IS_ANDROID_SHELL) {
   try {
     window.sessionStorage.setItem(ANDROID_SHELL_SESSION_KEY, '1');
+    if (LAUNCHED_NATIVE_VERSION > 0) {
+      window.localStorage.setItem(NATIVE_VERSION_STORAGE_KEY, String(LAUNCHED_NATIVE_VERSION));
+    }
   } catch {
     // Oturum depolaması kapalıysa açılış URL'si ve Android referrer bilgisi kullanılmaya devam eder.
   }
@@ -502,7 +506,8 @@ document.querySelector('#dismissInstallPrompt').addEventListener('click', () => 
 window.setTimeout(showAndroidInstallPrompt, 1200);
 
 function androidShellVersion() {
-  const versionFromLaunchUrl = Number(new URLSearchParams(window.location.search).get('nativeVersion'));
+  const versionFromLaunchUrl = LAUNCHED_NATIVE_VERSION
+    || Number(new URLSearchParams(window.location.search).get('nativeVersion'));
   if (versionFromLaunchUrl > 0) {
     window.localStorage.setItem(NATIVE_VERSION_STORAGE_KEY, String(versionFromLaunchUrl));
     return versionFromLaunchUrl;
