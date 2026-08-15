@@ -60,6 +60,7 @@ Deno.serve(async request => {
   const email = normalizedEmail(body.email);
   const fullName = String(body.fullName || '').trim();
   const role = String(body.role || 'admin');
+  const confirmMultipleSchool = body.confirmMultipleSchool === true;
   if (!schoolId || !fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'coach'].includes(role)) {
     return json({ error: 'Kullanıcı adı, e-posta adresi ve rolü kontrol edin.' }, 400);
   }
@@ -90,13 +91,38 @@ Deno.serve(async request => {
     invited = true;
   }
 
-  const { data: existingProfile } = await admin
+  const { data: existingProfile, error: existingProfileError } = await admin
     .from('profiles')
     .select('school_id, role')
     .eq('id', invitedUser.id)
     .maybeSingle();
-  if (existingProfile && (existingProfile.school_id !== schoolId || existingProfile.role === 'super_admin')) {
-    return json({ error: 'Bu e-posta adresi başka bir okula veya Süper Admin hesabına ait.' }, 409);
+  if (existingProfileError) return json({ error: 'Mevcut kullanıcı profili kontrol edilemedi.' }, 500);
+  if (existingProfile?.role === 'super_admin') {
+    return json({ error: 'Süper Admin hesabına okul kullanıcı rolü eklenemez.' }, 409);
+  }
+
+  const { data: memberships, error: membershipsError } = await admin
+    .from('school_user_memberships')
+    .select('school_id, role, schools(name)')
+    .eq('user_id', invitedUser.id);
+  if (membershipsError) return json({ error: 'Kullanıcının okul yetkileri kontrol edilemedi.' }, 500);
+
+  const targetMembership = memberships?.find(membership => membership.school_id === schoolId);
+  if (targetMembership) {
+    return json({ error: `Bu kullanıcı ${school.name} okulunda zaten yetkili.` }, 409);
+  }
+
+  const existingSchools = (memberships || []).map(membership => ({
+    schoolId: membership.school_id,
+    schoolName: Array.isArray(membership.schools) ? membership.schools[0]?.name : membership.schools?.name,
+    role: membership.role
+  }));
+  if (existingSchools.length && !confirmMultipleSchool) {
+    return json({
+      status: 'confirmation_required',
+      email,
+      existingSchools
+    });
   }
 
   if (role !== 'parent') {
@@ -108,15 +134,29 @@ Deno.serve(async request => {
     if (unlinkError) return json({ error: 'Eski veli bağlantıları kaldırılamadı.' }, 500);
   }
 
-  const { error: profileError } = await admin.from('profiles').upsert({
-    id: invitedUser.id,
+  const { error: membershipError } = await admin.from('school_user_memberships').insert({
+    user_id: invitedUser.id,
     school_id: schoolId,
     full_name: fullName,
     role
-  }, { onConflict: 'id' });
-  if (profileError) {
-    console.error('invite-school-admin profile upsert failed', profileError);
-    return json({ error: `Kullanıcı profili oluşturulamadı: ${profileError.message}` }, 500);
+  });
+  if (membershipError) {
+    console.error('invite-school-admin membership insert failed', membershipError);
+    return json({ error: `Okul kullanıcı yetkisi oluşturulamadı: ${membershipError.message}` }, 500);
+  }
+
+  if (!existingProfile) {
+    const { error: profileError } = await admin.from('profiles').insert({
+      id: invitedUser.id,
+      school_id: schoolId,
+      full_name: fullName,
+      role
+    });
+    if (profileError) {
+      await admin.from('school_user_memberships').delete().eq('user_id', invitedUser.id).eq('school_id', schoolId);
+      console.error('invite-school-admin profile insert failed', profileError);
+      return json({ error: `Kullanıcı profili oluşturulamadı: ${profileError.message}` }, 500);
+    }
   }
 
   const { error: requestError } = await admin.from('access_requests').upsert({
@@ -129,8 +169,9 @@ Deno.serve(async request => {
     email_verified_at: invitedUser.email_confirmed_at,
     reviewed_by: callerResult.user.id,
     reviewed_at: new Date().toISOString()
-  }, { onConflict: 'user_id' });
+  }, { onConflict: 'user_id,school_id' });
   if (requestError) {
+    await admin.from('school_user_memberships').delete().eq('user_id', invitedUser.id).eq('school_id', schoolId);
     console.error('invite-school-admin access request upsert failed', requestError);
     return json({ error: `Kullanıcı erişim kaydı oluşturulamadı: ${requestError.message}` }, 500);
   }

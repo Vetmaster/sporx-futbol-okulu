@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.283';
+const APP_VERSION = '2026.08.15.284';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -112,6 +112,7 @@ const state = {
   editingTrainingTypeName: null,
   editingTrainingCoachName: null,
   invitingSchoolId: null,
+  schoolInviteConfirmation: null,
   editingSchoolId: null,
   editingSubscriptionSchoolId: null,
   groupSettingsOpen: false,
@@ -1663,9 +1664,10 @@ function render() {
   rolePreviewSelect.value = state.role;
   const schoolSwitcher = document.querySelector('#schoolSwitcher');
   const schoolSelect = document.querySelector('#schoolSelect');
-  schoolSwitcher.classList.toggle('is-hidden', !isActualSuperAdmin());
-  if (isActualSuperAdmin()) {
-    setSafeHtml(schoolSelect, state.schools.map(school => `<option value="${school.id}" ${school.id === state.schoolId ? 'selected' : ''}>${escapeHtml(school.name)}${school.active ? '' : ' (Pasif)'}</option>`).join(''));
+  const canSwitchSchool = isActualSuperAdmin() || state.schools.length > 1;
+  schoolSwitcher.classList.toggle('is-hidden', !canSwitchSchool);
+  if (canSwitchSchool) {
+    setSafeHtml(schoolSelect, state.schools.map(school => `<option value="${school.id}" ${school.id === state.schoolId ? 'selected' : ''}>${escapeHtml(school.name)}${school.active ? '' : ' (Pasif)'}${!isActualSuperAdmin() && school.role ? ` · ${escapeHtml(roleNames[school.role])}` : ''}</option>`).join(''));
     schoolSelect.disabled = state.schools.length < 2;
   }
   updateNotificationUnreadBadge();
@@ -1844,11 +1846,19 @@ async function refreshSchools() {
 }
 
 async function switchSchool(schoolId, { navigate = true } = {}) {
-  if (!isActualSuperAdmin() || !state.schools.some(school => school.id === schoolId)) return false;
+  if (!state.schools.some(school => school.id === schoolId)) return false;
   const selectedSchool = state.schools.find(school => school.id === schoolId);
-  if (!selectedSchool?.active && !window.confirm('Bu okul pasif durumda. Yine de okulu açmak istiyor musunuz?')) return false;
+  if (!selectedSchool?.active && (!isActualSuperAdmin() || !window.confirm('Bu okul pasif durumda. Yine de okulu açmak istiyor musunuz?'))) return false;
   try {
-    const remoteData = await remoteDataStore.load({ school_id: schoolId, user_id: state.userId, role: state.actualRole });
+    let targetRole = state.actualRole;
+    if (!isActualSuperAdmin()) {
+      const activated = await remoteDataStore.activateUserSchool(schoolId);
+      targetRole = activated?.role || selectedSchool.role;
+      if (!roleNames[targetRole]) throw new Error('Okul rolü doğrulanamadı.');
+    }
+    const remoteData = await remoteDataStore.load({ school_id: schoolId, user_id: state.userId, role: targetRole });
+    state.actualRole = targetRole;
+    state.role = targetRole;
     state.selectedStudentId = null;
     state.selectedParentStudentId = null;
     state.notificationComposeOpen = false;
@@ -1863,7 +1873,9 @@ async function switchSchool(schoolId, { navigate = true } = {}) {
     render();
     return true;
   } catch (error) {
-    showToast(`Okul verileri yüklenemedi: ${error.message || 'Bağlantı hatası'}`);
+    showToast(error.message === 'SUBSCRIPTION_STOPPED'
+      ? 'Bu okulun aboneliği durdurulmuş.'
+      : `Okul verileri yüklenemedi: ${error.message || 'Bağlantı hatası'}`);
     return false;
   }
 }
@@ -1881,7 +1893,8 @@ const REALTIME_TABLES = [
   'notification_reads',
   'attendance_sessions',
   'attendance_records',
-  'access_requests'
+  'access_requests',
+  'school_user_memberships'
 ];
 let realtimeChannel = null;
 let realtimeRefreshTimer = null;
@@ -1904,6 +1917,7 @@ async function refreshRemoteDataFromRealtime() {
   }
   realtimeRefreshInFlight = true;
   try {
+    if (!isActualSuperAdmin()) state.schools = await remoteDataStore.listUserSchools();
     const remoteData = await remoteDataStore.load({ school_id: state.schoolId, user_id: state.userId, role: state.actualRole });
     applyRemoteData(remoteData);
     render();
@@ -1962,6 +1976,8 @@ async function showAuthenticatedApp(user) {
       .from('access_requests')
       .select('status')
       .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
     await supabaseClient.auth.signOut();
     const requestMessage = request?.status === 'pending'
@@ -2005,12 +2021,19 @@ async function showAuthenticatedApp(user) {
 
   let remoteData;
   try {
-    state.schools = profile.role === 'super_admin' ? await remoteDataStore.listSchools() : [];
+    state.schools = profile.role === 'super_admin'
+      ? await remoteDataStore.listSchools()
+      : await remoteDataStore.listUserSchools();
     const savedSchoolId = window.localStorage.getItem(SELECTED_SCHOOL_STORAGE_KEY);
     const initialSchoolId = profile.role === 'super_admin'
       ? (state.schools.find(school => school.id === savedSchoolId)?.id || state.schools.find(school => school.active)?.id || state.schools[0]?.id)
-      : profile.school_id;
+      : (state.schools.find(school => school.id === savedSchoolId && school.active)?.id || profile.school_id || state.schools.find(school => school.active)?.id);
     if (!initialSchoolId) throw new Error('Yönetilecek aktif bir okul bulunamadı.');
+    let initialRole = profile.role;
+    if (profile.role !== 'super_admin' && initialSchoolId !== profile.school_id) {
+      const activated = await remoteDataStore.activateUserSchool(initialSchoolId);
+      initialRole = activated?.role || state.schools.find(school => school.id === initialSchoolId)?.role;
+    }
     if (profile.role !== 'super_admin') {
       const { data: subscriptionSchool, error: subscriptionError } = await supabaseClient
         .from('schools')
@@ -2020,7 +2043,8 @@ async function showAuthenticatedApp(user) {
       if (subscriptionError) throw subscriptionError;
       if (subscriptionSchool?.subscription_status === 'stopped') throw new Error('SUBSCRIPTION_STOPPED');
     }
-    remoteData = await remoteDataStore.load({ school_id: initialSchoolId, user_id: user.id, role: profile.role });
+    remoteData = await remoteDataStore.load({ school_id: initialSchoolId, user_id: user.id, role: initialRole });
+    profile.role = initialRole;
   } catch (loadError) {
     if (loadError.message === 'SUBSCRIPTION_STOPPED') {
       signedOutMessage = 'SUBSCRIPTION_STOPPED';
@@ -2793,13 +2817,14 @@ document.addEventListener('click', async event => {
     const school = state.schools.find(item => item.id === actionButton.dataset.id);
     if (!school?.active) return;
     state.invitingSchoolId = school.id;
+    state.schoolInviteConfirmation = null;
     const form = document.querySelector('#schoolAdminForm');
     form.reset();
     const formMessage = document.querySelector('#schoolAdminFormMessage');
     formMessage.textContent = '';
     formMessage.classList.add('is-hidden');
     form.elements.schoolId.value = school.id;
-    document.querySelector('#schoolAdminDialogDescription').textContent = `${school.name} için Admin veya Antrenör hesabı oluşturulur.`;
+    document.querySelector('#schoolAdminDialogDescription').textContent = `${school.name} için Admin veya Antrenör yetkisi eklenir.`;
     document.querySelector('#schoolAdminDialog').showModal();
     window.setTimeout(() => form.elements.fullName.focus(), 0);
   }
@@ -3213,9 +3238,23 @@ document.querySelector('#schoolAdminForm').addEventListener('submit', async even
   formMessage.textContent = '';
   formMessage.classList.add('is-hidden');
   submitButton.disabled = true;
-  submitButton.textContent = 'Davet gönderiliyor…';
+  const confirmation = state.schoolInviteConfirmation;
+  const confirmMultipleSchool = Boolean(confirmation
+    && confirmation.schoolId === schoolId
+    && confirmation.email === email
+    && confirmation.role === role);
+  submitButton.textContent = confirmMultipleSchool ? 'Yetki ekleniyor…' : 'Davet gönderiliyor…';
   try {
-    const result = await remoteDataStore.inviteSchoolAdmin({ schoolId, fullName, email, role });
+    const result = await remoteDataStore.inviteSchoolAdmin({ schoolId, fullName, email, role, confirmMultipleSchool });
+    if (result.status === 'confirmation_required') {
+      state.schoolInviteConfirmation = { schoolId, email, role };
+      const existingAuthority = (result.existingSchools || []).map(item => `${item.schoolName || 'Başka bir okul'} (${roleNames[item.role] || item.role})`).join(', ');
+      formMessage.textContent = `Bu kullanıcı şu anda ${existingAuthority} okulunda yetkili. Bu okula da ${roleNames[role]} olarak eklemek için tekrar onaylayın.`;
+      formMessage.classList.remove('is-hidden');
+      submitButton.textContent = 'Yine de yetki ver';
+      return;
+    }
+    state.schoolInviteConfirmation = null;
     state.invitingSchoolId = null;
     document.querySelector('#schoolAdminDialog').close();
     form.reset();
@@ -3232,8 +3271,17 @@ document.querySelector('#schoolAdminForm').addEventListener('submit', async even
     formMessage.classList.remove('is-hidden');
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = 'Daveti gönder';
+    submitButton.textContent = state.schoolInviteConfirmation ? 'Yine de yetki ver' : 'Daveti gönder';
   }
+});
+document.querySelector('#schoolAdminForm').addEventListener('input', event => {
+  if (!state.schoolInviteConfirmation) return;
+  if (event.target.name === 'fullName') return;
+  state.schoolInviteConfirmation = null;
+  const formMessage = document.querySelector('#schoolAdminFormMessage');
+  formMessage.textContent = '';
+  formMessage.classList.add('is-hidden');
+  event.currentTarget.querySelector('button[type="submit"]').textContent = 'Daveti gönder';
 });
 document.querySelector('#schoolEditForm').addEventListener('submit', async event => {
   event.preventDefault();

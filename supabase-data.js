@@ -372,6 +372,27 @@
       });
     }
 
+    async function listUserSchools() {
+      const { data, error } = await client.rpc('my_school_memberships');
+      if (error) throw error;
+      return (data || []).map(school => ({
+        id: school.id,
+        name: school.name,
+        slug: school.slug,
+        active: school.is_active !== false,
+        subscriptionStatus: normalizeSubscriptionStatus(school.subscription_status),
+        role: school.role
+      }));
+    }
+
+    async function activateUserSchool(targetSchoolId) {
+      const { data, error } = await client.rpc('switch_user_school', {
+        target_school_id: targetSchoolId
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    }
+
     async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, billingPeriod, startsOn, endsOn }) {
       const { data, error } = await client.rpc('update_school_subscription', {
         target_school_id: targetSchoolId,
@@ -415,9 +436,9 @@
       return data;
     }
 
-    async function inviteSchoolAdmin({ schoolId: targetSchoolId, fullName, email, role }) {
+    async function inviteSchoolAdmin({ schoolId: targetSchoolId, fullName, email, role, confirmMultipleSchool = false }) {
       const { data, error } = await client.functions.invoke('invite-school-admin', {
-        body: { schoolId: targetSchoolId, fullName, email, role }
+        body: { schoolId: targetSchoolId, fullName, email, role, confirmMultipleSchool }
       });
       if (error) {
         throw new Error(await edgeFunctionErrorMessage(error, data, 'Kullanıcı daveti gönderilemedi.'));
@@ -853,6 +874,8 @@
     return {
       load,
       listSchools,
+      listUserSchools,
+      activateUserSchool,
       createSchool,
       updateSchool,
       deleteSchool,
