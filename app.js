@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.15.284';
+const APP_VERSION = '2026.08.15.285';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -10,8 +10,16 @@ const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
+const runtimeQueryParameters = new URLSearchParams(window.location.search);
+const IS_ANDROID_SHELL = runtimeQueryParameters.get('androidShell') === '1';
+const supabaseAuthOptions = {
+  persistSession: true,
+  autoRefreshToken: true,
+  detectSessionInUrl: true
+};
+if (IS_ANDROID_SHELL) supabaseAuthOptions.storageKey = 'sasa_supabase_auth_android';
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: supabaseAuthOptions
 });
 const remoteDataStore = supabaseClient && window.SasaSupabaseData?.create(supabaseClient);
 const initialFragmentParameters = new URLSearchParams(window.location.hash.slice(1));
