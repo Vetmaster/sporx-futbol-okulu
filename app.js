@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.15.285';
+const APP_VERSION = '2026.08.15.286';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -10,8 +10,28 @@ const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
+const ANDROID_SHELL_SESSION_KEY = 'sasa_android_shell_session';
 const runtimeQueryParameters = new URLSearchParams(window.location.search);
-const IS_ANDROID_SHELL = runtimeQueryParameters.get('androidShell') === '1';
+const launchedByAndroidParameter = runtimeQueryParameters.get('androidShell') === '1';
+const launchedByAndroidReferrer = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
+const launchedWithNativeVersion = Number(runtimeQueryParameters.get('nativeVersion')) > 0;
+let rememberedAndroidShellSession = false;
+try {
+  rememberedAndroidShellSession = window.sessionStorage.getItem(ANDROID_SHELL_SESSION_KEY) === '1';
+} catch {
+  rememberedAndroidShellSession = false;
+}
+const IS_ANDROID_SHELL = launchedByAndroidParameter
+  || launchedByAndroidReferrer
+  || launchedWithNativeVersion
+  || rememberedAndroidShellSession;
+if (IS_ANDROID_SHELL) {
+  try {
+    window.sessionStorage.setItem(ANDROID_SHELL_SESSION_KEY, '1');
+  } catch {
+    // Oturum depolaması kapalıysa açılış URL'si ve Android referrer bilgisi kullanılmaya devam eder.
+  }
+}
 const supabaseAuthOptions = {
   persistSession: true,
   autoRefreshToken: true,
@@ -493,7 +513,7 @@ function runsInAndroidAppShell() {
   const launchedWithVersion = Number(launchParameters.get('nativeVersion')) > 0;
   const launchedByAndroidPackage = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
   const legacyNativeLaunch = launchedWithVersion && (launchedByAndroidPackage || runsAsInstalledApp());
-  return explicitlyLaunchedByAndroidShell || launchedByAndroidPackage || legacyNativeLaunch;
+  return IS_ANDROID_SHELL || explicitlyLaunchedByAndroidShell || launchedByAndroidPackage || legacyNativeLaunch;
 }
 
 if (runsInAndroidAppShell()) markAndroidAppAsSeen();
