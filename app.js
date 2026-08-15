@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.15.286';
+const APP_VERSION = '2026.08.15.287';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -15,6 +15,8 @@ const runtimeQueryParameters = new URLSearchParams(window.location.search);
 const launchedByAndroidParameter = runtimeQueryParameters.get('androidShell') === '1';
 const launchedByAndroidReferrer = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
 const launchedWithNativeVersion = Number(runtimeQueryParameters.get('nativeVersion')) > 0;
+const launchedAsStandaloneAndroidApp = /Android/i.test(window.navigator.userAgent)
+  && Boolean(window.matchMedia?.('(display-mode: standalone)').matches);
 let rememberedAndroidShellSession = false;
 try {
   rememberedAndroidShellSession = window.sessionStorage.getItem(ANDROID_SHELL_SESSION_KEY) === '1';
@@ -24,6 +26,7 @@ try {
 const IS_ANDROID_SHELL = launchedByAndroidParameter
   || launchedByAndroidReferrer
   || launchedWithNativeVersion
+  || launchedAsStandaloneAndroidApp
   || rememberedAndroidShellSession;
 if (IS_ANDROID_SHELL) {
   try {
