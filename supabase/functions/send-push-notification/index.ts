@@ -70,6 +70,12 @@ Deno.serve(async request => {
     .maybeSingle();
   if (!targetSchool) return json({ error: 'School not found' }, 404);
   if (targetSchool.is_active === false) return json({ error: 'School is inactive' }, 409);
+  const requestedRecipientIds = Array.isArray(body.recipientUserIds)
+    ? [...new Set(body.recipientUserIds.map((value: unknown) => String(value || '').trim()).filter(Boolean))].slice(0, 50)
+    : [];
+  if (requestedRecipientIds.length && callerProfile.role !== 'super_admin') {
+    return json({ error: 'Direct recipients require Super Admin permission' }, 403);
+  }
 
   let notificationId = Number(body.notificationId || 0);
   let trainingId: number | null = null;
@@ -173,7 +179,15 @@ Deno.serve(async request => {
   await admin.from('notifications').update({ status: 'queued' }).eq('id', notification.id);
 
   let recipientIds: string[] = [];
-  if (['Aidat borcu olanlar', 'Aidat borcu olmayanlar'].includes(notification.audience)) {
+  if (requestedRecipientIds.length) {
+    const { data: memberships, error: membershipsError } = await admin
+      .from('school_user_memberships')
+      .select('user_id')
+      .eq('school_id', notification.school_id)
+      .in('user_id', requestedRecipientIds);
+    if (membershipsError) return json({ error: 'Direct recipients could not be verified' }, 500);
+    recipientIds = (memberships || []).map(membership => membership.user_id);
+  } else if (['Aidat borcu olanlar', 'Aidat borcu olmayanlar'].includes(notification.audience)) {
     const { data: students, error: studentsError } = await admin
       .from('students')
       .select('id, guardian_user_id')
