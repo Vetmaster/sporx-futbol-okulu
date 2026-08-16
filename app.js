@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.310';
+const APP_VERSION = '2026.08.16.311';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2673,7 +2673,7 @@ function resetStudentPhotoEditor() {
 
 async function prepareStudentPhoto(file) {
   const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
-  if (!allowedTypes.has(file.type)) throw new Error('Fotoğraf JPEG, PNG veya WebP biçiminde olmalıdır.');
+  if (file.type && !allowedTypes.has(file.type)) throw new Error('Fotoğraf JPEG, PNG veya WebP biçiminde olmalıdır.');
   if (file.size > 10 * 1024 * 1024) throw new Error('Fotoğrafın boyutu 10 MB’tan küçük olmalıdır.');
   const sourceUrl = URL.createObjectURL(file);
   try {
@@ -3463,7 +3463,7 @@ document.querySelector('#studentPrepaymentMonths').addEventListener('change', up
 document.querySelector('#studentPhotoInput').addEventListener('change', event => {
   const file = event.target.files?.[0];
   if (!file) return;
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+  if ((file.type && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) || file.size > 10 * 1024 * 1024) {
     event.target.value = '';
     showToast(file.size > 10 * 1024 * 1024
       ? 'Fotoğrafın boyutu 10 MB’tan küçük olmalıdır.'
