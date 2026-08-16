@@ -31,16 +31,24 @@ import android.widget.ImageView;
 import androidx.core.content.ContextCompat;
 import androidx.core.app.ActivityCompat;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 
 
 public class LauncherActivity
         extends com.google.androidbrowserhelper.trusted.LauncherActivity {
     private static final long SPLASH_DISPLAY_DURATION_MILLIS = 3000L;
+    private static final long FCM_TOKEN_WAIT_TIMEOUT_MILLIS = 6000L;
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1201;
     private final Handler splashHandler = new Handler(Looper.getMainLooper());
     private final Runnable launchTwaTask = this::launchTwa;
+    private final Runnable fcmTokenTimeoutTask = () -> {
+        fcmTokenResolved = true;
+        scheduleTwaLaunch();
+    };
     private long splashStartedAtMillis;
     private boolean twaLaunchScheduled;
+    private boolean notificationPermissionResolved;
+    private boolean fcmTokenResolved;
 
     @Override
     protected boolean shouldLaunchImmediately() {
@@ -52,7 +60,9 @@ public class LauncherActivity
         super.onCreate(savedInstanceState);
         splashStartedAtMillis = SystemClock.elapsedRealtime();
         showSplashScreen();
-        if (!requestNotificationPermissionIfNeeded()) scheduleTwaLaunch();
+        notificationPermissionResolved = !requestNotificationPermissionIfNeeded();
+        prepareFcmToken();
+        scheduleTwaLaunch();
         // Setting an orientation crashes the app due to the transparent background on Android 8.0
         // Oreo and below. We only set the orientation on Oreo and above. This only affects the
         // splash screen and Chrome will still respect the orientation.
@@ -76,11 +86,25 @@ public class LauncherActivity
     }
 
     private void scheduleTwaLaunch() {
-        if (twaLaunchScheduled) return;
+        if (twaLaunchScheduled || !notificationPermissionResolved || !fcmTokenResolved) return;
         twaLaunchScheduled = true;
         long elapsedMillis = SystemClock.elapsedRealtime() - splashStartedAtMillis;
         long remainingMillis = Math.max(0L, SPLASH_DISPLAY_DURATION_MILLIS - elapsedMillis);
         splashHandler.postDelayed(launchTwaTask, remainingMillis);
+    }
+
+    private void prepareFcmToken() {
+        if (!FcmTokenStore.get(this).isEmpty()) {
+            fcmTokenResolved = true;
+            return;
+        }
+        splashHandler.postDelayed(fcmTokenTimeoutTask, FCM_TOKEN_WAIT_TIMEOUT_MILLIS);
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+            if (task.isSuccessful()) FcmTokenStore.save(this, task.getResult());
+            splashHandler.removeCallbacks(fcmTokenTimeoutTask);
+            fcmTokenResolved = true;
+            scheduleTwaLaunch();
+        });
     }
 
     @Override
@@ -89,7 +113,10 @@ public class LauncherActivity
             String[] permissions,
             int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) scheduleTwaLaunch();
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
+            notificationPermissionResolved = true;
+            scheduleTwaLaunch();
+        }
     }
 
     private void showSplashScreen() {
@@ -107,6 +134,7 @@ public class LauncherActivity
     @Override
     protected void onDestroy() {
         splashHandler.removeCallbacks(launchTwaTask);
+        splashHandler.removeCallbacks(fcmTokenTimeoutTask);
         super.onDestroy();
     }
 
