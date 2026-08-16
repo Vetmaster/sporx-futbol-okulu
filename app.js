@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.303';
+const APP_VERSION = '2026.08.16.304';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -10,7 +10,6 @@ const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
-const ANDROID_SHELL_SESSION_KEY = 'sasa_android_shell_session';
 const NATIVE_FCM_TOKEN_STORAGE_KEY = 'sasa_native_fcm_token';
 const NATIVE_NOTIFICATION_PERMISSION_STORAGE_KEY = 'sasa_native_notification_permission';
 const runtimeQueryParameters = new URLSearchParams(window.location.search);
@@ -18,19 +17,11 @@ const launchedByAndroidParameter = runtimeQueryParameters.get('androidShell') ==
 const launchedByAndroidReferrer = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
 const LAUNCHED_NATIVE_VERSION = Number(runtimeQueryParameters.get('nativeVersion')) || 0;
 const launchedWithNativeVersion = LAUNCHED_NATIVE_VERSION > 0;
-let rememberedAndroidShellSession = false;
-try {
-  rememberedAndroidShellSession = window.sessionStorage.getItem(ANDROID_SHELL_SESSION_KEY) === '1';
-} catch {
-  rememberedAndroidShellSession = false;
-}
 const IS_ANDROID_SHELL = launchedByAndroidParameter
   || launchedByAndroidReferrer
-  || launchedWithNativeVersion
-  || rememberedAndroidShellSession;
+  || launchedWithNativeVersion;
 if (IS_ANDROID_SHELL) {
   try {
-    window.sessionStorage.setItem(ANDROID_SHELL_SESSION_KEY, '1');
     if (LAUNCHED_NATIVE_VERSION > 0) {
       window.localStorage.setItem(NATIVE_VERSION_STORAGE_KEY, String(LAUNCHED_NATIVE_VERSION));
     }
@@ -2125,7 +2116,13 @@ async function showAuthenticatedApp(user) {
   if (requestedPage === 'notifications' && navItems.notifications.roles.includes(state.role)) {
     state.page = 'notifications';
     state.pageHistory = [];
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+    const notificationUrl = new URL(window.location.href);
+    notificationUrl.searchParams.delete('open');
+    window.history.replaceState(
+      null,
+      '',
+      `${notificationUrl.pathname}${notificationUrl.search}${notificationUrl.hash}`
+    );
   }
   initializeBrowserNavigation();
   document.querySelector('#authPasswordField').classList.remove('is-hidden');
