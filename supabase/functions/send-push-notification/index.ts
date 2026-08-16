@@ -266,6 +266,9 @@ Deno.serve(async request => {
     recipientIds = (memberships || []).map(membership => membership.user_id);
   }
 
+  if (notification.audience === 'Tüm kullanıcılar') {
+    recipientIds.push(userResult.user.id);
+  }
   recipientIds = [...new Set(recipientIds.filter(Boolean))];
   const { error: clearRecipientsError } = await admin
     .from('notification_recipients')
