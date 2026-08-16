@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.299';
+const APP_VERSION = '2026.08.16.300';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2278,21 +2278,23 @@ async function getPushRegistration() {
 async function invokePushFunction(body) {
   const { data: sessionData } = await supabaseClient.auth.getSession();
   const accessToken = sessionData.session?.access_token;
-  const result = await supabaseClient.functions.invoke('send-push-notification', {
-    body,
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    },
+    body: JSON.stringify(body)
   });
-  if (result.error) {
-    let detail = '';
-    try {
-      const response = result.error.context;
-      const errorBody = response && typeof response.clone === 'function'
-        ? await response.clone().json()
-        : null;
-      detail = String(errorBody?.error || '').trim();
-    } catch (_) {
-      // Supabase istemcisi bazı ağ hatalarında okunabilir bir yanıt gövdesi sağlamaz.
-    }
+  let result = null;
+  try {
+    result = await response.json();
+  } catch (_) {
+    result = null;
+  }
+  if (!response.ok) {
+    const detail = String(result?.error || '').trim();
     const translatedErrors = {
       'Forbidden school context': 'Bu okul için bildirim gönderme yetkiniz bulunmuyor.',
       'School is inactive': 'Seçili okul aktif olmadığı için bildirim gönderilemedi.',
@@ -2300,9 +2302,12 @@ async function invokePushFunction(body) {
       'Invalid notification': 'Bildirim başlığı, mesajı veya alıcı grubu boş bırakılamaz.',
       'Unauthorized': 'Oturum doğrulanamadı. Lütfen yeniden giriş yapın.'
     };
-    result.error = new Error(translatedErrors[detail] || detail || result.error.message || 'Bildirim gönderilemedi.');
+    return {
+      data: null,
+      error: new Error(translatedErrors[detail] || detail || `Bildirim servisi ${response.status} hatası döndürdü.`)
+    };
   }
-  return result;
+  return { data: result, error: null };
 }
 
 async function saveAndSendNotification({ audience, title, body }) {
