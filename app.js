@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.304';
+const APP_VERSION = '2026.08.16.305';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -17,9 +17,16 @@ const launchedByAndroidParameter = runtimeQueryParameters.get('androidShell') ==
 const launchedByAndroidReferrer = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
 const LAUNCHED_NATIVE_VERSION = Number(runtimeQueryParameters.get('nativeVersion')) || 0;
 const launchedWithNativeVersion = LAUNCHED_NATIVE_VERSION > 0;
-const IS_ANDROID_SHELL = launchedByAndroidParameter
+const launchedFromAndroidEntry = /\/android\.html$/.test(window.location.pathname);
+const explicitlyLaunchedByAndroid = launchedByAndroidParameter
   || launchedByAndroidReferrer
   || launchedWithNativeVersion;
+if (explicitlyLaunchedByAndroid && !launchedFromAndroidEntry) {
+  const androidEntryUrl = new URL(window.location.href);
+  androidEntryUrl.pathname = `${androidEntryUrl.pathname.replace(/[^/]*$/, '')}android.html`;
+  window.location.replace(androidEntryUrl.toString());
+}
+const IS_ANDROID_SHELL = launchedFromAndroidEntry || explicitlyLaunchedByAndroid;
 if (IS_ANDROID_SHELL) {
   try {
     if (LAUNCHED_NATIVE_VERSION > 0) {
