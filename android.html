@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.16.303">
+  <link rel="stylesheet" href="styles.css?v=2026.08.16.310">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -156,6 +156,18 @@
         <button class="icon-button" type="button" data-dialog-close="studentDialog" aria-label="Kapat">×</button>
       </div>
       <div class="form-grid">
+        <div class="student-photo-field full-field">
+          <div class="student-photo-preview student-icon-avatar" id="studentPhotoPreview" aria-label="Öğrenci fotoğrafı önizlemesi"></div>
+          <div class="student-photo-controls">
+            <strong>Öğrenci fotoğrafı</strong>
+            <span>İsteğe bağlıdır. Kamerayla çekebilir veya galeriden seçebilirsiniz.</span>
+            <div class="student-photo-actions">
+              <label class="secondary-button" for="studentPhotoInput">Fotoğraf çek veya seç</label>
+              <input class="student-photo-input" id="studentPhotoInput" name="studentPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="user">
+              <button class="text-button is-hidden" id="studentPhotoRemoveButton" type="button">Fotoğrafı kaldır</button>
+            </div>
+          </div>
+        </div>
         <label>Öğrenci adı soyadı<input name="studentName" required></label>
         <label>Doğum tarihi<input name="birthDate" type="date" required></label>
         <label>Grup<select name="group" required><option value="">Seçiniz</option><option>Saat 09:00</option><option>Saat 10:00</option><option>Saat 11:00</option><option>Saat 12:00</option><option>U11</option><option>U12</option><option>U13</option><option>U14</option></select></label>
@@ -306,7 +318,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.16.309"></script>
-  <script src="app.js?v=2026.08.16.309"></script>
+  <script src="supabase-data.js?v=2026.08.16.310"></script>
+  <script src="app.js?v=2026.08.16.310"></script>
 </body>
 </html>
