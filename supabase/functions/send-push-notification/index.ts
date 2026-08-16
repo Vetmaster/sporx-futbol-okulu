@@ -152,9 +152,14 @@ Deno.serve(async request => {
     }
     notificationId = Number(createdNotification.id);
   } else if (body.action === 'create-and-send') {
-    const audience = String(body.notification?.audience || '').trim();
-    const title = String(body.notification?.title || '').trim();
-    const notificationBody = String(body.notification?.body || '').trim();
+    const notificationInput = body.notification && typeof body.notification === 'object'
+      ? body.notification
+      : body;
+    const audience = String(notificationInput.audience || body.audience || '').trim();
+    const title = String(notificationInput.title || body.title || '').trim();
+    const notificationBody = String(
+      notificationInput.body || notificationInput.message || body.message || ''
+    ).trim();
     if (!audience || !title || !notificationBody) return json({ error: 'Invalid notification' }, 400);
 
     const { data: createdNotification, error: createError } = await admin
