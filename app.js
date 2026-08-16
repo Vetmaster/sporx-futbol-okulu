@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.295';
+const APP_VERSION = '2026.08.16.296';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2945,7 +2945,7 @@ document.addEventListener('click', async event => {
     } else {
       render();
     }
-    showToast(`${school.name} ve okula bağlı kayıtlar silindi.`);
+    showRecordCreated(`${school.name} ve okula bağlı kayıtlar silindi.`);
   }
   else if (action === 'edit-subscription' && state.role === 'super_admin') {
     const school = state.schools.find(item => item.id === actionButton.dataset.id);
@@ -2994,12 +2994,12 @@ document.addEventListener('click', async event => {
           body: `${formatTrainingDateLong(training.date)} saat ${training.time}’de yapılması planlanan ${training.title} antrenmanı iptal edilmiştir. Saha: ${training.field}.`
         });
         render();
-        showToast(pushResult.sent > 0
+        showRecordCreated(pushResult.sent > 0
           ? `Antrenman silindi ve ${pushResult.sent} telefona iptal bildirimi gönderildi.`
           : 'Antrenman silindi; bu grupta bildirimi açık telefon bulunamadı.');
       } catch (error) {
         render();
-        showToast(`Antrenman silindi ancak iptal bildirimi gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
+        showRecordCreated(`Antrenman silindi ancak iptal bildirimi gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
       }
     }
   }
@@ -3045,7 +3045,7 @@ document.addEventListener('click', async event => {
     state.notifications = state.notifications.filter(item => Number(item.id) !== Number(notification.id));
     persistLocalData();
     render();
-    showToast('Bildirim silindi.');
+    showRecordCreated('Bildirim silindi.');
   }
   else if (action === 'edit-group' && ['super_admin', 'admin'].includes(state.role)) {
     state.editingGroupName = String(actionButton.dataset.group || '');
@@ -3070,7 +3070,7 @@ document.addEventListener('click', async event => {
     GROUPS = GROUPS.filter(group => group !== groupName);
     syncGroupOptions();
     render();
-    showToast('Grup silindi.');
+    showRecordCreated('Grup silindi.');
   }
   else if (action === 'edit-training-type' && ['super_admin', 'admin'].includes(state.role)) {
     state.editingTrainingTypeName = String(actionButton.dataset.type || '');
@@ -3093,7 +3093,7 @@ document.addEventListener('click', async event => {
     state.trainingTypeSettingsOpen = true;
     syncTrainingTypeOptions();
     render();
-    showToast('Antrenman ismi kaldırıldı.');
+    showRecordCreated('Antrenman ismi kaldırıldı.');
   }
   else if (action === 'edit-training-coach' && ['super_admin', 'admin'].includes(state.role)) {
     state.editingTrainingCoachName = String(actionButton.dataset.coach || '');
@@ -3116,7 +3116,7 @@ document.addEventListener('click', async event => {
     state.trainingCoachSettingsOpen = true;
     syncTrainingCoachOptions();
     render();
-    showToast('Antrenör listeden kaldırıldı.');
+    showRecordCreated('Antrenör listeden kaldırıldı.');
   }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = key === 'enrollmentDate' ? 'desc' : 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'monthly-fee-sort') {
@@ -3174,7 +3174,7 @@ document.addEventListener('click', async event => {
     request.status = 'pending';
     request.reviewedAt = null;
     render();
-    showToast(`${request.fullName} kullanıcısının onayı kaldırıldı.`);
+    showRecordCreated(`${request.fullName} kullanıcısının onayı kaldırıldı.`);
   }
   else if (action === 'toggle-entry-actions') toggleLedgerActions(actionButton.closest('.ledger-entry'));
   else if (action === 'edit-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); closeLedgerActions(); if (entry) openAccountingDialog(entry); }
@@ -3273,7 +3273,8 @@ appContent.addEventListener('change', async event => {
     setMonthlyFeeStatus(student, statusControl.dataset.month, statusControl.value);
     persistLocalData();
     render();
-    showToast(statusControl.value === 'late' ? 'Aidat borç bakiyesine eklendi.' : 'Bu dönem için aidat kaldırıldı.');
+    if (statusControl.value === 'late') showToast('Aidat borç bakiyesine eklendi.');
+    else showRecordCreated('Bu dönem için aidat kaldırıldı.');
     return;
   }
   const paymentControl = event.target.closest('[data-monthly-fee]');
@@ -3290,7 +3291,7 @@ appContent.addEventListener('change', async event => {
   setMonthlyFeeStatus(student, paymentControl.dataset.month, status);
   persistLocalData();
   render();
-  showToast(paymentControl.checked ? 'Aidat ödendi; tahsilat muhasebeye gelir olarak eklendi.' : 'Ödeme kaldırıldı; aidat borç bakiyesine geri eklendi.');
+  showRecordCreated('Ödeme kaldırıldı; aidat borç bakiyesine geri eklendi.');
 });
 
 document.querySelector('#studentPrepaymentMonths').addEventListener('change', updateStudentPrepaymentSummary);
@@ -3928,7 +3929,8 @@ appContent.addEventListener('submit', async event => {
     if (!savedAccounts) return;
     state.schoolBankAccounts = savedAccounts;
     render();
-    showToast(accounts.length ? `${accounts.length} havale hesabı kaydedildi.` : 'Havale bilgileri kaldırıldı.');
+    if (accounts.length) showToast(`${accounts.length} havale hesabı kaydedildi.`);
+    else showRecordCreated('Havale bilgileri kaldırıldı.');
     return;
   }
   if (event.target.id !== 'notificationForm') return;
