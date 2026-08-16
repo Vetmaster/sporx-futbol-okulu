@@ -178,7 +178,7 @@
         fetchTrainingCoaches(client, schoolId),
         isCoach
           ? client.rpc('coach_student_directory', { target_school_id: schoolId }).then(({ data, error }) => { if (error) throw error; return data || []; })
-          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, training_groups(name)', 'id', { school_id: schoolId }),
+          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, profile_photo_path, training_groups(name)', 'id', { school_id: schoolId }),
         isCoach ? Promise.resolve([]) : fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at', 'id', { school_id: schoolId }),
         fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date', { school_id: schoolId }),
         isCoach ? Promise.resolve([]) : fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on', { school_id: schoolId }),
@@ -201,6 +201,18 @@
         feesByStudent.get(Number(row.student_id)).push(row);
       });
       const currentMonth = new Date().toISOString().slice(0, 7);
+      const studentPhotoPaths = [...new Set(studentsRows.map(row => row.profile_photo_path).filter(Boolean))];
+      const studentPhotoUrls = new Map();
+      if (studentPhotoPaths.length) {
+        const { data: signedPhotos, error: signedPhotoError } = await client.storage
+          .from('student-profile-photos')
+          .createSignedUrls(studentPhotoPaths, 60 * 60);
+        if (!signedPhotoError) {
+          (signedPhotos || []).forEach(photo => {
+            if (photo.path && photo.signedUrl && !photo.error) studentPhotoUrls.set(photo.path, photo.signedUrl);
+          });
+        }
+      }
 
       const students = studentsRows.map(row => {
         const fees = feesByStudent.get(Number(row.id)) || [];
@@ -225,6 +237,8 @@
           email: row.email || '',
           address: row.address || '',
           notes: row.notes || '',
+          photoPath: row.profile_photo_path || '',
+          photoUrl: studentPhotoUrls.get(row.profile_photo_path) || '',
           enrollmentDate: row.enrollment_date,
           feeTrackingStartDate: row.fee_tracking_start_date,
           feePayments,
@@ -637,6 +651,7 @@
         email: student.email || null,
         address: student.address || null,
         notes: student.notes || null,
+        profile_photo_path: student.photoPath || null,
         enrollment_date: student.enrollmentDate,
         fee_tracking_start_date: student.feeTrackingStartDate,
         attendance_rate: Number(student.attendance || 0)
@@ -647,6 +662,47 @@
       const { data, error } = await query.select('id').single();
       if (error) throw error;
       return Number(data.id);
+    }
+
+    async function saveStudentPhoto(studentId, photoFile, previousPath = '') {
+      requireContext();
+      const safeStudentId = Number(studentId);
+      if (!safeStudentId || !photoFile) throw new Error('Öğrenci fotoğrafı hazırlanamadı.');
+      const objectId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const path = `${schoolId}/${safeStudentId}/${objectId}.jpg`;
+      const bucket = client.storage.from('student-profile-photos');
+      const { error: uploadError } = await bucket.upload(path, photoFile, {
+        cacheControl: '3600',
+        contentType: 'image/jpeg',
+        upsert: false
+      });
+      if (uploadError) throw uploadError;
+
+      const { error: updateError } = await client
+        .from('students')
+        .update({ profile_photo_path: path })
+        .eq('id', safeStudentId)
+        .eq('school_id', schoolId);
+      if (updateError) {
+        await bucket.remove([path]).catch(() => {});
+        throw updateError;
+      }
+      if (previousPath && previousPath !== path) await bucket.remove([previousPath]).catch(() => {});
+      const { data: signedPhoto } = await bucket.createSignedUrl(path, 60 * 60);
+      return { path, url: signedPhoto?.signedUrl || '' };
+    }
+
+    async function deleteStudentPhoto(studentId, photoPath) {
+      requireContext();
+      const safeStudentId = Number(studentId);
+      if (!safeStudentId) throw new Error('Öğrenci fotoğrafı kaldırılamadı.');
+      const { error: updateError } = await client
+        .from('students')
+        .update({ profile_photo_path: null })
+        .eq('id', safeStudentId)
+        .eq('school_id', schoolId);
+      if (updateError) throw updateError;
+      if (photoPath) await client.storage.from('student-profile-photos').remove([photoPath]);
     }
 
     async function inviteGuardian(studentId, previousEmail = '') {
@@ -893,6 +949,8 @@
       updateTrainingCoach,
       deleteTrainingCoach,
       saveStudent,
+      saveStudentPhoto,
+      deleteStudentPhoto,
       inviteGuardian,
       saveTraining,
       deleteTraining,

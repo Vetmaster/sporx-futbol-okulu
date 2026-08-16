@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.309';
+const APP_VERSION = '2026.08.16.310';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -152,6 +152,8 @@ const state = {
   notificationComposeOpen: false,
   notificationDraft: { audience: 'Tüm kullanıcılar', title: '', body: '' },
   editingStudentId: null,
+  studentPhotoRemoveRequested: false,
+  studentPhotoPreviewUrl: '',
   editingGroupName: null,
   editingTrainingTypeName: null,
   editingTrainingCoachName: null,
@@ -627,6 +629,14 @@ function isActualSuperAdmin() { return state.actualRole === 'super_admin'; }
 function isRolePreview() { return isActualSuperAdmin() && state.role !== 'super_admin'; }
 function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2).join(''); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
+function studentAvatarMarkup(student, useStudentIcon = false, extraClasses = '') {
+  const hasPhoto = Boolean(student?.photoUrl);
+  const fallback = useStudentIcon ? MENU_ICONS.student : escapeHtml(initials(student?.name || 'Ö'));
+  const content = hasPhoto
+    ? `<img src="${escapeHtml(student.photoUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+    : fallback;
+  return `<span class="profile-avatar ${useStudentIcon ? 'student-icon-avatar' : ''} ${hasPhoto ? 'has-photo' : ''} ${extraClasses}" aria-hidden="true">${content}</span>`;
+}
 function normalizeIban(value) { return String(value || '').toLocaleUpperCase('tr-TR').replace(/[^A-Z0-9]/g, ''); }
 function formatIban(value) { return normalizeIban(value).replace(/(.{4})/g, '$1 ').trim(); }
 function formatTurkishIbanLocalPart(value) {
@@ -1171,7 +1181,7 @@ function dashboardView() {
     <section class="dashboard-grid dashboard-grid-single">
       <article class="panel"><div class="panel-heading"><h3>Planlanan antrenmanlar</h3><button class="text-button" data-page="trainings">Tüm takvim</button></div>${plannedTrainings.slice(0, 4).map(t => `<div class="list-row training-summary-row"><span class="training-date-time"><small>${formatTrainingDate(t.date)}</small><b>${t.time}</b></span><div><strong>${t.group} · ${t.title}</strong><small>${t.coach} · ${t.field}</small></div><span class="status">${trainingAttendanceLabel(t)}</span></div>`).join('') || '<div class="empty-state">Planlanmış güncel antrenman bulunmuyor.</div>'}</article>
     </section>
-    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 4).map(s => `<div class="list-row"><span class="profile-avatar">${initials(s.name)}</span><div>${studentNameLink(s)}<span class="inline-separator" aria-hidden="true">•</span><small>Grup: ${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div><div class="fee-month-badges" aria-label="Ödenmemiş aylar">${unpaidFeePeriods(s).map(month => `<span class="status danger">${formatFeeMonth(month)}</span>`).join('')}</div></div>`).join('')}</section>
+    <section class="panel"><div class="panel-heading"><h3>İşlem bekleyen aidatlar</h3><button class="text-button" data-page="fees">Tümünü gör</button></div>${pendingFeeStudents.slice(0, 4).map(s => `<div class="list-row">${studentAvatarMarkup(s)}<div>${studentNameLink(s)}<span class="inline-separator" aria-hidden="true">•</span><small>Grup: ${s.group}${s.parent ? ` · Veli: ${s.parent}` : ''}</small></div><div class="fee-month-badges" aria-label="Ödenmemiş aylar">${unpaidFeePeriods(s).map(month => `<span class="status danger">${formatFeeMonth(month)}</span>`).join('')}</div></div>`).join('')}</section>
   </div>`;
 }
 
@@ -1240,7 +1250,7 @@ function parentDashboard() {
   const newsfeedItems = state.notifications.slice(0, 5).map(item => `<button class="newsfeed-item ${item.read ? '' : 'is-unread'}" type="button" data-page="notifications"><span class="newsfeed-marker" aria-hidden="true"></span><span class="newsfeed-content"><span class="newsfeed-meta"><span>${escapeHtml(item.date)} · ${escapeHtml(item.time)}</span>${item.read ? '' : '<span class="status warning">Yeni</span>'}</span><strong>${escapeHtml(item.title)}</strong>${item.body ? `<span class="newsfeed-message">${escapeHtml(item.body)}</span>` : ''}</span></button>`).join('');
   return `<div class="page-stack">
     ${dashboardNotificationPromptMarkup()}
-    <section class="panel parent-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><div class="parent-hero-actions">${parentStudentSwitcherMarkup()}<button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></div></section>
+    <section class="panel parent-hero">${studentAvatarMarkup(student, true)}<div><h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div><div class="parent-hero-actions">${parentStudentSwitcherMarkup()}<button class="secondary-button" data-action="profile" data-id="${student.id}">Profili görüntüle</button></div></section>
     <section class="stats-grid parent-dashboard-stats">
       ${nextTrainingCard}
       <article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${feeDebtText}</strong></article>
@@ -1334,7 +1344,7 @@ function studentHasFeeDebt(student) { return unpaidFeePeriods(student).length > 
 function studentListFeeLabel(student) { return studentHasFeeDebt(student) ? '<span class="status danger">Borç var</span>' : '<span class="status">Borç yok</span>'; }
 function studentRows(list) {
   return list.map(student => {
-    const commonStart = `<td><span class="profile-cell"><span class="profile-avatar">${initials(student.name)}</span>${studentNameLink(student)}</span></td><td>${formatStudentBirthDisplay(student.birth)}</td><td>${formatEnrollmentDate(student.enrollmentDate) || '—'}</td><td>${student.group || '—'}</td><td>${student.position || '—'}</td>`;
+    const commonStart = `<td><span class="profile-cell">${studentAvatarMarkup(student)}${studentNameLink(student)}</span></td><td>${formatStudentBirthDisplay(student.birth)}</td><td>${formatEnrollmentDate(student.enrollmentDate) || '—'}</td><td>${student.group || '—'}</td><td>${student.position || '—'}</td>`;
     const protectedColumns = isCoachRole() ? '' : `<td>${student.parent || '—'}<br><small class="muted">${student.phone}</small></td><td>${studentListFeeLabel(student)}</td>`;
     return `<tr>${commonStart}${protectedColumns}<td>%${studentAttendanceRate(student)}</td><td><button class="text-button" data-action="profile" data-id="${student.id}">Profili aç</button></td></tr>`;
   }).join('');
@@ -1346,7 +1356,7 @@ function childView() {
   const feeStatus = currentFeeStatus(s);
   const feeText = feeStatus === 'paid' ? 'Ödendi' : feeStatus === 'late' ? 'Ödenmedi' : feeStatus === 'none' ? 'Aidat yok' : 'Bekliyor';
   const attendanceCount = attendanceEntriesForStudent(s).length;
-  return `<div class="page-stack"><section class="panel parent-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div><h2>${studentNameLink(s, true)}</h2><p>${formatStudentBirthDisplay(s.birth)} · ${s.group}${s.position ? ` · ${s.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${s.id}">Tam profili aç</button></section><section class="stats-grid"><article class="stat-card"><span class="label">Katılım</span><strong>%${studentAttendanceRate(s)}</strong><small>${attendanceCount ? `${attendanceCount} kayıtlı yoklama` : 'Henüz yoklama yok'}</small></article><article class="stat-card"><span class="label">Aidat</span><strong>${feeText}</strong><small>${formatFeeMonth(feeMonthKey())}</small></article><article class="stat-card"><span class="label">Antrenman grubu</span><strong>${s.group}</strong><small>Güncel grup</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${s.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article></section><section class="panel"><div class="panel-heading"><h3>İletişim bilgileri</h3></div><div class="progress-group"><span><strong>Veli:</strong> ${s.parent || 'Bilgi girilmedi'}</span><span><strong>Telefon:</strong> ${s.phone}</span><span><strong>E-posta:</strong> ${s.email || 'Bilgi girilmedi'}</span></div></section></div>`;
+  return `<div class="page-stack"><section class="panel parent-hero">${studentAvatarMarkup(s, true)}<div><h2>${studentNameLink(s, true)}</h2><p>${formatStudentBirthDisplay(s.birth)} · ${s.group}${s.position ? ` · ${s.position}` : ''}</p></div><button class="secondary-button" data-action="profile" data-id="${s.id}">Tam profili aç</button></section><section class="stats-grid"><article class="stat-card"><span class="label">Katılım</span><strong>%${studentAttendanceRate(s)}</strong><small>${attendanceCount ? `${attendanceCount} kayıtlı yoklama` : 'Henüz yoklama yok'}</small></article><article class="stat-card"><span class="label">Aidat</span><strong>${feeText}</strong><small>${formatFeeMonth(feeMonthKey())}</small></article><article class="stat-card"><span class="label">Antrenman grubu</span><strong>${s.group}</strong><small>Güncel grup</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${s.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article></section><section class="panel"><div class="panel-heading"><h3>İletişim bilgileri</h3></div><div class="progress-group"><span><strong>Veli:</strong> ${s.parent || 'Bilgi girilmedi'}</span><span><strong>Telefon:</strong> ${s.phone}</span><span><strong>E-posta:</strong> ${s.email || 'Bilgi girilmedi'}</span></div></section></div>`;
 }
 
 function studentProfileView() {
@@ -1368,7 +1378,7 @@ function studentProfileView() {
   const feeTrackingSection = isCoachRole() ? '' : `<section class="panel" id="monthlyFeeSection"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="students-checkbox-filters monthly-fee-filter"><label class="students-active-filter"><input id="monthlyFeeUnpaidOnlyFilter" type="checkbox" ${state.monthlyFeeUnpaidOnly ? 'checked' : ''}><span>Sadece ödenmemiş aidatları göster</span></label></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr>${monthlyFeeSortHeader('period', 'Dönem')}${monthlyFeeSortHeader('amount', 'Tutar')}${monthlyFeeSortHeader('due', 'Son ödeme')}${monthlyFeeSortHeader('status', 'Durum')}${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>`;
   return `<div class="page-stack">
     <div class="section-heading"><div></div>${profileActions}</div>
-    <section class="panel student-profile-hero"><span class="profile-avatar student-icon-avatar" aria-hidden="true">${MENU_ICONS.student}</span><div>${activeStudent && !isCoachRole() ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
+    <section class="panel student-profile-hero">${studentAvatarMarkup(student, true)}<div>${activeStudent && !isCoachRole() ? '<span class="eyebrow">AKTİF ÖĞRENCİ</span>' : ''}<h2>${student.name}</h2><p>${studentBirthYearLabel(student)} · Grup: ${student.group}${student.position ? ` · ${student.position}` : ''}</p></div></section>
     <section class="stats-grid profile-stats-grid">${profileStats}</section>
     <section class="profile-details-grid"><article class="panel"><div class="panel-heading"><h3>Öğrenci bilgileri</h3></div><dl class="detail-list"><div><dt>Adı soyadı</dt><dd>${student.name}</dd></div><div><dt>Doğum tarihi</dt><dd>${formatStudentBirthDisplay(student.birth)}</dd></div><div><dt>Kayıt tarihi</dt><dd>${formatEnrollmentDate(student.enrollmentDate)}</dd></div><div><dt>Antrenman Grubu</dt><dd>${student.group}</dd></div><div><dt>Oynadığı mevki</dt><dd>${student.position || 'Bilgi girilmedi'}</dd></div></dl></article>${guardianDetails}</section>
     ${feeTrackingSection}
@@ -2632,7 +2642,71 @@ function openAttendance(id) {
   document.querySelector('#attendanceDialog').showModal();
 }
 
+function releaseStudentPhotoPreview() {
+  if (state.studentPhotoPreviewUrl) URL.revokeObjectURL(state.studentPhotoPreviewUrl);
+  state.studentPhotoPreviewUrl = '';
+}
+
+function showStudentPhotoPreview(photoUrl = '') {
+  const preview = document.querySelector('#studentPhotoPreview');
+  const removeButton = document.querySelector('#studentPhotoRemoveButton');
+  if (!preview || !removeButton) return;
+  preview.replaceChildren();
+  if (photoUrl) {
+    const image = document.createElement('img');
+    image.src = photoUrl;
+    image.alt = 'Seçilen öğrenci fotoğrafı';
+    preview.append(image);
+  } else {
+    setSafeHtml(preview, MENU_ICONS.student);
+  }
+  removeButton.classList.toggle('is-hidden', !photoUrl);
+}
+
+function resetStudentPhotoEditor() {
+  releaseStudentPhotoPreview();
+  state.studentPhotoRemoveRequested = false;
+  const photoInput = document.querySelector('#studentPhotoInput');
+  if (photoInput) photoInput.value = '';
+  showStudentPhotoPreview();
+}
+
+async function prepareStudentPhoto(file) {
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!allowedTypes.has(file.type)) throw new Error('Fotoğraf JPEG, PNG veya WebP biçiminde olmalıdır.');
+  if (file.size > 10 * 1024 * 1024) throw new Error('Fotoğrafın boyutu 10 MB’tan küçük olmalıdır.');
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error('Fotoğraf okunamadı. Başka bir fotoğraf deneyin.'));
+      image.src = sourceUrl;
+    });
+    const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+    const outputSize = Math.min(640, sourceSize);
+    if (!outputSize) throw new Error('Fotoğrafın boyutları geçersiz.');
+    const canvas = document.createElement('canvas');
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Fotoğraf işleme özelliği bu cihazda kullanılamıyor.');
+    const sourceX = Math.max(0, (image.naturalWidth - sourceSize) / 2);
+    const sourceY = Math.max(0, (image.naturalHeight - sourceSize) / 2);
+    context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.84));
+    if (!blob) throw new Error('Fotoğraf işlenemedi.');
+    return new File([blob], `student-${Date.now()}.jpg`, { type: 'image/jpeg' });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
 function openStudentDialog(student = null) {
+  if (!['super_admin', 'admin'].includes(state.role)) {
+    showToast('Öğrenci fotoğrafını yalnızca yöneticiler ekleyebilir veya değiştirebilir.');
+    return;
+  }
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
   if (!student && currentPlan.studentLimit !== null && state.students.length >= currentPlan.studentLimit) {
     showToast(`${currentPlan.name} paketi en fazla ${currentPlan.studentLimit} öğrenci kaydına izin verir. Yeni kayıt için paket yükseltilmelidir.`);
@@ -2640,6 +2714,8 @@ function openStudentDialog(student = null) {
   }
   const form = document.querySelector('#studentForm');
   form.reset();
+  releaseStudentPhotoPreview();
+  state.studentPhotoRemoveRequested = false;
   state.editingStudentId = student?.id || null;
   form.elements.studentName.value = student?.name || '';
   form.elements.birthDate.value = student ? studentBirthInputValue(student.birth) : '';
@@ -2649,6 +2725,7 @@ function openStudentDialog(student = null) {
   form.elements.phone.value = student?.phone || '';
   form.elements.email.value = student?.email || '';
   form.elements.address.value = student?.address || '';
+  showStudentPhotoPreview(student?.photoUrl || '');
   document.querySelector('#studentEyebrow').textContent = student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
   document.querySelector('#studentDialogTitle').textContent = student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
   document.querySelector('#studentSubmitButton').textContent = student ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet';
@@ -2918,7 +2995,7 @@ document.querySelector('#rolePreviewSelect').addEventListener('change', event =>
 
 document.addEventListener('click', async event => {
   const dialogCloseButton = event.target.closest('[data-dialog-close]');
-  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') state.editingStudentId = null; if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; if (dialog?.id === 'schoolAdminDialog') state.invitingSchoolId = null; if (dialog?.id === 'schoolEditDialog') state.editingSchoolId = null; if (dialog?.id === 'subscriptionDialog') state.editingSubscriptionSchoolId = null; if (dialog?.id === 'feePaymentDialog') render(); return; }
+  if (dialogCloseButton) { const dialog = document.querySelector(`#${dialogCloseButton.dataset.dialogClose}`); if (dialog?.open) dialog.close(); dialog?.querySelector('form')?.reset(); if (dialog?.id === 'studentDialog') { state.editingStudentId = null; resetStudentPhotoEditor(); } if (dialog?.id === 'trainingDialog') state.editingTrainingId = null; if (dialog?.id === 'accountingDialog') state.editingAccountingEntryId = null; if (dialog?.id === 'schoolAdminDialog') state.invitingSchoolId = null; if (dialog?.id === 'schoolEditDialog') state.editingSchoolId = null; if (dialog?.id === 'subscriptionDialog') state.editingSubscriptionSchoolId = null; if (dialog?.id === 'feePaymentDialog') render(); return; }
   const pageButton = event.target.closest('[data-page]');
   if (pageButton && appShell.contains(pageButton)) {
     if (pageButton.dataset.page === 'schools' && state.role === 'super_admin') {
@@ -3383,6 +3460,27 @@ appContent.addEventListener('change', async event => {
 });
 
 document.querySelector('#studentPrepaymentMonths').addEventListener('change', updateStudentPrepaymentSummary);
+document.querySelector('#studentPhotoInput').addEventListener('change', event => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    event.target.value = '';
+    showToast(file.size > 10 * 1024 * 1024
+      ? 'Fotoğrafın boyutu 10 MB’tan küçük olmalıdır.'
+      : 'Fotoğraf JPEG, PNG veya WebP biçiminde olmalıdır.');
+    return;
+  }
+  releaseStudentPhotoPreview();
+  state.studentPhotoRemoveRequested = false;
+  state.studentPhotoPreviewUrl = URL.createObjectURL(file);
+  showStudentPhotoPreview(state.studentPhotoPreviewUrl);
+});
+document.querySelector('#studentPhotoRemoveButton').addEventListener('click', () => {
+  releaseStudentPhotoPreview();
+  state.studentPhotoRemoveRequested = true;
+  document.querySelector('#studentPhotoInput').value = '';
+  showStudentPhotoPreview();
+});
 document.querySelector('#schoolAdminForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
@@ -3514,6 +3612,16 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   if (!['super_admin', 'admin'].includes(state.role)) return;
   const form = event.currentTarget;
   const data = new FormData(form);
+  const selectedPhoto = data.get('studentPhoto');
+  let preparedPhoto = null;
+  if (selectedPhoto instanceof File && selectedPhoto.size) {
+    try {
+      preparedPhoto = await prepareStudentPhoto(selectedPhoto);
+    } catch (error) {
+      showToast(error.message || 'Öğrenci fotoğrafı hazırlanamadı.');
+      return;
+    }
+  }
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
   const wasEditing = Boolean(state.editingStudentId);
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
@@ -3541,12 +3649,32 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     feePayments: existingStudent?.feePayments || { [feeMonthKey()]: 'none' },
     feeHistory: existingStudent?.feeHistory || {},
     fee: existingStudent?.fee || 'none',
-    attendance: existingStudent?.attendance ?? 100
+    attendance: existingStudent?.attendance ?? 100,
+    photoPath: existingStudent?.photoPath || '',
+    photoUrl: existingStudent?.photoUrl || ''
   };
   const saved = await runRemoteMutation(async () => {
     studentRecord.id = await remoteDataStore.saveStudent(studentRecord, !wasEditing);
   });
   if (!saved) return;
+  let photoError = null;
+  if (preparedPhoto) {
+    try {
+      const savedPhoto = await remoteDataStore.saveStudentPhoto(studentRecord.id, preparedPhoto, existingStudent?.photoPath || '');
+      studentRecord.photoPath = savedPhoto.path;
+      studentRecord.photoUrl = savedPhoto.url;
+    } catch (error) {
+      photoError = error;
+    }
+  } else if (wasEditing && state.studentPhotoRemoveRequested && existingStudent?.photoPath) {
+    try {
+      await remoteDataStore.deleteStudentPhoto(studentRecord.id, existingStudent.photoPath);
+      studentRecord.photoPath = '';
+      studentRecord.photoUrl = '';
+    } catch (error) {
+      photoError = error;
+    }
+  }
   if (wasEditing) {
     Object.assign(existingStudent, studentRecord);
     if (previousStudentEmail && studentRecord.email && previousStudentEmail.toLocaleLowerCase('tr') !== studentRecord.email.toLocaleLowerCase('tr')) {
@@ -3588,11 +3716,17 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     }
   }
   state.editingStudentId = null;
+  resetStudentPhotoEditor();
   persistLocalData();
   document.querySelector('#studentDialog').close();
   form.reset();
   state.page = wasEditing ? 'studentProfile' : 'students';
   render();
+  if (photoError) {
+    const recordLabel = wasEditing ? 'Öğrenci profili güncellendi' : 'Öğrenci kaydedildi';
+    showToast(`${recordLabel} ancak fotoğraf kaydedilemedi: ${photoError.message || 'Bağlantı hatası'}`, 'info', 5200);
+    return;
+  }
   if (wasEditing) {
     if (studentEmailChanged && guardianInviteError) {
       showToast(`Öğrenci profili güncellendi ancak yeni veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
