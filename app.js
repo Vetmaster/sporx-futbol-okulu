@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.311';
+const APP_VERSION = '2026.08.16.312';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -232,6 +232,13 @@ function sanitizedHtml(markup) {
 function setSafeHtml(element, markup) {
   if (!element) return;
   element.innerHTML = sanitizedHtml(markup);
+}
+function setSafeTableRows(tableBody, rowsMarkup) {
+  if (!tableBody) return;
+  const template = document.createElement('template');
+  template.innerHTML = sanitizedHtml(`<table><tbody>${rowsMarkup}</tbody></table>`);
+  const sanitizedBody = template.content.querySelector('tbody');
+  tableBody.replaceChildren(...(sanitizedBody ? [...sanitizedBody.childNodes] : []));
 }
 function appendSafeHtml(element, markup) {
   if (!element) return;
@@ -963,7 +970,7 @@ function trainingAttendanceLabel(training) {
   const presentCount = latestAttendance.presentStudentIds.filter(studentId => trainingStudentIds.has(Number(studentId))).length;
   return `${presentCount} / ${trainingStudents.length} öğrenci katıldı`;
 }
-function studentNameLink(student, inverse = false) { return `<button class="student-name-link${inverse ? ' inverse' : ''}" type="button" data-action="profile" data-id="${student.id}">${student.name}</button>`; }
+function studentNameLink(student, inverse = false) { return `<button class="student-name-link${inverse ? ' inverse' : ''}" type="button" data-action="profile" data-id="${Number(student.id)}">${escapeHtml(student.name)}</button>`; }
 
 function navMarkup(key, item) {
   return `<button class="nav-button ${state.page === key ? 'active' : ''}" type="button" data-page="${key}"><span class="nav-icon">${item.icon}</span><span>${item.label}</span></button>`;
@@ -1329,7 +1336,7 @@ function filteredAndSortedStudents() {
 function updateStudentsTable() {
   const filtered = filteredAndSortedStudents();
   const studentsBody = document.querySelector('#studentsBody');
-  setSafeHtml(studentsBody, studentRows(filtered));
+  setSafeTableRows(studentsBody, studentRows(filtered));
   const countSummary = document.querySelector('#studentsCountSummary');
   if (countSummary) countSummary.textContent = filtered.length;
 }
@@ -1344,8 +1351,8 @@ function studentHasFeeDebt(student) { return unpaidFeePeriods(student).length > 
 function studentListFeeLabel(student) { return studentHasFeeDebt(student) ? '<span class="status danger">Borç var</span>' : '<span class="status">Borç yok</span>'; }
 function studentRows(list) {
   return list.map(student => {
-    const commonStart = `<td><span class="profile-cell">${studentAvatarMarkup(student)}${studentNameLink(student)}</span></td><td>${formatStudentBirthDisplay(student.birth)}</td><td>${formatEnrollmentDate(student.enrollmentDate) || '—'}</td><td>${student.group || '—'}</td><td>${student.position || '—'}</td>`;
-    const protectedColumns = isCoachRole() ? '' : `<td>${student.parent || '—'}<br><small class="muted">${student.phone}</small></td><td>${studentListFeeLabel(student)}</td>`;
+    const commonStart = `<td><span class="profile-cell">${studentAvatarMarkup(student)}${studentNameLink(student)}</span></td><td>${escapeHtml(formatStudentBirthDisplay(student.birth))}</td><td>${escapeHtml(formatEnrollmentDate(student.enrollmentDate) || '—')}</td><td>${escapeHtml(student.group || '—')}</td><td>${escapeHtml(student.position || '—')}</td>`;
+    const protectedColumns = isCoachRole() ? '' : `<td>${escapeHtml(student.parent || '—')}<br><small class="muted">${escapeHtml(student.phone)}</small></td><td>${studentListFeeLabel(student)}</td>`;
     return `<tr>${commonStart}${protectedColumns}<td>%${studentAttendanceRate(student)}</td><td><button class="text-button" data-action="profile" data-id="${student.id}">Profili aç</button></td></tr>`;
   }).join('');
 }
