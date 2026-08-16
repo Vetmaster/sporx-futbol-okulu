@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.292';
+const APP_VERSION = '2026.08.16.293';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2177,33 +2177,34 @@ function showToast(message, tone = 'info', duration = 2800) {
 }
 
 function showRecordCreated(message) {
+  window.clearTimeout(showRecordCreated.openTimer);
+  window.clearTimeout(showRecordCreated.closeTimer);
   document.querySelector('#recordSuccessOverlay')?.remove();
-  const overlay = document.createElement('div');
-  overlay.id = 'recordSuccessOverlay';
-  overlay.setAttribute('role', 'status');
-  overlay.setAttribute('aria-live', 'assertive');
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:20px;background:rgba(45,42,37,.38);pointer-events:none;';
-  const card = document.createElement('div');
-  card.style.cssText = 'display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:16px;width:min(430px,100%);padding:24px;border:1px solid rgba(23,107,69,.24);border-radius:20px;color:#26231f;background:#fffdf9;box-shadow:0 24px 70px rgba(32,28,24,.34);';
-  const icon = document.createElement('div');
-  icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = '✓';
-  icon.style.cssText = 'display:grid;place-items:center;width:52px;height:52px;border-radius:50%;color:#fff;background:#176b45;box-shadow:0 10px 24px rgba(23,107,69,.28);font-size:28px;font-weight:900;';
-  const copy = document.createElement('div');
-  const title = document.createElement('strong');
-  title.textContent = 'İşlem tamamlandı';
-  title.style.cssText = 'display:block;color:#176b45;font-size:19px;';
-  const description = document.createElement('p');
-  description.textContent = message;
-  description.style.cssText = 'margin:6px 0 0;color:#26231f;font-size:15px;font-weight:700;line-height:1.5;';
-  copy.append(title, description);
-  card.append(icon, copy);
-  overlay.append(card);
-  document.body.append(overlay);
-  window.clearTimeout(showRecordCreated.timer);
-  showRecordCreated.timer = window.setTimeout(() => {
-    overlay.remove();
-  }, 4200);
+  showRecordCreated.openTimer = window.setTimeout(() => {
+    const overlay = document.createElement('div');
+    overlay.id = 'recordSuccessOverlay';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'assertive');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:20px;background:rgba(45,42,37,.38);pointer-events:none;';
+    const card = document.createElement('div');
+    card.style.cssText = 'display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:16px;width:min(430px,100%);padding:24px;border:1px solid rgba(23,107,69,.24);border-radius:20px;color:#26231f;background:#fffdf9;box-shadow:0 24px 70px rgba(32,28,24,.34);';
+    const icon = document.createElement('div');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '✓';
+    icon.style.cssText = 'display:grid;place-items:center;width:52px;height:52px;border-radius:50%;color:#fff;background:#176b45;box-shadow:0 10px 24px rgba(23,107,69,.28);font-size:28px;font-weight:900;';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = 'İşlem tamamlandı';
+    title.style.cssText = 'display:block;color:#176b45;font-size:19px;';
+    const description = document.createElement('p');
+    description.textContent = message;
+    description.style.cssText = 'margin:6px 0 0;color:#26231f;font-size:15px;font-weight:700;line-height:1.5;';
+    copy.append(title, description);
+    card.append(icon, copy);
+    overlay.append(card);
+    document.body.append(overlay);
+    showRecordCreated.closeTimer = window.setTimeout(() => overlay.remove(), 4200);
+  }, 0);
 }
 
 function pushSupported() {
