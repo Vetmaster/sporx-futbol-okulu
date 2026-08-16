@@ -160,7 +160,15 @@ Deno.serve(async request => {
     const notificationBody = String(
       notificationInput.body || notificationInput.message || body.message || ''
     ).trim();
-    if (!audience || !title || !notificationBody) return json({ error: 'Invalid notification' }, 400);
+    if (!audience || !title || !notificationBody) {
+      const missing = [
+        !audience ? 'audience' : '',
+        !title ? 'title' : '',
+        !notificationBody ? 'message' : ''
+      ].filter(Boolean);
+      console.warn('Invalid notification fields:', missing.join(','));
+      return json({ error: 'Invalid notification', missing }, 400);
+    }
 
     const { data: createdNotification, error: createError } = await admin
       .from('notifications')
