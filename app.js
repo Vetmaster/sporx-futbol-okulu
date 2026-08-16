@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.293';
+const APP_VERSION = '2026.08.16.294';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3361,7 +3361,8 @@ document.querySelector('#schoolAdminForm').addEventListener('input', event => {
 document.querySelector('#schoolEditForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const data = new FormData(form);
   const school = state.schools.find(item => item.id === String(data.get('schoolId') || ''));
   const name = String(data.get('schoolName') || '').trim();
   if (!school || !name || name.length > 120) {
@@ -3379,7 +3380,7 @@ document.querySelector('#schoolEditForm').addEventListener('submit', async event
   if (school.id === state.schoolId) state.schoolName = school.name;
   state.editingSchoolId = null;
   document.querySelector('#schoolEditDialog').close();
-  event.currentTarget.reset();
+  form.reset();
   render();
   showToast('Okul adı güncellendi.');
 });
@@ -3392,7 +3393,8 @@ document.querySelector('#subscriptionForm [name="billingPeriod"]').addEventListe
 document.querySelector('#subscriptionForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const data = new FormData(form);
   const schoolId = String(data.get('schoolId') || '');
   const plan = String(data.get('plan') || '');
   const status = String(data.get('status') || '');
@@ -3414,14 +3416,15 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
   if (schoolId === state.schoolId) state.schoolSubscriptionPlan = plan;
   state.editingSubscriptionSchoolId = null;
   document.querySelector('#subscriptionDialog').close();
-  event.currentTarget.reset();
+  form.reset();
   render();
   showToast('Paket ve abonelik bilgileri güncellendi.');
 });
 document.querySelector('#studentForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!['super_admin', 'admin'].includes(state.role)) return;
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const data = new FormData(form);
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
   const wasEditing = Boolean(state.editingStudentId);
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
@@ -3498,7 +3501,7 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   state.editingStudentId = null;
   persistLocalData();
   document.querySelector('#studentDialog').close();
-  event.currentTarget.reset();
+  form.reset();
   state.page = wasEditing ? 'studentProfile' : 'students';
   render();
   if (wasEditing) {
@@ -3541,7 +3544,8 @@ document.querySelector('#attendanceForm').addEventListener('submit', async event
 document.querySelector('#trainingForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!['super_admin', 'admin'].includes(state.role)) return;
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const data = new FormData(form);
   const group = data.get('group');
   const trainingData = {
     date: data.get('date'),
@@ -3573,7 +3577,7 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
   state.editingTrainingId = null;
   persistLocalData();
   document.querySelector('#trainingDialog').close();
-  event.currentTarget.reset();
+  form.reset();
   state.page = 'trainings';
   render();
   if (wasEditing) {
@@ -3653,7 +3657,8 @@ document.querySelector('#feeDefinitionForm').addEventListener('submit', async ev
 document.querySelector('#accountingForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!isAdminRole()) return;
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const data = new FormData(form);
   const kind = data.get('kind');
   const entryData = {
     date: data.get('date'),
@@ -3675,7 +3680,7 @@ document.querySelector('#accountingForm').addEventListener('submit', async event
   state.editingAccountingEntryId = null;
   persistLocalData();
   document.querySelector('#accountingDialog').close();
-  event.currentTarget.reset();
+  form.reset();
   if (state.page !== 'accountingEntries') state.page = 'accounting';
   if (wasEditing) showToast('Muhasebe işlemi Supabase’de güncellendi.');
   else showRecordCreated(`${entryRecord.type} kaydı oluşturuldu.`);
