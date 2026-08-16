@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.16.302';
-const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
+const APP_VERSION = '2026.08.16.303';
+const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
@@ -18,8 +18,6 @@ const launchedByAndroidParameter = runtimeQueryParameters.get('androidShell') ==
 const launchedByAndroidReferrer = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
 const LAUNCHED_NATIVE_VERSION = Number(runtimeQueryParameters.get('nativeVersion')) || 0;
 const launchedWithNativeVersion = LAUNCHED_NATIVE_VERSION > 0;
-const launchedAsStandaloneAndroidApp = /Android/i.test(window.navigator.userAgent)
-  && Boolean(window.matchMedia?.('(display-mode: standalone)').matches);
 let rememberedAndroidShellSession = false;
 try {
   rememberedAndroidShellSession = window.sessionStorage.getItem(ANDROID_SHELL_SESSION_KEY) === '1';
@@ -29,7 +27,6 @@ try {
 const IS_ANDROID_SHELL = launchedByAndroidParameter
   || launchedByAndroidReferrer
   || launchedWithNativeVersion
-  || launchedAsStandaloneAndroidApp
   || rememberedAndroidShellSession;
 if (IS_ANDROID_SHELL) {
   try {
@@ -2276,8 +2273,20 @@ async function getPushRegistration() {
 }
 
 async function invokePushFunction(body) {
-  const { data: sessionData } = await supabaseClient.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
+  let accessToken = '';
+  if (body.action !== 'public-key') {
+    let { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    const expiresAt = Number(sessionData.session?.expires_at || 0);
+    if (sessionError || !sessionData.session || expiresAt <= Math.floor(Date.now() / 1000) + 60) {
+      const refreshed = await supabaseClient.auth.refreshSession();
+      sessionData = refreshed.data;
+      sessionError = refreshed.error;
+    }
+    accessToken = sessionData.session?.access_token || '';
+    if (sessionError || !accessToken) {
+      return { data: null, error: new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.') };
+    }
+  }
   const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
     method: 'POST',
     headers: {
@@ -2542,7 +2551,12 @@ async function enablePhoneNotifications() {
       state.pushStatus = 'enabled';
       return;
     }
-    if (!pushSupported()) throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
+    if (!pushSupported()) {
+      if (window.location.protocol === 'file:') {
+        throw new Error('Telefon bildirimleri yerel dosyada kullanılamaz. Canlı HTTPS adresini açın.');
+      }
+      throw new Error('Bu tarayıcı telefon bildirimlerini desteklemiyor. iPhone’da uygulamayı Ana Ekran’a ekleyip oradan açın.');
+    }
     const registration = await getPushRegistration();
     let subscription = await registration.pushManager.getSubscription();
     if (subscription) {
