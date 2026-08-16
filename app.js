@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.294';
+const APP_VERSION = '2026.08.16.295';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3186,7 +3186,7 @@ document.addEventListener('click', async event => {
       state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id);
       persistLocalData();
       render();
-      showToast('Muhasebe işlemi Supabase’den silindi.');
+      showRecordCreated(`${entry.type} kaydı silindi.`);
     }
   }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
