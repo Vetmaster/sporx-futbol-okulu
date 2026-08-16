@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.15.288';
+const APP_VERSION = '2026.08.16.289';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2166,7 +2166,19 @@ function friendlyAuthError(error) {
   return message || 'Kullanıcı kaydı tamamlanamadı. Lütfen tekrar deneyin.';
 }
 
-function showToast(message) { const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); }
+function showToast(message, tone = 'info', duration = 2800) {
+  const toast = document.querySelector('#toast');
+  toast.textContent = message;
+  toast.classList.remove('success');
+  if (tone === 'success') toast.classList.add('success');
+  toast.classList.add('show');
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+function showRecordCreated(message) {
+  showToast(`✓ ${message}`, 'success', 3200);
+}
 
 function pushSupported() {
   return window.isSecureContext
@@ -3295,7 +3307,7 @@ document.querySelector('#schoolAdminForm').addEventListener('submit', async even
     document.querySelector('#schoolAdminDialog').close();
     form.reset();
     const roleLabel = roleNames[role];
-    showToast(result.status === 'invited' ? `${roleLabel} daveti ${email} adresine gönderildi.` : `Mevcut kullanıcı ${roleLabel} olarak yetkilendirildi.`);
+    showRecordCreated(result.status === 'invited' ? `${roleLabel} daveti ${email} adresine gönderildi.` : `Mevcut kullanıcı ${roleLabel} olarak yetkilendirildi.`);
     try {
       await refreshSchools();
       render();
@@ -3471,15 +3483,15 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
       showToast('Öğrenci profili Supabase’de güncellendi.');
     }
   } else if (failedPrepaymentMonths.length) {
-    showToast(`Öğrenci kaydedildi; ${savedPrepaymentMonths.length}/${prepaymentMonths.length} aylık ön ödeme işlendi. Kaydedilemeyen dönemleri profilden tekrar tanımlayın.`);
+    showRecordCreated(`Öğrenci kaydedildi; ${savedPrepaymentMonths.length}/${prepaymentMonths.length} aylık ön ödeme işlendi. Kaydedilemeyen dönemleri profilden tekrar tanımlayın.`);
   } else if (guardianInviteError) {
-    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
+    showRecordCreated(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; veli daveti gönderilemedi: ${guardianInviteError.message || 'Bağlantı hatası'}`);
   } else if (guardianInviteResult?.status === 'invited') {
-    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}. Veli daveti ${studentRecord.email} adresine gönderildi.`);
+    showRecordCreated(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}. Veli daveti ${studentRecord.email} adresine gönderildi.`);
   } else if (guardianInviteResult?.status === 'pending_approval') {
-    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}. Veli hesabı Süper Admin onayı bekliyor.`);
+    showRecordCreated(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}. Veli hesabı Süper Admin onayı bekliyor.`);
   } else {
-    showToast(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; mevcut veli hesabına bağlandı.`);
+    showRecordCreated(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; mevcut veli hesabına bağlandı.`);
   }
 });
 document.querySelector('#attendanceForm').addEventListener('submit', async event => {
@@ -3497,7 +3509,7 @@ document.querySelector('#attendanceForm').addEventListener('submit', async event
   persistLocalData();
   document.querySelector('#attendanceDialog').close();
   render();
-  showToast('Yoklama Supabase’e kaydedildi.');
+  showRecordCreated('Yoklama kaydedildi.');
 });
 document.querySelector('#trainingForm').addEventListener('submit', async event => {
   event.preventDefault();
@@ -3541,7 +3553,7 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
     showToast('Antrenman Supabase’de güncellendi.');
     return;
   }
-  showToast(pushResult.sent > 0
+  showRecordCreated(pushResult.sent > 0
     ? `Antrenman kaydedildi ve ${pushResult.sent} telefona bildirim gönderildi.`
     : pushResult.recipients > 0
       ? 'Antrenman kaydedildi ancak gruptaki telefonlara bildirim ulaştırılamadı.'
@@ -3572,7 +3584,7 @@ document.querySelector('#feePaymentForm').addEventListener('submit', async event
   document.querySelector('#feePaymentDialog').close();
   form.reset();
   render();
-  showToast(`Aidat ${PAYMENT_METHODS[paymentMethod]} olarak tahsil edildi ve muhasebeye eklendi.`);
+  showRecordCreated(`Aidat ${PAYMENT_METHODS[paymentMethod]} olarak tahsil edildi ve muhasebeye eklendi.`);
 });
 document.querySelector('#feeDefinitionForm').addEventListener('submit', async event => {
   event.preventDefault();
@@ -3609,7 +3621,7 @@ document.querySelector('#feeDefinitionForm').addEventListener('submit', async ev
   document.querySelector('#feeDefinitionDialog').close();
   form.reset();
   render();
-  showToast(status === 'paid' ? 'Aidat ödendi olarak kaydedildi ve muhasebeye eklendi.' : 'Aidat ödenmedi olarak tanımlandı.');
+  showRecordCreated(status === 'paid' ? 'Aidat ödendi olarak kaydedildi ve muhasebeye eklendi.' : 'Aidat ödenmedi olarak tanımlandı.');
 });
 document.querySelector('#accountingForm').addEventListener('submit', async event => {
   event.preventDefault();
@@ -3639,7 +3651,8 @@ document.querySelector('#accountingForm').addEventListener('submit', async event
   event.currentTarget.reset();
   if (state.page !== 'accountingEntries') state.page = 'accounting';
   render();
-  showToast(wasEditing ? 'Muhasebe işlemi Supabase’de güncellendi.' : 'Muhasebe işlemi Supabase’e kaydedildi.');
+  if (wasEditing) showToast('Muhasebe işlemi Supabase’de güncellendi.');
+  else showRecordCreated(`${entryRecord.type} kaydı oluşturuldu.`);
 });
 appContent.addEventListener('toggle', event => {
   const details = event.target;
@@ -3675,7 +3688,7 @@ appContent.addEventListener('submit', async event => {
     await refreshSchools();
     event.target.reset();
     render();
-    showToast(`${name} oluşturuldu ve listeye eklendi.`);
+    showRecordCreated(`${name} oluşturuldu ve listeye eklendi.`);
     return;
   }
   if (event.target.matches('.group-rename-form')) {
@@ -3756,7 +3769,7 @@ appContent.addEventListener('submit', async event => {
     syncTrainingTypeOptions();
     event.target.reset();
     render();
-    showToast('Yeni antrenman ismi eklendi.');
+    showRecordCreated('Yeni antrenman ismi eklendi.');
     return;
   }
   if (event.target.matches('.training-coach-rename-form')) {
@@ -3807,7 +3820,7 @@ appContent.addEventListener('submit', async event => {
     syncTrainingCoachOptions();
     event.target.reset();
     render();
-    showToast('Yeni antrenör eklendi.');
+    showRecordCreated('Yeni antrenör eklendi.');
     return;
   }
   if (event.target.id === 'groupSettingsForm') {
@@ -3840,7 +3853,7 @@ appContent.addEventListener('submit', async event => {
     syncGroupOptions();
     event.target.reset();
     render();
-    showToast('Yeni grup eklendi.');
+    showRecordCreated('Yeni grup eklendi.');
     return;
   }
   if (event.target.id === 'accountingSettingsForm') {
@@ -3901,7 +3914,7 @@ appContent.addEventListener('submit', async event => {
     event.target.reset();
     render();
     markAllNotificationsRead();
-    showToast(result.sent > 0
+    showRecordCreated(result.sent > 0
       ? `Bildirim ${result.sent} telefona yüksek öncelikle gönderildi.`
       : 'Bildirim kaydedildi ancak açık bildirimi olan telefon bulunamadı.');
   } catch (error) {
