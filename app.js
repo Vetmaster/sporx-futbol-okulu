@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.289';
+const APP_VERSION = '2026.08.16.290';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2177,7 +2177,7 @@ function showToast(message, tone = 'info', duration = 2800) {
 }
 
 function showRecordCreated(message) {
-  showToast(`✓ ${message}`, 'success', 3200);
+  showToast(`✓ ${message}`, 'success', 4500);
 }
 
 function pushSupported() {
