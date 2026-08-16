@@ -55,14 +55,23 @@ Deno.serve(async request => {
     .maybeSingle();
   if (profileError || !callerProfile) return json({ error: 'Profile not found' }, 403);
 
-  if (!['super_admin', 'admin'].includes(callerProfile.role)) {
-    return json({ error: 'Forbidden' }, 403);
-  }
   const requestedSchoolId = String(body.schoolId || callerProfile.school_id || '');
-  const targetSchoolId = callerProfile.role === 'super_admin' ? requestedSchoolId : callerProfile.school_id;
-  if (!targetSchoolId || (callerProfile.role !== 'super_admin' && requestedSchoolId !== callerProfile.school_id)) {
+  const isPlatformSuperAdmin = callerProfile.role === 'super_admin';
+  if (!requestedSchoolId) {
     return json({ error: 'Forbidden school context' }, 403);
   }
+  if (!isPlatformSuperAdmin) {
+    const { data: callerMembership, error: membershipError } = await admin
+      .from('school_user_memberships')
+      .select('role')
+      .eq('user_id', userResult.user.id)
+      .eq('school_id', requestedSchoolId)
+      .maybeSingle();
+    if (membershipError || callerMembership?.role !== 'admin') {
+      return json({ error: 'Forbidden school context' }, 403);
+    }
+  }
+  const targetSchoolId = requestedSchoolId;
   const { data: targetSchool } = await admin
     .from('schools')
     .select('id, is_active')
@@ -73,7 +82,7 @@ Deno.serve(async request => {
   const requestedRecipientIds = Array.isArray(body.recipientUserIds)
     ? [...new Set(body.recipientUserIds.map((value: unknown) => String(value || '').trim()).filter(Boolean))].slice(0, 50)
     : [];
-  if (requestedRecipientIds.length && callerProfile.role !== 'super_admin') {
+  if (requestedRecipientIds.length && !isPlatformSuperAdmin) {
     return json({ error: 'Direct recipients require Super Admin permission' }, 403);
   }
 
@@ -234,13 +243,14 @@ Deno.serve(async request => {
       recipientIds = (students || []).map(row => row.guardian_user_id);
     }
   } else {
-    let profilesQuery = admin
-      .from('profiles')
-      .select('id')
+    let membershipsQuery = admin
+      .from('school_user_memberships')
+      .select('user_id')
       .eq('school_id', notification.school_id);
-    if (notification.audience === 'Tüm veliler') profilesQuery = profilesQuery.eq('role', 'parent');
-    const { data: profiles } = await profilesQuery;
-    recipientIds = (profiles || []).map(profile => profile.id);
+    if (notification.audience === 'Tüm veliler') membershipsQuery = membershipsQuery.eq('role', 'parent');
+    const { data: memberships, error: membershipsError } = await membershipsQuery;
+    if (membershipsError) return json({ error: 'Recipients could not be loaded' }, 500);
+    recipientIds = (memberships || []).map(membership => membership.user_id);
   }
 
   recipientIds = [...new Set(recipientIds.filter(Boolean))];
