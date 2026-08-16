@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.296';
+const APP_VERSION = '2026.08.16.297';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -11,6 +11,8 @@ const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
 const ANDROID_SHELL_SESSION_KEY = 'sasa_android_shell_session';
+const NATIVE_FCM_TOKEN_STORAGE_KEY = 'sasa_native_fcm_token';
+const NATIVE_NOTIFICATION_PERMISSION_STORAGE_KEY = 'sasa_native_notification_permission';
 const runtimeQueryParameters = new URLSearchParams(window.location.search);
 const launchedByAndroidParameter = runtimeQueryParameters.get('androidShell') === '1';
 const launchedByAndroidReferrer = document.referrer.startsWith(`android-app://${ANDROID_PACKAGE_ID}`);
@@ -50,8 +52,21 @@ const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBL
 });
 const remoteDataStore = supabaseClient && window.SasaSupabaseData?.create(supabaseClient);
 const initialFragmentParameters = new URLSearchParams(window.location.hash.slice(1));
-const NATIVE_FCM_TOKEN = initialFragmentParameters.get('nativeFcmToken') || '';
-const NATIVE_NOTIFICATION_PERMISSION = initialFragmentParameters.get('nativeNotificationPermission') || '';
+const bridgedNativeFcmToken = initialFragmentParameters.get('nativeFcmToken') || '';
+const bridgedNativeNotificationPermission = initialFragmentParameters.get('nativeNotificationPermission') || '';
+let rememberedNativeFcmToken = '';
+let rememberedNativeNotificationPermission = '';
+try {
+  rememberedNativeFcmToken = window.localStorage.getItem(NATIVE_FCM_TOKEN_STORAGE_KEY) || '';
+  rememberedNativeNotificationPermission = window.localStorage.getItem(NATIVE_NOTIFICATION_PERMISSION_STORAGE_KEY) || '';
+  if (bridgedNativeFcmToken) window.localStorage.setItem(NATIVE_FCM_TOKEN_STORAGE_KEY, bridgedNativeFcmToken);
+  if (bridgedNativeNotificationPermission) window.localStorage.setItem(NATIVE_NOTIFICATION_PERMISSION_STORAGE_KEY, bridgedNativeNotificationPermission);
+} catch {
+  rememberedNativeFcmToken = '';
+  rememberedNativeNotificationPermission = '';
+}
+const NATIVE_FCM_TOKEN = bridgedNativeFcmToken || rememberedNativeFcmToken;
+const NATIVE_NOTIFICATION_PERMISSION = bridgedNativeNotificationPermission || rememberedNativeNotificationPermission;
 const authCallbackType = initialFragmentParameters.get('type');
 let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
@@ -2242,11 +2257,13 @@ async function registerNativeFcmToken() {
 }
 
 async function unregisterNativeFcmToken() {
-  if (!state.userId || !state.nativeFcmToken) return;
-  const { error } = await supabaseClient
+  if (!state.userId) return;
+  let query = supabaseClient
     .from('fcm_tokens')
     .delete()
-    .eq('token', state.nativeFcmToken);
+    .eq('user_id', state.userId);
+  if (state.nativeFcmToken) query = query.eq('token', state.nativeFcmToken);
+  const { error } = await query;
   if (error) throw error;
 }
 
@@ -2341,7 +2358,17 @@ async function refreshPushStatus(shouldRender = false) {
           return;
         }
         if (!state.nativeFcmToken) {
-          state.pushStatus = 'checking';
+          try {
+            const { count, error } = await supabaseClient
+              .from('fcm_tokens')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', state.userId);
+            if (error) throw error;
+            state.pushStatus = Number(count || 0) > 0 ? 'enabled' : 'disabled';
+          } catch (error) {
+            console.error('Firebase cihaz kaydı kontrol edilemedi:', error);
+            state.pushStatus = 'disabled';
+          }
           return;
         }
         if (window.localStorage.getItem(PUSH_PREFERENCE_STORAGE_KEY) === 'disabled') {
@@ -2467,8 +2494,8 @@ async function enablePhoneNotifications() {
         throw new Error('Android bildirim izni verilmedi. Telefon ayarlarından SASA-F bildirimlerini açın.');
       }
       if (!state.nativeFcmToken) {
-        state.pushStatus = 'checking';
-        throw new Error('Firebase bildirim anahtarı henüz hazırlanıyor. Uygulamayı kapatıp yeniden açın.');
+        state.pushStatus = 'disabled';
+        throw new Error('Firebase cihaz anahtarı bulunamadı. Uygulamayı tamamen kapatıp yeniden açın.');
       }
       await registerNativeFcmToken();
       window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
