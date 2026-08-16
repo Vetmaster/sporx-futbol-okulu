@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.308';
+const APP_VERSION = '2026.08.16.309';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2278,27 +2278,31 @@ async function getPushRegistration() {
 async function invokePushFunction(body) {
   let accessToken = '';
   if (body.action !== 'public-key') {
-    let { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-    const expiresAt = Number(sessionData.session?.expires_at || 0);
-    if (sessionError || !sessionData.session || expiresAt <= Math.floor(Date.now() / 1000) + 60) {
-      const refreshed = await supabaseClient.auth.refreshSession();
-      sessionData = refreshed.data;
-      sessionError = refreshed.error;
-    }
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
     accessToken = sessionData.session?.access_token || '';
     if (sessionError || !accessToken) {
+      const refreshed = await supabaseClient.auth.refreshSession();
+      accessToken = refreshed.data.session?.access_token || '';
+    }
+    if (!accessToken) {
       return { data: null, error: new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.') };
     }
   }
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
-    },
-    body: JSON.stringify(body)
-  });
+  const requestPushFunction = token => fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(body)
+    });
+  let response = await requestPushFunction(accessToken);
+  if (response.status === 401 && body.action !== 'public-key') {
+    const refreshed = await supabaseClient.auth.refreshSession();
+    const refreshedAccessToken = refreshed.data.session?.access_token || '';
+    if (refreshedAccessToken) response = await requestPushFunction(refreshedAccessToken);
+  }
   let result = null;
   try {
     result = await response.json();
