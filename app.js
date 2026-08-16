@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.301';
+const APP_VERSION = '2026.08.16.302';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1638,7 +1638,7 @@ function notificationsView() {
       : 'Yeni duyuruları telefonunuzun bildirim alanında görün.';
   const pushPermissionCard = `<section class="panel push-permission-card"><div class="push-permission-row"><div class="push-permission-copy"><strong>Telefon bildirimleri</strong><small>${pushDescription}</small></div><label class="push-switch-control"><span>${pushStatusLabel}</span><input type="checkbox" role="switch" data-action="toggle-phone-notifications" aria-label="Telefon bildirimlerini ${pushEnabled ? 'kapat' : 'aç'}" ${pushEnabled ? 'checked' : ''} ${pushSwitchDisabled ? 'disabled' : ''}><span class="push-switch-track" aria-hidden="true"><span class="push-switch-thumb"></span></span></label></div></section>`;
   const audienceOptions = ['Tüm kullanıcılar', 'Tüm veliler', 'Aidat borcu olanlar', 'Aidat borcu olmayanlar', ...GROUPS.map(group => `${group} velileri`)];
-  const composePanel = canSend ? `<section class="panel"><details class="notification-compose-disclosure" ${state.notificationComposeOpen ? 'open' : ''}><summary><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select name="audience" required>${audienceOptions.map(audience => `<option ${state.notificationDraft.audience === audience ? 'selected' : ''}>${escapeHtml(audience)}</option>`).join('')}</select></label><label>Başlık<input name="title" required placeholder="Örn. Antrenman saati değişikliği" value="${escapeHtml(state.notificationDraft.title)}"></label><label>Mesaj<textarea name="message" rows="3" required placeholder="Bildirim metnini yazın">${escapeHtml(state.notificationDraft.body)}</textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></details></section>` : '';
+  const composePanel = canSend ? `<section class="panel"><details class="notification-compose-disclosure" ${state.notificationComposeOpen ? 'open' : ''}><summary><h3>Yeni bildirim oluştur</h3><span class="status blue">Telefon bildirimi</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><form class="notification-compose" id="notificationForm"><label>Alıcı grubu<select id="notificationAudience" name="audience" required>${audienceOptions.map(audience => `<option ${state.notificationDraft.audience === audience ? 'selected' : ''}>${escapeHtml(audience)}</option>`).join('')}</select></label><label>Başlık<input id="notificationTitle" name="title" required placeholder="Örn. Antrenman saati değişikliği" value="${escapeHtml(state.notificationDraft.title)}"></label><label>Mesaj<textarea id="notificationMessage" name="message" rows="3" required placeholder="Bildirim metnini yazın">${escapeHtml(state.notificationDraft.body)}</textarea></label><div class="compose-actions"><button class="primary-button" type="submit">Bildirimi gönder</button></div></form></details></section>` : '';
   const notificationRows = state.notifications.map(item => {
     const sentByCurrentUser = item.sentBy === state.userId;
     const recipientStatus = item.read ? 'Okundu' : 'Okunmadı';
@@ -2295,6 +2295,10 @@ async function invokePushFunction(body) {
   }
   if (!response.ok) {
     const detail = String(result?.error || '').trim();
+    const missingLabels = { audience: 'alıcı grubu', title: 'başlık', message: 'mesaj' };
+    const missingFields = Array.isArray(result?.missing)
+      ? result.missing.map(field => missingLabels[field] || field).join(', ')
+      : '';
     const translatedErrors = {
       'Forbidden school context': 'Bu okul için bildirim gönderme yetkiniz bulunmuyor.',
       'School is inactive': 'Seçili okul aktif olmadığı için bildirim gönderilemedi.',
@@ -2304,7 +2308,7 @@ async function invokePushFunction(body) {
     };
     return {
       data: null,
-      error: new Error(translatedErrors[detail] || detail || `Bildirim servisi ${response.status} hatası döndürdü.`)
+      error: new Error(`${translatedErrors[detail] || detail || `Bildirim servisi ${response.status} hatası döndürdü.`}${missingFields ? ` Eksik alan: ${missingFields}.` : ''}`)
     };
   }
   return { data: result, error: null };
@@ -2314,9 +2318,6 @@ async function saveAndSendNotification({ audience, title, body }) {
   const normalizedAudience = String(audience || '').trim();
   const normalizedTitle = String(title || '').trim();
   const normalizedBody = String(body || '').trim();
-  if (!normalizedAudience || !normalizedTitle || !normalizedBody) {
-    throw new Error('Bildirim başlığı, mesajı veya alıcı grubu boş bırakılamaz.');
-  }
   const notification = {
     date: 'Bugün',
     title: normalizedTitle,
@@ -4002,9 +4003,9 @@ appContent.addEventListener('submit', async event => {
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
   if (!['super_admin', 'admin'].includes(state.role)) return;
-  const audienceField = event.target.querySelector('[name="audience"]');
-  const titleField = event.target.querySelector('[name="title"]');
-  const messageField = event.target.querySelector('[name="message"]');
+  const audienceField = document.querySelector('#notificationAudience');
+  const titleField = document.querySelector('#notificationTitle');
+  const messageField = document.querySelector('#notificationMessage');
   try {
     const result = await saveAndSendNotification({
       audience: audienceField?.value || state.notificationDraft.audience,
