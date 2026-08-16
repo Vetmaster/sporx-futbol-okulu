@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.298';
+const APP_VERSION = '2026.08.16.299';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2297,6 +2297,7 @@ async function invokePushFunction(body) {
       'Forbidden school context': 'Bu okul için bildirim gönderme yetkiniz bulunmuyor.',
       'School is inactive': 'Seçili okul aktif olmadığı için bildirim gönderilemedi.',
       'Push service is not configured': 'Telefon bildirim servisi henüz yapılandırılmamış.',
+      'Invalid notification': 'Bildirim başlığı, mesajı veya alıcı grubu boş bırakılamaz.',
       'Unauthorized': 'Oturum doğrulanamadı. Lütfen yeniden giriş yapın.'
     };
     result.error = new Error(translatedErrors[detail] || detail || result.error.message || 'Bildirim gönderilemedi.');
@@ -2305,11 +2306,17 @@ async function invokePushFunction(body) {
 }
 
 async function saveAndSendNotification({ audience, title, body }) {
+  const normalizedAudience = String(audience || '').trim();
+  const normalizedTitle = String(title || '').trim();
+  const normalizedBody = String(body || '').trim();
+  if (!normalizedAudience || !normalizedTitle || !normalizedBody) {
+    throw new Error('Bildirim başlığı, mesajı veya alıcı grubu boş bırakılamaz.');
+  }
   const notification = {
     date: 'Bugün',
-    title,
-    body,
-    audience,
+    title: normalizedTitle,
+    body: normalizedBody,
+    audience: normalizedAudience,
     sentBy: state.userId,
     time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
     status: 'Sırada'
@@ -2319,7 +2326,14 @@ async function saveAndSendNotification({ audience, title, body }) {
     const { data: pushResult, error: pushError } = await invokePushFunction({
       action: 'create-and-send',
       schoolId: state.schoolId,
-      notification: { audience, title, body }
+      audience: normalizedAudience,
+      title: normalizedTitle,
+      message: normalizedBody,
+      notification: {
+        audience: normalizedAudience,
+        title: normalizedTitle,
+        body: normalizedBody
+      }
     });
     if (pushError) throw pushError;
     notification.id = Number(pushResult.notificationId);
