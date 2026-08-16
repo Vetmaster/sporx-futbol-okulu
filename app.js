@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.297';
+const APP_VERSION = '2026.08.16.298';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2278,10 +2278,30 @@ async function getPushRegistration() {
 async function invokePushFunction(body) {
   const { data: sessionData } = await supabaseClient.auth.getSession();
   const accessToken = sessionData.session?.access_token;
-  return supabaseClient.functions.invoke('send-push-notification', {
+  const result = await supabaseClient.functions.invoke('send-push-notification', {
     body,
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
   });
+  if (result.error) {
+    let detail = '';
+    try {
+      const response = result.error.context;
+      const errorBody = response && typeof response.clone === 'function'
+        ? await response.clone().json()
+        : null;
+      detail = String(errorBody?.error || '').trim();
+    } catch (_) {
+      // Supabase istemcisi bazı ağ hatalarında okunabilir bir yanıt gövdesi sağlamaz.
+    }
+    const translatedErrors = {
+      'Forbidden school context': 'Bu okul için bildirim gönderme yetkiniz bulunmuyor.',
+      'School is inactive': 'Seçili okul aktif olmadığı için bildirim gönderilemedi.',
+      'Push service is not configured': 'Telefon bildirim servisi henüz yapılandırılmamış.',
+      'Unauthorized': 'Oturum doğrulanamadı. Lütfen yeniden giriş yapın.'
+    };
+    result.error = new Error(translatedErrors[detail] || detail || result.error.message || 'Bildirim gönderilemedi.');
+  }
+  return result;
 }
 
 async function saveAndSendNotification({ audience, title, body }) {
