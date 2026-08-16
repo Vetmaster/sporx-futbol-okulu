@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.300';
+const APP_VERSION = '2026.08.16.301';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.23-beta/SASA-F-v1.0.23-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -4002,12 +4002,14 @@ appContent.addEventListener('submit', async event => {
   if (event.target.id !== 'notificationForm') return;
   event.preventDefault();
   if (!['super_admin', 'admin'].includes(state.role)) return;
-  const data = new FormData(event.target);
+  const audienceField = event.target.querySelector('[name="audience"]');
+  const titleField = event.target.querySelector('[name="title"]');
+  const messageField = event.target.querySelector('[name="message"]');
   try {
     const result = await saveAndSendNotification({
-      audience: data.get('audience'),
-      title: data.get('title'),
-      body: data.get('message')
+      audience: audienceField?.value || state.notificationDraft.audience,
+      title: titleField?.value || state.notificationDraft.title,
+      body: messageField?.value || state.notificationDraft.body
     });
     state.notificationComposeOpen = false;
     state.notificationDraft = { audience: 'Tüm kullanıcılar', title: '', body: '' };
