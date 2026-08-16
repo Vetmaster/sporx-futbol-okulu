@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.307';
+const APP_VERSION = '2026.08.16.308';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -433,28 +433,6 @@ let deferredInstallPrompt = null;
 
 function runsAsInstalledApp() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-}
-
-function redirectMobileWebRoleToAndroidApp(userId, role) {
-  if (role === 'super_admin'
-    || !userId
-    || !/Android/i.test(window.navigator.userAgent)
-    || runsInAndroidAppShell()
-    || runsAsInstalledApp()
-    || window.location.protocol !== 'https:'
-    || new URLSearchParams(window.location.search).get('appRedirectFallback') === '1') return false;
-
-  const redirectKey = `sasa_android_role_redirect_${userId}`;
-  if (window.sessionStorage.getItem(redirectKey) === '1') return false;
-  window.sessionStorage.setItem(redirectKey, '1');
-
-  const fallbackUrl = new URL(window.location.href);
-  fallbackUrl.searchParams.set('appRedirectFallback', '1');
-  const appUrl = 'intent://vetmaster.github.io/sporx-futbol-okulu/android.html?androidShell=1'
-    + `#Intent;scheme=https;package=${ANDROID_PACKAGE_ID};`
-    + `S.browser_fallback_url=${encodeURIComponent(fallbackUrl.toString())};end`;
-  window.location.assign(appUrl);
-  return true;
 }
 
 function shouldOfferAndroidInstall() {
@@ -2061,8 +2039,6 @@ async function showAuthenticatedApp(user) {
     showLoginScreen('Kullanıcı yetkisi kontrol edilemedi. Lütfen tekrar deneyin.', true);
     return;
   }
-
-  if (redirectMobileWebRoleToAndroidApp(user.id, profile.role)) return;
 
   try {
     if (!(await requireAdminMfa(profile))) return;
