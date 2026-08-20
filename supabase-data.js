@@ -773,7 +773,8 @@
     }
 
     async function deleteAccounting(id) {
-      const { error } = await client.from('accounting_entries').delete().eq('id', id);
+      requireContext();
+      const { error } = await client.from('accounting_entries').delete().eq('id', id).eq('school_id', schoolId);
       if (error) throw error;
     }
 

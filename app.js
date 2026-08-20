@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.16.312';
+const APP_VERSION = '2026.08.20.313';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3352,13 +3352,21 @@ document.addEventListener('click', async event => {
   else if (action === 'edit-entry') { const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id)); closeLedgerActions(); if (entry) openAccountingDialog(entry); }
   else if (action === 'delete-entry') {
     const entry = state.accountingEntries.find(item => item.id === Number(actionButton.dataset.id));
-    if (entry && window.confirm(`“${entry.title}” işlemi silinsin mi?`)) {
+    const feeReferenceMatch = entry?.source === 'fee' ? String(entry.reference || '').match(/^fee:(\d+):(\d{4}-\d{2})$/) : null;
+    const confirmationMessage = feeReferenceMatch
+      ? `“${entry.title}” tahsilatı silinsin mi? İlgili aidat Ödenmedi durumuna dönecek.`
+      : `“${entry?.title || ''}” işlemi silinsin mi?`;
+    if (entry && window.confirm(confirmationMessage)) {
       const saved = await runRemoteMutation(() => remoteDataStore.deleteAccounting(entry.id));
       if (!saved) return;
+      if (feeReferenceMatch) {
+        const student = state.students.find(item => Number(item.id) === Number(feeReferenceMatch[1]));
+        if (student) setMonthlyFeeStatus(student, feeReferenceMatch[2], 'late');
+      }
       state.accountingEntries = state.accountingEntries.filter(item => item.id !== entry.id);
       persistLocalData();
       render();
-      showRecordCreated(`${entry.type} kaydı silindi.`);
+      showRecordCreated(feeReferenceMatch ? 'Tahsilat silindi; ilgili aidat Ödenmedi durumuna alındı.' : `${entry.type} kaydı silindi.`);
     }
   }
   else if (action === 'attendance') openAttendance(actionButton.dataset.id);
