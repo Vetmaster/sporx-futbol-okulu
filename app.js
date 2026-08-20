@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20.314';
+const APP_VERSION = '2026.08.20.317';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2198,7 +2198,51 @@ function friendlyAuthError(error) {
   return message || 'Kullanıcı kaydı tamamlanamadı. Lütfen tekrar deneyin.';
 }
 
+let dataSaveLoadingShownAt = 0;
+let dataSaveLoadingCloseTimer = 0;
+let dataSaveLoadingSafetyTimer = 0;
+
+function showDataSaveLoading() {
+  window.clearTimeout(dataSaveLoadingCloseTimer);
+  window.clearTimeout(dataSaveLoadingSafetyTimer);
+  dataSaveLoadingShownAt = Date.now();
+  const loadingScreen = document.querySelector('#dataSaveLoadingScreen');
+  if (!loadingScreen) return;
+  loadingScreen.classList.remove('is-hidden');
+  if (typeof loadingScreen.showModal === 'function' && !loadingScreen.open) loadingScreen.showModal();
+  dataSaveLoadingSafetyTimer = window.setTimeout(() => {
+    if (loadingScreen.open) loadingScreen.close();
+    loadingScreen.classList.add('is-hidden');
+  }, 30000);
+}
+
+function hideDataSaveLoading() {
+  const loadingScreen = document.querySelector('#dataSaveLoadingScreen');
+  if (!loadingScreen || loadingScreen.classList.contains('is-hidden')) return;
+  const delay = Math.max(0, 500 - (Date.now() - dataSaveLoadingShownAt));
+  window.clearTimeout(dataSaveLoadingCloseTimer);
+  window.clearTimeout(dataSaveLoadingSafetyTimer);
+  dataSaveLoadingCloseTimer = window.setTimeout(() => {
+    if (loadingScreen.open) loadingScreen.close();
+    loadingScreen.classList.add('is-hidden');
+  }, delay);
+}
+
+document.addEventListener('submit', event => {
+  if (!(event.target instanceof HTMLFormElement) || ['loginForm', 'adminMfaForm'].includes(event.target.id)) return;
+  showDataSaveLoading();
+}, true);
+
+document.addEventListener('reset', event => {
+  if (event.target instanceof HTMLFormElement) hideDataSaveLoading();
+}, true);
+
+document.addEventListener('close', event => {
+  if (event.target instanceof HTMLDialogElement && event.target.id !== 'dataSaveLoadingScreen') hideDataSaveLoading();
+}, true);
+
 function showToast(message, tone = 'info', duration = 2800) {
+  hideDataSaveLoading();
   const toast = document.querySelector('#toast');
   toast.textContent = message;
   toast.classList.remove('success');
@@ -2209,6 +2253,7 @@ function showToast(message, tone = 'info', duration = 2800) {
 }
 
 function showRecordCreated(message) {
+  hideDataSaveLoading();
   window.clearTimeout(showRecordCreated.openTimer);
   window.clearTimeout(showRecordCreated.closeTimer);
   document.querySelector('#recordSuccessOverlay')?.remove();
@@ -3759,7 +3804,7 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     } else if (studentEmailChanged && guardianInviteResult?.status === 'invited') {
       showToast(`Öğrenci profili güncellendi. Doğrulama daveti ${studentRecord.email} adresine gönderildi.`);
     } else {
-      showToast('Öğrenci profili Supabase’de güncellendi.');
+      showToast('Öğrenci profili güncellendi.');
     }
   } else if (failedPrepaymentMonths.length) {
     showRecordCreated(`Öğrenci kaydedildi; ${savedPrepaymentMonths.length}/${prepaymentMonths.length} aylık ön ödeme işlendi. Kaydedilemeyen dönemleri profilden tekrar tanımlayın.`);
