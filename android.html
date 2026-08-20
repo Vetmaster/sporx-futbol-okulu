@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.20.318">
+  <link rel="stylesheet" href="styles.css?v=2026.08.20.319">
 </head>
 <body>
   <dialog class="data-save-loading is-hidden" id="dataSaveLoadingScreen" aria-live="assertive" aria-label="Kayıt işlemi devam ediyor">
@@ -195,6 +195,33 @@
     </form>
   </dialog>
 
+  <dialog class="player-card-dialog" id="playerCardDialog">
+    <div class="player-card-dialog-shell">
+      <div class="dialog-heading player-card-dialog-heading">
+        <div><span class="eyebrow">OYUNCU PROFİLİ</span><h2>Oyuncu kartı</h2></div>
+        <button class="icon-button" type="button" data-dialog-close="playerCardDialog" aria-label="Kapat">×</button>
+      </div>
+      <div id="playerCardPreview"></div>
+      <div class="player-card-dialog-actions">
+        <button class="secondary-button is-hidden" id="playerCardEditToggle" type="button" data-action="edit-player-card">Kartı düzenle</button>
+      </div>
+      <form class="player-card-edit-form is-hidden" id="playerCardForm">
+        <input name="studentId" type="hidden">
+        <div class="player-card-form-heading"><strong>Performans puanları</strong><small>Her değer 0 ile 99 arasında olmalıdır.</small></div>
+        <div class="player-card-rating-grid">
+          <label>Genel<input name="overall" type="number" min="0" max="99" inputmode="numeric" required></label>
+          <label>Hız<input name="speed" type="number" min="0" max="99" inputmode="numeric" required></label>
+          <label>Şut<input name="shooting" type="number" min="0" max="99" inputmode="numeric" required></label>
+          <label>Pas<input name="passing" type="number" min="0" max="99" inputmode="numeric" required></label>
+          <label>Dribling<input name="dribbling" type="number" min="0" max="99" inputmode="numeric" required></label>
+          <label>Defans<input name="defense" type="number" min="0" max="99" inputmode="numeric" required></label>
+          <label>Fizik<input name="physical" type="number" min="0" max="99" inputmode="numeric" required></label>
+        </div>
+        <div class="dialog-actions"><button class="secondary-button" type="button" data-action="cancel-player-card-edit">Vazgeç</button><button class="primary-button" type="submit">Kartı kaydet</button></div>
+      </form>
+    </div>
+  </dialog>
+
   <dialog id="attendanceDialog">
     <form method="dialog" class="dialog-form" id="attendanceForm">
       <div class="dialog-heading"><div><span class="eyebrow">YOKLAMA</span><h2 id="attendanceTitle">U12 Antrenmanı</h2></div><button class="icon-button" type="button" data-dialog-close="attendanceDialog" aria-label="Kapat">×</button></div>
@@ -324,7 +351,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.20.318"></script>
-  <script src="app.js?v=2026.08.20.318"></script>
+  <script src="supabase-data.js?v=2026.08.20.319"></script>
+  <script src="app.js?v=2026.08.20.319"></script>
 </body>
 </html>
