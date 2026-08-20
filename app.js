@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20.317';
+const APP_VERSION = '2026.08.20.318';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -953,7 +953,13 @@ function studentTimelineEntries(student) {
     detail: importedRecord ? `${student.group} grubu · Excel öğrenci listesi` : `${student.group} grubuna öğrenci kaydı oluşturuldu`,
     tone: 'neutral'
   };
-  return [...attendanceEvents, ...feeEvents, enrollmentEvent].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return [...attendanceEvents, ...feeEvents, enrollmentEvent].sort((a, b) => {
+    const dateOrder = String(b.date).localeCompare(String(a.date));
+    if (dateOrder) return dateOrder;
+    if (a.title === 'Aidat ödendi' && b.title === 'Aidat tanımlandı') return -1;
+    if (a.title === 'Aidat tanımlandı' && b.title === 'Aidat ödendi') return 1;
+    return 0;
+  });
 }
 function studentTimelineMarkup(student) {
   const entries = studentTimelineEntries(student);
