@@ -178,7 +178,7 @@
         fetchTrainingCoaches(client, schoolId),
         isCoach
           ? client.rpc('coach_student_directory', { target_school_id: schoolId }).then(({ data, error }) => { if (error) throw error; return data || []; })
-          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, profile_photo_path, training_groups(name)', 'id', { school_id: schoolId }),
+          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId }),
         isCoach ? Promise.resolve([]) : fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at', 'id', { school_id: schoolId }),
         fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date', { school_id: schoolId }),
         isCoach ? Promise.resolve([]) : fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on', { school_id: schoolId }),
@@ -239,6 +239,7 @@
           notes: row.notes || '',
           photoPath: row.profile_photo_path || '',
           photoUrl: studentPhotoUrls.get(row.profile_photo_path) || '',
+          playerCard: row.player_card && typeof row.player_card === 'object' ? row.player_card : null,
           enrollmentDate: row.enrollment_date,
           feeTrackingStartDate: row.fee_tracking_start_date,
           feePayments,
@@ -692,6 +693,18 @@
       return { path, url: signedPhoto?.signedUrl || '' };
     }
 
+    async function saveStudentPlayerCard(studentId, playerCard) {
+      requireContext();
+      const safeStudentId = Number(studentId);
+      if (!safeStudentId) throw new Error('Öğrenci kartı için geçerli bir öğrenci seçilmedi.');
+      const { error } = await client
+        .from('students')
+        .update({ player_card: playerCard })
+        .eq('id', safeStudentId)
+        .eq('school_id', schoolId);
+      if (error) throw error;
+    }
+
     async function deleteStudentPhoto(studentId, photoPath) {
       requireContext();
       const safeStudentId = Number(studentId);
@@ -950,6 +963,7 @@
       updateTrainingCoach,
       deleteTrainingCoach,
       saveStudent,
+      saveStudentPlayerCard,
       saveStudentPhoto,
       deleteStudentPhoto,
       inviteGuardian,

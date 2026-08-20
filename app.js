@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20.318';
+const APP_VERSION = '2026.08.20.319';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -643,6 +643,40 @@ function studentAvatarMarkup(student, useStudentIcon = false, extraClasses = '')
     ? `<img src="${escapeHtml(student.photoUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
     : fallback;
   return `<span class="profile-avatar ${useStudentIcon ? 'student-icon-avatar' : ''} ${hasPhoto ? 'has-photo' : ''} ${extraClasses}" aria-hidden="true">${content}</span>`;
+}
+const PLAYER_CARD_FIELDS = ['overall', 'speed', 'shooting', 'passing', 'dribbling', 'defense', 'physical'];
+const PLAYER_CARD_DEFAULTS = { overall: 50, speed: 50, shooting: 50, passing: 50, dribbling: 50, defense: 50, physical: 50 };
+function normalizePlayerCard(value) {
+  if (!value || typeof value !== 'object') return null;
+  const normalized = {};
+  for (const field of PLAYER_CARD_FIELDS) {
+    const rating = Number(value[field]);
+    if (!Number.isInteger(rating) || rating < 0 || rating > 99) return null;
+    normalized[field] = rating;
+  }
+  return normalized;
+}
+function playerPositionCode(position) {
+  return ({ Kaleci: 'KL', Defans: 'DEF', 'Orta saha': 'OS', Forvet: 'FOR' })[position] || 'OY';
+}
+function playerCardMarkup(student, playerCard = student?.playerCard) {
+  const ratings = normalizePlayerCard(playerCard);
+  const rating = field => ratings ? String(ratings[field]).padStart(2, '0') : '—';
+  const portrait = student?.photoUrl
+    ? `<img src="${escapeHtml(student.photoUrl)}" alt="${escapeHtml(student.name)} oyuncu fotoğrafı" referrerpolicy="no-referrer">`
+    : `<span class="player-card-photo-fallback" aria-hidden="true">${MENU_ICONS.student}</span>`;
+  return `<article class="fut-player-card ${ratings ? '' : 'is-unrated'}" aria-label="${escapeHtml(student?.name || 'Öğrenci')} oyuncu kartı">
+    <div class="fut-card-topline"><div class="fut-card-rating"><strong>${rating('overall')}</strong><span>${escapeHtml(playerPositionCode(student?.position))}</span></div><span class="fut-card-brand">SASA-F</span></div>
+    <div class="fut-card-photo">${portrait}</div>
+    <div class="fut-card-name">${escapeHtml(student?.name || 'Öğrenci')}</div>
+    <div class="fut-card-meta"><span>${escapeHtml(student?.group || 'Grup yok')}</span><span>${escapeHtml(student?.position || 'Mevki yok')}</span></div>
+    <div class="fut-card-stats">
+      <span><strong>${rating('speed')}</strong> HIZ</span><span><strong>${rating('dribbling')}</strong> DRİ</span>
+      <span><strong>${rating('shooting')}</strong> ŞUT</span><span><strong>${rating('defense')}</strong> DEF</span>
+      <span><strong>${rating('passing')}</strong> PAS</span><span><strong>${rating('physical')}</strong> FİZ</span>
+    </div>
+    ${ratings ? '' : '<div class="fut-card-unrated">Henüz değerlendirilmedi</div>'}
+  </article>`;
 }
 function normalizeIban(value) { return String(value || '').toLocaleUpperCase('tr-TR').replace(/[^A-Z0-9]/g, ''); }
 function formatIban(value) { return normalizeIban(value).replace(/(.{4})/g, '$1 ').trim(); }
@@ -1384,9 +1418,10 @@ function studentProfileView() {
   const profileActions = state.role === 'parent'
     ? parentStudentSwitcherMarkup()
     : isAdminRole() ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : '';
+  const positionSummaryCard = `<button class="stat-card player-card-launch" type="button" data-action="player-card" data-id="${student.id}" aria-label="${escapeHtml(student.name)} oyuncu kartını aç"><span class="label">Mevki</span><strong>${escapeHtml(student.position || 'Belirtilmedi')}</strong><small>Oyuncu kartını görüntüle</small></button>`;
   const profileStats = isCoachRole()
-    ? `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button><article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Güncel antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article>`
-    : `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button>${feeSummaryCard}<article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article>`;
+    ? `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button><article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Güncel antrenman grubu</small></article>${positionSummaryCard}`
+    : `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button>${feeSummaryCard}<article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article>${positionSummaryCard}`;
   const guardianDetails = isCoachRole() ? '' : `<article class="panel"><div class="panel-heading"><h3>Veli ve iletişim</h3></div><dl class="detail-list"><div><dt>Veli adı soyadı</dt><dd>${student.parent || 'Bilgi girilmedi'}</dd></div><div><dt>Telefon</dt><dd><a href="tel:${student.phone}">${student.phone}</a></dd></div><div><dt>E-posta</dt><dd>${student.email ? `<a href="mailto:${student.email}">${student.email}</a>` : 'Bilgi girilmedi'}</dd></div><div><dt>Kısa adres</dt><dd>${student.address || 'Adres bilgisi girilmemiş'}</dd></div></dl></article>`;
   const feeTrackingSection = isCoachRole() ? '' : `<section class="panel" id="monthlyFeeSection"><div class="panel-heading"><div><h3>Aylık aidat takibi</h3><small class="muted">Kayıt tarihinden itibaren tüm dönemler</small></div><span class="status blue">${monthlyFeePeriods(student).length} dönem</span></div><div class="students-checkbox-filters monthly-fee-filter"><label class="students-active-filter"><input id="monthlyFeeUnpaidOnlyFilter" type="checkbox" ${state.monthlyFeeUnpaidOnly ? 'checked' : ''}><span>Sadece ödenmemiş aidatları göster</span></label></div><div class="table-wrap"><table class="monthly-fee-table"><thead><tr>${monthlyFeeSortHeader('period', 'Dönem')}${monthlyFeeSortHeader('amount', 'Tutar')}${monthlyFeeSortHeader('due', 'Son ödeme')}${monthlyFeeSortHeader('status', 'Durum')}${state.role !== 'parent' ? '<th>Ödeme</th>' : ''}</tr></thead><tbody>${monthlyFeeRows(student)}</tbody></table></div></section>`;
   return `<div class="page-stack">
@@ -2762,6 +2797,42 @@ async function prepareStudentPhoto(file) {
   }
 }
 
+function accessiblePlayerCardStudent(studentId) {
+  const safeStudentId = Number(studentId);
+  if (state.role === 'parent') {
+    const student = currentParentStudent();
+    return Number(student?.id) === safeStudentId ? student : null;
+  }
+  return state.students.find(student => Number(student.id) === safeStudentId) || null;
+}
+
+function fillPlayerCardForm(student) {
+  const form = document.querySelector('#playerCardForm');
+  const ratings = normalizePlayerCard(student?.playerCard) || PLAYER_CARD_DEFAULTS;
+  form.reset();
+  form.elements.studentId.value = student?.id || '';
+  PLAYER_CARD_FIELDS.forEach(field => { form.elements[field].value = ratings[field]; });
+}
+
+function openPlayerCardDialog(student) {
+  if (!student) return;
+  setSafeHtml(document.querySelector('#playerCardPreview'), playerCardMarkup(student));
+  fillPlayerCardForm(student);
+  document.querySelector('#playerCardForm').classList.add('is-hidden');
+  document.querySelector('#playerCardEditToggle').classList.toggle('is-hidden', !isAdminRole());
+  document.querySelector('#playerCardDialog').showModal();
+}
+
+function playerCardFromForm(form) {
+  const playerCard = {};
+  for (const field of PLAYER_CARD_FIELDS) {
+    const rating = Number(form.elements[field].value);
+    if (!Number.isInteger(rating) || rating < 0 || rating > 99) return null;
+    playerCard[field] = rating;
+  }
+  return playerCard;
+}
+
 function openStudentDialog(student = null) {
   if (!['super_admin', 'admin'].includes(state.role)) {
     showToast('Öğrenci fotoğrafını yalnızca yöneticiler ekleyebilir veya değiştirebilir.');
@@ -3199,6 +3270,26 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'add-student' && ['super_admin', 'admin'].includes(state.role)) openStudentDialog();
   else if (action === 'edit-profile' && ['super_admin', 'admin'].includes(state.role)) { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
+  else if (action === 'player-card') {
+    const student = accessiblePlayerCardStudent(actionButton.dataset.id);
+    if (student) openPlayerCardDialog(student);
+  }
+  else if (action === 'edit-player-card' && isAdminRole()) {
+    const form = document.querySelector('#playerCardForm');
+    form.classList.remove('is-hidden');
+    actionButton.classList.add('is-hidden');
+    form.elements.overall.focus();
+  }
+  else if (action === 'cancel-player-card-edit' && isAdminRole()) {
+    const form = document.querySelector('#playerCardForm');
+    const student = accessiblePlayerCardStudent(form.elements.studentId.value);
+    if (student) {
+      fillPlayerCardForm(student);
+      setSafeHtml(document.querySelector('#playerCardPreview'), playerCardMarkup(student));
+    }
+    form.classList.add('is-hidden');
+    document.querySelector('#playerCardEditToggle').classList.remove('is-hidden');
+  }
   else if (action === 'new-training' && ['super_admin', 'admin'].includes(state.role)) openTrainingDialog();
   else if (action === 'edit-training' && isAdminRole()) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
   else if (action === 'delete-training' && isAdminRole()) {
@@ -3681,6 +3772,34 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
   form.reset();
   render();
   showToast('Paket ve abonelik bilgileri güncellendi.');
+});
+document.querySelector('#playerCardForm').addEventListener('input', event => {
+  const form = event.currentTarget;
+  const student = accessiblePlayerCardStudent(form.elements.studentId.value);
+  const playerCard = playerCardFromForm(form);
+  if (student && playerCard) setSafeHtml(document.querySelector('#playerCardPreview'), playerCardMarkup(student, playerCard));
+});
+document.querySelector('#playerCardForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!isAdminRole()) {
+    showToast('Oyuncu kartını yalnızca yöneticiler düzenleyebilir.');
+    return;
+  }
+  const form = event.currentTarget;
+  const student = accessiblePlayerCardStudent(form.elements.studentId.value);
+  const playerCard = playerCardFromForm(form);
+  if (!student || !playerCard) {
+    showToast('Oyuncu kartı puanlarını 0 ile 99 arasında girin.');
+    return;
+  }
+  const saved = await runRemoteMutation(() => remoteDataStore.saveStudentPlayerCard(student.id, playerCard));
+  if (!saved) return;
+  student.playerCard = playerCard;
+  persistLocalData();
+  document.querySelector('#playerCardDialog').close();
+  form.reset();
+  render();
+  showRecordCreated('Oyuncu kartı güncellendi.');
 });
 document.querySelector('#studentForm').addEventListener('submit', async event => {
   event.preventDefault();
