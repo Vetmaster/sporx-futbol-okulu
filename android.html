@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.20.313">
+  <link rel="stylesheet" href="styles.css?v=2026.08.20.314">
 </head>
 <body>
   <section class="auth-screen" id="authScreen">
@@ -162,8 +162,10 @@
             <strong>Öğrenci fotoğrafı</strong>
             <span>İsteğe bağlıdır. Kamerayla çekebilir veya galeriden seçebilirsiniz.</span>
             <div class="student-photo-actions">
-              <label class="secondary-button" for="studentPhotoInput">Fotoğraf çek veya seç</label>
-              <input class="student-photo-input" id="studentPhotoInput" name="studentPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="user">
+              <label class="secondary-button" for="studentCameraInput">Fotoğraf çek</label>
+              <input class="student-photo-input" id="studentCameraInput" name="studentCameraPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="user">
+              <label class="secondary-button" for="studentGalleryInput">Galeriden seç</label>
+              <input class="student-photo-input" id="studentGalleryInput" name="studentGalleryPhoto" type="file" accept="image/jpeg,image/png,image/webp">
               <button class="text-button is-hidden" id="studentPhotoRemoveButton" type="button">Fotoğrafı kaldır</button>
             </div>
           </div>
@@ -318,7 +320,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.20.313"></script>
-  <script src="app.js?v=2026.08.20.313"></script>
+  <script src="supabase-data.js?v=2026.08.20.314"></script>
+  <script src="app.js?v=2026.08.20.314"></script>
 </body>
 </html>

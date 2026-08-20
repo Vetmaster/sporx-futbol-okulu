@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20.313';
+const APP_VERSION = '2026.08.20.314';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1377,7 +1377,7 @@ function studentProfileView() {
   const feeSummaryCard = `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${formatCurrency(feeDebtBalance)}</strong><small class="${feeDebtBalance ? 'fee-debt-present' : 'fee-debt-clear'}">${feeDebtBalance ? 'Borç bakiye mevcut' : 'Borç bulunmuyor'}</small></button>`;
   const profileActions = state.role === 'parent'
     ? parentStudentSwitcherMarkup()
-    : isCoachRole() ? '' : '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>';
+    : isAdminRole() ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : '';
   const profileStats = isCoachRole()
     ? `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button><article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Güncel antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article>`
     : `<button class="stat-card profile-attendance-summary-card" type="button" data-page="studentAttendanceHistory" aria-label="Yoklama geçmişine git"><span class="label">Devam oranı</span><strong>%${studentAttendanceRate(student)}</strong><small>${attendanceCount} kayıtlı yoklama</small></button>${feeSummaryCard}<article class="stat-card"><span class="label">Antrenman Grubu</span><strong>${student.group}</strong><small>Aktif antrenman grubu</small></article><article class="stat-card"><span class="label">Mevki</span><strong>${student.position || 'Belirtilmedi'}</strong><small>Oyuncu profili</small></article>`;
@@ -2673,8 +2673,10 @@ function showStudentPhotoPreview(photoUrl = '') {
 function resetStudentPhotoEditor() {
   releaseStudentPhotoPreview();
   state.studentPhotoRemoveRequested = false;
-  const photoInput = document.querySelector('#studentPhotoInput');
-  if (photoInput) photoInput.value = '';
+  ['#studentCameraInput', '#studentGalleryInput'].forEach(selector => {
+    const photoInput = document.querySelector(selector);
+    if (photoInput) photoInput.value = '';
+  });
   showStudentPhotoPreview();
 }
 
@@ -3475,7 +3477,7 @@ appContent.addEventListener('change', async event => {
 });
 
 document.querySelector('#studentPrepaymentMonths').addEventListener('change', updateStudentPrepaymentSummary);
-document.querySelector('#studentPhotoInput').addEventListener('change', event => {
+function handleStudentPhotoSelection(event) {
   const file = event.target.files?.[0];
   if (!file) return;
   if ((file.type && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) || file.size > 10 * 1024 * 1024) {
@@ -3487,13 +3489,20 @@ document.querySelector('#studentPhotoInput').addEventListener('change', event =>
   }
   releaseStudentPhotoPreview();
   state.studentPhotoRemoveRequested = false;
+  const otherInput = event.target.id === 'studentCameraInput'
+    ? document.querySelector('#studentGalleryInput')
+    : document.querySelector('#studentCameraInput');
+  if (otherInput) otherInput.value = '';
   state.studentPhotoPreviewUrl = URL.createObjectURL(file);
   showStudentPhotoPreview(state.studentPhotoPreviewUrl);
-});
+}
+document.querySelector('#studentCameraInput').addEventListener('change', handleStudentPhotoSelection);
+document.querySelector('#studentGalleryInput').addEventListener('change', handleStudentPhotoSelection);
 document.querySelector('#studentPhotoRemoveButton').addEventListener('click', () => {
   releaseStudentPhotoPreview();
   state.studentPhotoRemoveRequested = true;
-  document.querySelector('#studentPhotoInput').value = '';
+  document.querySelector('#studentCameraInput').value = '';
+  document.querySelector('#studentGalleryInput').value = '';
   showStudentPhotoPreview();
 });
 document.querySelector('#schoolAdminForm').addEventListener('submit', async event => {
@@ -3627,7 +3636,9 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   if (!['super_admin', 'admin'].includes(state.role)) return;
   const form = event.currentTarget;
   const data = new FormData(form);
-  const selectedPhoto = data.get('studentPhoto');
+  const cameraPhoto = data.get('studentCameraPhoto');
+  const galleryPhoto = data.get('studentGalleryPhoto');
+  const selectedPhoto = cameraPhoto instanceof File && cameraPhoto.size ? cameraPhoto : galleryPhoto;
   let preparedPhoto = null;
   if (selectedPhoto instanceof File && selectedPhoto.size) {
     try {
