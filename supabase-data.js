@@ -193,7 +193,7 @@
         fetchTrainingFields(client, schoolId),
         isCoach
           ? client.rpc('coach_student_directory', { target_school_id: schoolId }).then(({ data, error }) => { if (error) throw error; return data || []; })
-          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, attendance_rate, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId }),
+          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, monthly_fee_amount, attendance_rate, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId }),
         isCoach ? Promise.resolve([]) : fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at', 'id', { school_id: schoolId }),
         fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date', { school_id: schoolId }),
         isCoach ? Promise.resolve([]) : fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on', { school_id: schoolId }),
@@ -258,6 +258,7 @@
           playerCard: row.player_card && typeof row.player_card === 'object' ? row.player_card : null,
           enrollmentDate: row.enrollment_date,
           feeTrackingStartDate: row.fee_tracking_start_date,
+          monthlyFeeAmount: Number(row.monthly_fee_amount) || 0,
           feePayments,
           feeHistory,
           fee: feePayments[currentMonth] || 'none',
@@ -708,6 +709,7 @@
         profile_photo_path: student.photoPath || null,
         enrollment_date: student.enrollmentDate,
         fee_tracking_start_date: student.feeTrackingStartDate,
+        monthly_fee_amount: Number(student.monthlyFeeAmount) || null,
         attendance_rate: Number(student.attendance || 0)
       };
       const query = isNew

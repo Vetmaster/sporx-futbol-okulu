@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.338';
+const APP_VERSION = '2026.08.23.339';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -836,7 +836,9 @@ function isActiveStudent(student) { return ['late', 'paid'].includes(currentFeeS
 function unpaidFeePeriods(student) { return monthlyFeePeriods(student).filter(month => monthlyFeeStatus(student, month) === 'late'); }
 function monthlyFeeAmount(student, month) {
   const historicalAmount = student.feeHistory?.[month]?.amount;
-  return Number.isFinite(Number(historicalAmount)) && historicalAmount !== null ? Number(historicalAmount) : state.monthlyFeeAmount;
+  if (Number.isFinite(Number(historicalAmount)) && historicalAmount !== null) return Number(historicalAmount);
+  const studentAmount = Number(student?.monthlyFeeAmount);
+  return Number.isFinite(studentAmount) && studentAmount > 0 ? studentAmount : state.monthlyFeeAmount;
 }
 function feeAccountingReference(student, month) { return `fee:${student.id}:${month}`; }
 function removeFeeAccountingEntry(student, month) {
@@ -2973,6 +2975,7 @@ function openStudentDialog(student = null) {
   form.elements.phone.value = student?.phone || '';
   form.elements.email.value = student?.email || '';
   form.elements.address.value = student?.address || '';
+  form.elements.studentMonthlyFeeAmount.value = String(monthlyFeeAmount(student, feeMonthKey()));
   showStudentPhotoPreview(student?.photoUrl || '');
   document.querySelector('#studentEyebrow').textContent = student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
   document.querySelector('#studentDialogTitle').textContent = student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
@@ -2981,7 +2984,7 @@ function openStudentDialog(student = null) {
   const prepaymentSection = document.querySelector('#studentPrepaymentSection');
   prepaymentSection.classList.toggle('is-hidden', Boolean(student));
   prepaymentSection.open = false;
-  setSafeHtml(document.querySelector('#studentPrepaymentMonths'), upcomingFeeMonths().map(month => `<label class="student-prepayment-month"><input type="checkbox" name="prepaymentMonth" value="${month}"><span>${formatFeeMonth(month)}</span><small>${formatCurrency(state.monthlyFeeAmount)}</small></label>`).join(''));
+  setSafeHtml(document.querySelector('#studentPrepaymentMonths'), upcomingFeeMonths().map(month => `<label class="student-prepayment-month"><input type="checkbox" name="prepaymentMonth" value="${month}"><span>${formatFeeMonth(month)}</span><small>${formatCurrency(monthlyFeeAmount(student, month))}</small></label>`).join(''));
   form.elements.prepaymentMethod.value = 'cash';
   updateStudentPrepaymentSummary();
   document.querySelector('#studentDialog').showModal();
@@ -2990,10 +2993,13 @@ function openStudentDialog(student = null) {
 function updateStudentPrepaymentSummary() {
   const form = document.querySelector('#studentForm');
   const selectedCount = form.querySelectorAll('input[name="prepaymentMonth"]:checked').length;
+  const selectedAmount = Number(form.elements.studentMonthlyFeeAmount.value);
+  const monthlyAmount = Number.isFinite(selectedAmount) && selectedAmount > 0 ? selectedAmount : state.monthlyFeeAmount;
+  form.querySelectorAll('#studentPrepaymentMonths small').forEach(item => { item.textContent = formatCurrency(monthlyAmount); });
   document.querySelector('#studentPrepaymentSummary').textContent = selectedCount
     ? `${selectedCount} ay seçili`
     : 'İsteğe bağlı · 0 ay seçili';
-  document.querySelector('#studentPrepaymentTotal').textContent = formatCurrency(selectedCount * state.monthlyFeeAmount);
+  document.querySelector('#studentPrepaymentTotal').textContent = formatCurrency(selectedCount * monthlyAmount);
 }
 
 function openTrainingDialog(training = null) {
@@ -3829,6 +3835,9 @@ appContent.addEventListener('change', async event => {
 });
 
 document.querySelector('#studentPrepaymentMonths').addEventListener('change', updateStudentPrepaymentSummary);
+document.querySelector('#studentForm').addEventListener('input', event => {
+  if (event.target.name === 'studentMonthlyFeeAmount') updateStudentPrepaymentSummary();
+});
 function handleStudentPhotoSelection(event) {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -4019,6 +4028,11 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   const cameraPhoto = data.get('studentCameraPhoto');
   const galleryPhoto = data.get('studentGalleryPhoto');
   const selectedPhoto = cameraPhoto instanceof File && cameraPhoto.size ? cameraPhoto : galleryPhoto;
+  const studentMonthlyFeeAmount = Number(data.get('studentMonthlyFeeAmount'));
+  if (!Number.isFinite(studentMonthlyFeeAmount) || studentMonthlyFeeAmount <= 0) {
+    showToast('Geçerli bir aylık aidat tutarı girin.');
+    return;
+  }
   let preparedPhoto = null;
   if (selectedPhoto instanceof File && selectedPhoto.size) {
     try {
@@ -4028,7 +4042,7 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
       return;
     }
   }
-  const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim() };
+  const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim(), monthlyFeeAmount: studentMonthlyFeeAmount };
   const wasEditing = Boolean(state.editingStudentId);
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
   if (!wasEditing && currentPlan.studentLimit !== null && state.students.length >= currentPlan.studentLimit) {
@@ -4099,12 +4113,12 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   if (!wasEditing && prepaymentMonths.length) {
     for (const month of prepaymentMonths) {
       const paymentDetails = {
-        amount: state.monthlyFeeAmount,
+        amount: studentMonthlyFeeAmount,
         paymentDate: localDateValue(),
         paymentMethod: prepaymentMethod
       };
       try {
-        await remoteDataStore.saveFeeStatus(studentRecord, month, 'paid', state.monthlyFeeAmount, paymentDetails);
+        await remoteDataStore.saveFeeStatus(studentRecord, month, 'paid', studentMonthlyFeeAmount, paymentDetails);
         setMonthlyFeeStatus(studentRecord, month, 'paid', paymentDetails);
         savedPrepaymentMonths.push(month);
       } catch {
