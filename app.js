@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.331';
+const APP_VERSION = '2026.08.23.332';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -453,6 +453,7 @@ const loginEmail = document.querySelector('#loginEmail');
 const loginPassword = document.querySelector('#loginPassword');
 const loginPasswordConfirm = document.querySelector('#loginPasswordConfirm');
 const loginSubmitButton = document.querySelector('#loginSubmitButton');
+const authAndroidDownload = document.querySelector('.auth-android-download');
 const authMessage = document.querySelector('#authMessage');
 const adminMfaForm = document.querySelector('#adminMfaForm');
 const adminMfaCode = document.querySelector('#adminMfaCode');
@@ -1928,6 +1929,7 @@ function showLoginScreen(message = '', isError = false) {
   adminMfaForm.classList.add('is-hidden');
   loginForm.classList.remove('is-hidden');
   configureAuthForm('login');
+  configurePersistentAndroidDownloads();
   loginSubmitButton.classList.remove('is-hidden');
   showAuthMessage(message, isError);
   window.setTimeout(() => loginEmail.focus(), 0);
@@ -2183,6 +2185,7 @@ async function showAuthenticatedApp(user) {
   document.querySelector('#authPasswordField').classList.add('is-hidden');
   document.querySelector('#authSecondaryActions').classList.add('is-hidden');
   loginSubmitButton.classList.add('is-hidden');
+  authAndroidDownload.classList.add('is-hidden');
 
   let remoteData;
   try {
