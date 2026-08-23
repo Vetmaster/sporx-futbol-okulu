@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.23.328">
+  <link rel="stylesheet" href="styles.css?v=2026.08.23.329">
 </head>
 <body>
   <dialog class="data-save-loading is-hidden" id="dataSaveLoadingScreen" aria-live="assertive" aria-label="Kayıt işlemi devam ediyor">
@@ -243,7 +243,7 @@
         <label>Süre<select name="duration" required><option value="60">60 dakika</option><option value="75">75 dakika</option><option value="90" selected>90 dakika</option><option value="120">120 dakika</option></select></label>
         <label>Antrenman türü<select id="trainingTypeSelect" name="title" required><option value="">Seçiniz</option></select></label>
         <label>Antrenör<select id="trainingCoachSelect" name="coach" required><option value="">Seçiniz</option></select></label>
-        <label class="full-field">Saha<input name="field" placeholder="Örn. Ana saha" required></label>
+        <label class="full-field">Saha<select id="trainingFieldSelect" name="field" required><option value="">Seçiniz</option></select></label>
       </div>
       <div class="dialog-actions training-dialog-actions"><button type="button" class="danger-button dialog-delete-button is-hidden" id="deleteTrainingButton" data-action="delete-training">Antrenmanı sil</button><button type="button" data-dialog-close="trainingDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button" id="trainingSubmitButton">Antrenmanı kaydet</button></div>
     </form>
@@ -351,7 +351,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.23.328"></script>
-  <script src="app.js?v=2026.08.23.328"></script>
+  <script src="supabase-data.js?v=2026.08.23.329"></script>
+  <script src="app.js?v=2026.08.23.329"></script>
 </body>
 </html>
