@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.332';
+const APP_VERSION = '2026.08.23.334';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -123,7 +123,7 @@ const state = {
   selectedStudentId: null,
   selectedParentStudentId: null,
   selectedParentPaymentMonth: null,
-  activeStudentsOnly: true,
+  activeStudentsOnly: false,
   debtStudentsOnly: false,
   studentSortKey: 'enrollmentDate',
   studentSortDirection: 'desc',
@@ -133,6 +133,7 @@ const state = {
   expandedTimelineStudentId: null,
   trainingSortDirection: 'desc',
   attendanceSortDirection: 'desc',
+  studentAttendanceMonth: null,
   showPastTrainings: false,
   showPastAttendance: false,
   feeFilter: 'all',
@@ -383,6 +384,7 @@ function navigateToPage(page, updates = {}) {
     state.trainingTypeSettingsOpen = false;
     state.trainingCoachSettingsOpen = false;
   }
+  if (pageChanged && targetPage === 'studentAttendanceHistory') state.studentAttendanceMonth = feeMonthKey();
   Object.assign(state, updates);
   state.page = targetPage;
   document.querySelector('#sidebar').classList.remove('open');
@@ -982,6 +984,22 @@ function attendanceEntriesForStudent(student) {
     return { record, training, present };
   }).filter(Boolean).sort((a, b) => `${a.training.date || ''}T${a.training.time || ''}`.localeCompare(`${b.training.date || ''}T${b.training.time || ''}`));
 }
+function studentAttendanceMonthOptions(student) {
+  const enrollmentDate = /^\d{4}-\d{2}-\d{2}$/.test(student?.enrollmentDate || '')
+    ? student.enrollmentDate
+    : localDateValue();
+  const [startYear, startMonth] = enrollmentDate.split('-').map(Number);
+  const current = new Date();
+  const currentMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+  const startMonthDate = new Date(startYear, startMonth - 1, 1);
+  const cursor = startMonthDate > currentMonth ? currentMonth : startMonthDate;
+  const months = [];
+  while (cursor <= currentMonth) {
+    months.push(feeMonthKey(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months.reverse();
+}
 function studentAttendanceRate(student) {
   const entries = attendanceEntriesForStudent(student);
   if (!entries.length) return 0;
@@ -1490,10 +1508,15 @@ function studentAttendanceHistoryView() {
   const allowedStudent = state.role === 'parent' ? currentParentStudent() : state.students.find(student => student.id === Number(state.selectedStudentId));
   const student = allowedStudent || state.students[0];
   if (!student) return `<div class="page-stack"><section class="panel empty-state"><h2>Öğrenci bulunamadı</h2><button class="secondary-button" data-page="dashboard">Geri dön</button></section></div>`;
-  const entries = attendanceEntriesForStudent(student);
+  const monthOptions = studentAttendanceMonthOptions(student);
+  const currentMonth = feeMonthKey();
+  const selectedMonth = monthOptions.includes(state.studentAttendanceMonth) ? state.studentAttendanceMonth : currentMonth;
+  state.studentAttendanceMonth = selectedMonth;
+  const entries = attendanceEntriesForStudent(student).filter(entry => String(entry.training.date || '').slice(0, 7) === selectedMonth);
   const presentCount = entries.filter(entry => entry.present).length;
   const absentCount = entries.length - presentCount;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${student.name} · Yoklama geçmişi</h2><p>Kayıtlı antrenman katılım sonuçları</p></div></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam yoklama</span><strong>${entries.length}</strong><small>Kayıtlı antrenman</small></article><article class="stat-card"><span class="label">Geldi</span><strong>${presentCount}</strong><small>Katıldığı antrenman</small></article><article class="stat-card"><span class="label">Gelmedi</span><strong>${absentCount}</strong><small>Katılmadığı antrenman</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Tarih / Saat</th><th>Antrenman</th><th>Antrenör / Saha</th><th>Durum</th></tr></thead><tbody>${entries.map(entry => `<tr><td><strong>${formatTrainingDate(entry.training.date)}</strong><br><small class="muted">${entry.training.time}</small></td><td>${entry.training.title}<br><small class="muted">${entry.training.group}</small></td><td>${entry.training.coach}<br><small class="muted">${entry.training.field}</small></td><td><span class="status ${entry.present ? '' : 'danger'}">${entry.present ? 'Geldi' : 'Gelmedi'}</span></td></tr>`).join('') || '<tr><td colspan="4"><div class="empty-state">Bu öğrenci için henüz kayıtlı yoklama bulunmuyor.</div></td></tr>'}</tbody></table></section></div>`;
+  const monthFilter = `<div class="attendance-history-filter"><label><span>Ay</span><select id="studentAttendanceMonthFilter" aria-label="Yoklama geçmişi ayını seçin">${monthOptions.map(month => `<option value="${month}" ${month === selectedMonth ? 'selected' : ''}>${formatFeeMonth(month)}</option>`).join('')}</select></label></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${student.name} · Yoklama geçmişi</h2><p>Kayıtlı antrenman katılım sonuçları</p></div></div>${monthFilter}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam yoklama</span><strong>${entries.length}</strong><small>${formatFeeMonth(selectedMonth)} kaydı</small></article><article class="stat-card"><span class="label">Geldi</span><strong>${presentCount}</strong><small>Katıldığı antrenman</small></article><article class="stat-card"><span class="label">Gelmedi</span><strong>${absentCount}</strong><small>Katılmadığı antrenman</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Tarih / Saat</th><th>Antrenman</th><th>Antrenör / Saha</th><th>Durum</th></tr></thead><tbody>${entries.map(entry => `<tr><td><strong>${formatTrainingDate(entry.training.date)}</strong><br><small class="muted">${entry.training.time}</small></td><td>${entry.training.title}<br><small class="muted">${entry.training.group}</small></td><td>${entry.training.coach}<br><small class="muted">${entry.training.field}</small></td><td><span class="status ${entry.present ? '' : 'danger'}">${entry.present ? 'Geldi' : 'Gelmedi'}</span></td></tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">${formatFeeMonth(selectedMonth)} için kayıtlı yoklama bulunmuyor.</div></td></tr>`}</tbody></table></section></div>`;
 }
 
 function trainingsView() {
@@ -1827,9 +1850,13 @@ function render() {
   rolePreviewSelect.value = state.role;
   const schoolSwitcher = document.querySelector('#schoolSwitcher');
   const schoolSelect = document.querySelector('#schoolSelect');
-  const canSwitchSchool = isActualSuperAdmin() || state.schools.length > 1;
+  const currentSchoolName = document.querySelector('#currentSchoolName');
+  const canSwitchSchool = isActualSuperAdmin();
   schoolSwitcher.classList.toggle('is-hidden', !canSwitchSchool);
+  currentSchoolName.classList.toggle('is-hidden', canSwitchSchool || !state.schoolName);
+  currentSchoolName.textContent = state.schoolName || 'Futbol Okulu';
   document.querySelector('.topbar').classList.toggle('has-school-switcher', canSwitchSchool);
+  document.querySelector('.topbar').classList.toggle('has-current-school-name', !canSwitchSchool && Boolean(state.schoolName));
   if (canSwitchSchool) {
     setSafeHtml(schoolSelect, state.schools.map(school => `<option value="${school.id}" ${school.id === state.schoolId ? 'selected' : ''}>${escapeHtml(school.name)}${school.active ? '' : ' (Pasif)'}${!isActualSuperAdmin() && school.role ? ` · ${escapeHtml(roleNames[school.role])}` : ''}</option>`).join(''));
     schoolSelect.disabled = state.schools.length < 2;
@@ -3701,6 +3728,11 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'monthlyFeeUnpaidOnlyFilter') {
     state.monthlyFeeUnpaidOnly = event.target.checked;
+    render();
+    return;
+  }
+  if (event.target.id === 'studentAttendanceMonthFilter') {
+    state.studentAttendanceMonth = event.target.value;
     render();
     return;
   }

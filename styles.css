@@ -109,6 +109,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .school-switcher { min-width: min(280px, 30vw); display: flex; grid-template-columns: auto minmax(150px, 1fr); align-items: center; gap: 8px; }
 .school-switcher > span { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .school-switcher select { min-width: 180px; max-width: 280px; }
+.current-school-name { max-width: min(280px, 30vw); overflow: hidden; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--brand); background: rgba(255,255,255,.72); font-size: 12px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-notification-button {
   position: relative;
   width: 38px;
@@ -404,6 +405,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .attendance-training-row.is-past { background: #e4e5e3; }
 .attendance-training-row.is-past small { color: #686d69; }
 .training-list-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
+.attendance-history-filter { display: flex; justify-content: flex-end; }
+.attendance-history-filter label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.attendance-history-filter select { min-width: 180px; }
 .training-sort-control { width: max-content; display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 13px; }
 .training-sort-control select { width: auto; min-width: 210px; padding-block: 10px; color: var(--brand-dark); font-weight: 700; }
 .table-wrap { overflow-x: auto; }
@@ -691,11 +695,14 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .topbar p, .topbar select:not(.role-preview-select) { display: none; }
   .topbar .role-preview-select { min-width: 112px; max-width: 122px; height: 34px; padding: 0 28px 0 10px; font-size: 11px; }
   .school-switcher { display: none; }
+  .current-school-name { display: none; }
   .topbar.has-school-switcher { flex-wrap: wrap; gap: 8px 10px; }
   .topbar.has-school-switcher .topbar-actions { width: 100%; flex: 0 0 100%; order: 2; margin-left: 0; }
   .topbar.has-school-switcher .school-switcher { min-width: 0; flex: 1 1 auto; display: flex; }
   .topbar.has-school-switcher .school-switcher > span { display: none; }
   .topbar.has-school-switcher .school-switcher select { width: 100%; min-width: 0; max-width: none; display: block; }
+  .topbar.has-current-school-name .topbar-actions { margin-left: auto; min-width: 0; }
+  .topbar.has-current-school-name .current-school-name { display: block; max-width: min(150px, 38vw); padding: 7px 10px; font-size: 11px; }
   .topbar h1 { font-size: 18px; }
   .accounting-settings-panel { padding: 14px; }
   .accounting-settings-form { grid-template-columns: minmax(0, 1fr) 144px auto; gap: 8px; }
@@ -756,6 +763,9 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .ledger-entry .ledger-amount { grid-column: 2; justify-content: flex-start; }
   .dialog-actions button { flex: 1; }
   .training-list-toolbar { flex-wrap: nowrap; gap: 8px; }
+  .attendance-history-filter { justify-content: stretch; }
+  .attendance-history-filter label { width: 100%; }
+  .attendance-history-filter select { flex: 1; min-width: 0; }
   .training-list-toolbar .students-active-filter { min-width: 0; flex: 1; font-size: 11px; }
   .training-list-toolbar .students-active-filter span { line-height: 1.2; }
   .training-sort-control { width: auto; flex: 0 0 auto; justify-content: flex-end; gap: 5px; }
