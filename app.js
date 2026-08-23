@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.320';
+const APP_VERSION = '2026.08.23.321';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -394,7 +394,7 @@ function navigateToPage(page, updates = {}) {
 
 function isMobileTabSwipeBlocked(target) {
   const element = target instanceof Element ? target : null;
-  if (!element || element.closest('dialog[open], input, textarea, select, button, a, label, [contenteditable="true"]')) return true;
+  if (!element || element.closest('dialog[open], input, textarea, select, label, [contenteditable="true"]')) return true;
   for (let current = element; current && current !== appContent; current = current.parentElement) {
     const style = window.getComputedStyle(current);
     if (/(auto|scroll)/.test(style.overflowX) && current.scrollWidth > current.clientWidth + 2) return true;
@@ -443,6 +443,7 @@ const mainNav = document.querySelector('#mainNav');
 const bottomNav = document.querySelector('#bottomNav');
 const globalBackButton = document.querySelector('#globalBackButton');
 let mobileTabSwipeStart = null;
+let mobileTabSwipeSuppressClickUntil = 0;
 const loginForm = document.querySelector('#loginForm');
 const loginEmail = document.querySelector('#loginEmail');
 const loginPassword = document.querySelector('#loginPassword');
@@ -3126,36 +3127,44 @@ document.querySelector('#adminMfaCancelButton').addEventListener('click', async 
 
 document.querySelector('#logoutButton').addEventListener('click', logout);
 globalBackButton.addEventListener('click', requestAppBack);
-appContent.addEventListener('pointerdown', event => {
-  if (!event.isPrimary || event.button !== 0 || !window.matchMedia('(max-width: 820px)').matches || isMobileTabSwipeBlocked(event.target)) {
+appContent.addEventListener('touchstart', event => {
+  if (event.touches.length !== 1 || !window.matchMedia('(max-width: 820px)').matches || isMobileTabSwipeBlocked(event.target)) {
     mobileTabSwipeStart = null;
     return;
   }
+  const touch = event.touches[0];
   const edgeInset = 28;
-  if (event.clientX <= edgeInset || event.clientX >= window.innerWidth - edgeInset) {
+  if (touch.clientX <= edgeInset || touch.clientX >= window.innerWidth - edgeInset) {
     mobileTabSwipeStart = null;
     return;
   }
-  mobileTabSwipeStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), cancelled: false };
-});
-appContent.addEventListener('pointermove', event => {
-  if (!mobileTabSwipeStart || event.pointerId !== mobileTabSwipeStart.pointerId) return;
-  const deltaX = event.clientX - mobileTabSwipeStart.x;
-  const deltaY = event.clientY - mobileTabSwipeStart.y;
+  mobileTabSwipeStart = { x: touch.clientX, y: touch.clientY, time: performance.now(), cancelled: false };
+}, { passive: true });
+appContent.addEventListener('touchmove', event => {
+  if (!mobileTabSwipeStart || event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  const deltaX = touch.clientX - mobileTabSwipeStart.x;
+  const deltaY = touch.clientY - mobileTabSwipeStart.y;
   if (Math.abs(deltaY) > 18 && Math.abs(deltaY) > Math.abs(deltaX)) mobileTabSwipeStart.cancelled = true;
-});
-appContent.addEventListener('pointerup', event => {
+}, { passive: true });
+appContent.addEventListener('touchend', event => {
   const swipeStart = mobileTabSwipeStart;
   mobileTabSwipeStart = null;
-  if (!swipeStart || swipeStart.cancelled || event.pointerId !== swipeStart.pointerId) return;
-  const deltaX = event.clientX - swipeStart.x;
-  const deltaY = event.clientY - swipeStart.y;
+  const touch = event.changedTouches[0];
+  if (!swipeStart || swipeStart.cancelled || !touch) return;
+  const deltaX = touch.clientX - swipeStart.x;
+  const deltaY = touch.clientY - swipeStart.y;
   const elapsed = performance.now() - swipeStart.time;
   const minimumDistance = Math.max(54, window.innerWidth * .14);
   if (elapsed > 900 || Math.abs(deltaX) < minimumDistance || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
-  navigateMobileTabBySwipe(deltaX < 0 ? 1 : -1);
-});
-appContent.addEventListener('pointercancel', () => { mobileTabSwipeStart = null; });
+  if (navigateMobileTabBySwipe(deltaX < 0 ? 1 : -1)) mobileTabSwipeSuppressClickUntil = performance.now() + 450;
+}, { passive: true });
+appContent.addEventListener('touchcancel', () => { mobileTabSwipeStart = null; }, { passive: true });
+document.addEventListener('click', event => {
+  if (performance.now() >= mobileTabSwipeSuppressClickUntil) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
 window.addEventListener('popstate', event => {
   if (!state.userId || appShell.classList.contains('is-hidden')) return;
   if (restoreBrowserNavigation(event.state)) return;
