@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.326';
+const APP_VERSION = '2026.08.23.327';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2328,6 +2328,7 @@ function showToast(message, tone = 'info', duration = 2800) {
 }
 
 function showRecordCreated(message) {
+  const visibleDuration = 3000;
   hideDataSaveLoading();
   window.clearTimeout(showRecordCreated.openTimer);
   window.clearTimeout(showRecordCreated.closeTimer);
@@ -2352,10 +2353,20 @@ function showRecordCreated(message) {
     description.textContent = message;
     description.style.cssText = 'margin:6px 0 0;color:#26231f;font-size:15px;font-weight:700;line-height:1.5;';
     copy.append(title, description);
-    card.append(icon, copy);
+    const progress = document.createElement('div');
+    progress.setAttribute('aria-hidden', 'true');
+    progress.style.cssText = 'grid-column:1/-1;height:5px;overflow:hidden;margin-top:2px;border-radius:999px;background:rgba(23,107,69,.14);';
+    const progressFill = document.createElement('div');
+    progressFill.style.cssText = 'width:100%;height:100%;border-radius:inherit;background:#176b45;transform:scaleX(0);transform-origin:left center;';
+    progress.append(progressFill);
+    card.append(icon, copy, progress);
     overlay.append(card);
     document.body.append(overlay);
-    showRecordCreated.closeTimer = window.setTimeout(() => overlay.remove(), 4200);
+    progressFill.animate(
+      [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+      { duration: visibleDuration, easing: 'linear', fill: 'forwards' }
+    );
+    showRecordCreated.closeTimer = window.setTimeout(() => overlay.remove(), visibleDuration);
   }, 0);
 }
 
