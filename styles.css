@@ -691,6 +691,11 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .topbar p, .topbar select:not(.role-preview-select) { display: none; }
   .topbar .role-preview-select { min-width: 112px; max-width: 122px; height: 34px; padding: 0 28px 0 10px; font-size: 11px; }
   .school-switcher { display: none; }
+  .topbar.has-school-switcher { flex-wrap: wrap; gap: 8px 10px; }
+  .topbar.has-school-switcher .topbar-actions { width: 100%; flex: 0 0 100%; order: 2; margin-left: 0; }
+  .topbar.has-school-switcher .school-switcher { min-width: 0; flex: 1 1 auto; display: flex; }
+  .topbar.has-school-switcher .school-switcher > span { display: none; }
+  .topbar.has-school-switcher .school-switcher select { width: 100%; min-width: 0; max-width: none; display: block; }
   .topbar h1 { font-size: 18px; }
   .accounting-settings-panel { padding: 14px; }
   .accounting-settings-form { grid-template-columns: minmax(0, 1fr) 144px auto; gap: 8px; }
