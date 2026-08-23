@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2026.08.23.338">
+  <link rel="stylesheet" href="styles.css?v=2026.08.23.339">
 </head>
 <body>
   <dialog class="data-save-loading is-hidden" id="dataSaveLoadingScreen" aria-live="assertive" aria-label="Kayıt işlemi devam ediyor">
@@ -183,6 +183,7 @@
         <label>İrtibat telefonu<input name="phone" type="tel" placeholder="05xx xxx xx xx" required></label>
         <label>İrtibat e-posta adresi<input name="email" type="email" required><small class="form-hint" id="guardianInviteHint">Veli hesabı için güvenli şifre belirleme bağlantısı bu adrese gönderilir.</small></label>
         <label class="full-field">Kısa ev adresi<textarea name="address" rows="3" required></textarea></label>
+        <label>Aylık aidat tutarı (₺)<input name="studentMonthlyFeeAmount" type="number" min="1" step="1" inputmode="numeric" required><small class="form-hint">Bu öğrenci için uygulanacak aylık aidat tutarı.</small></label>
         <details class="student-prepayment-disclosure full-field" id="studentPrepaymentSection">
           <summary><span>Ön ödeme al</span><small id="studentPrepaymentSummary">İsteğe bağlı · 0 ay seçili</small><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
           <div class="student-prepayment-content">
@@ -360,7 +361,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.23.338"></script>
-  <script src="app.js?v=2026.08.23.338"></script>
+  <script src="supabase-data.js?v=2026.08.23.339"></script>
+  <script src="app.js?v=2026.08.23.339"></script>
 </body>
 </html>
