@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20.319';
+const APP_VERSION = '2026.08.23.320';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -392,6 +392,30 @@ function navigateToPage(page, updates = {}) {
   }
 }
 
+function isMobileTabSwipeBlocked(target) {
+  const element = target instanceof Element ? target : null;
+  if (!element || element.closest('dialog[open], input, textarea, select, button, a, label, [contenteditable="true"]')) return true;
+  for (let current = element; current && current !== appContent; current = current.parentElement) {
+    const style = window.getComputedStyle(current);
+    if (/(auto|scroll)/.test(style.overflowX) && current.scrollWidth > current.clientWidth + 2) return true;
+  }
+  return false;
+}
+
+function navigateMobileTabBySwipe(step) {
+  if (!window.matchMedia('(max-width: 820px)').matches || document.querySelector('dialog[open]') || document.querySelector('#sidebar')?.classList.contains('open')) return false;
+  const mobileKeys = mobileNavigationKeys();
+  const currentIndex = mobileKeys.indexOf(state.page);
+  const targetKey = mobileKeys[currentIndex + step];
+  if (currentIndex < 0 || !targetKey) return false;
+  navigateToPage(targetKey, targetKey === 'fees' ? { feeFilter: 'all' } : {});
+  appContent.classList.remove('mobile-tab-swipe-next', 'mobile-tab-swipe-previous');
+  void appContent.offsetWidth;
+  appContent.classList.add(step > 0 ? 'mobile-tab-swipe-next' : 'mobile-tab-swipe-previous');
+  window.setTimeout(() => appContent.classList.remove('mobile-tab-swipe-next', 'mobile-tab-swipe-previous'), 220);
+  return true;
+}
+
 function requestAppBack() {
   if (state.page === 'dashboard') return;
   if (browserNavigationReady && window.history.state?.[BROWSER_NAVIGATION_STATE_KEY]) {
@@ -418,6 +442,7 @@ const appContent = document.querySelector('#appContent');
 const mainNav = document.querySelector('#mainNav');
 const bottomNav = document.querySelector('#bottomNav');
 const globalBackButton = document.querySelector('#globalBackButton');
+let mobileTabSwipeStart = null;
 const loginForm = document.querySelector('#loginForm');
 const loginEmail = document.querySelector('#loginEmail');
 const loginPassword = document.querySelector('#loginPassword');
@@ -1016,6 +1041,13 @@ function navMarkup(key, item) {
   return `<button class="nav-button ${state.page === key ? 'active' : ''}" type="button" data-page="${key}"><span class="nav-icon">${item.icon}</span><span>${item.label}</span></button>`;
 }
 
+function mobileNavigationKeys() {
+  const keys = state.role === 'parent'
+    ? ['dashboard', 'child', 'trainings', 'fees']
+    : ['dashboard', 'students', 'trainings', isAdminRole() ? 'accounting' : 'attendance'];
+  return keys.filter(key => navItems[key]?.roles.includes(state.role));
+}
+
 function renderNavigation() {
   const items = allowedItems();
   setSafeHtml(mainNav, items.map(([key, item]) => navMarkup(key, item)).join(''));
@@ -1024,8 +1056,7 @@ function renderNavigation() {
   const sidebarSettings = document.querySelector('#sidebarSettings');
   setSafeHtml(sidebarSettings, showSettings ? navMarkup('settings', settingsItem) : '');
   sidebarSettings.classList.toggle('is-hidden', !showSettings);
-  const mobileKeys = state.role === 'parent' ? ['dashboard', 'child', 'trainings', 'fees'] : ['dashboard', 'students', 'trainings', isAdminRole() ? 'accounting' : 'attendance'];
-  setSafeHtml(bottomNav, mobileKeys.filter(key => navItems[key]?.roles.includes(state.role)).map(key => navMarkup(key, navItems[key])).join(''));
+  setSafeHtml(bottomNav, mobileNavigationKeys().map(key => navMarkup(key, navItems[key])).join(''));
 }
 
 function dashboardNotificationPromptMarkup() {
@@ -3095,6 +3126,36 @@ document.querySelector('#adminMfaCancelButton').addEventListener('click', async 
 
 document.querySelector('#logoutButton').addEventListener('click', logout);
 globalBackButton.addEventListener('click', requestAppBack);
+appContent.addEventListener('pointerdown', event => {
+  if (!event.isPrimary || event.button !== 0 || !window.matchMedia('(max-width: 820px)').matches || isMobileTabSwipeBlocked(event.target)) {
+    mobileTabSwipeStart = null;
+    return;
+  }
+  const edgeInset = 28;
+  if (event.clientX <= edgeInset || event.clientX >= window.innerWidth - edgeInset) {
+    mobileTabSwipeStart = null;
+    return;
+  }
+  mobileTabSwipeStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), cancelled: false };
+});
+appContent.addEventListener('pointermove', event => {
+  if (!mobileTabSwipeStart || event.pointerId !== mobileTabSwipeStart.pointerId) return;
+  const deltaX = event.clientX - mobileTabSwipeStart.x;
+  const deltaY = event.clientY - mobileTabSwipeStart.y;
+  if (Math.abs(deltaY) > 18 && Math.abs(deltaY) > Math.abs(deltaX)) mobileTabSwipeStart.cancelled = true;
+});
+appContent.addEventListener('pointerup', event => {
+  const swipeStart = mobileTabSwipeStart;
+  mobileTabSwipeStart = null;
+  if (!swipeStart || swipeStart.cancelled || event.pointerId !== swipeStart.pointerId) return;
+  const deltaX = event.clientX - swipeStart.x;
+  const deltaY = event.clientY - swipeStart.y;
+  const elapsed = performance.now() - swipeStart.time;
+  const minimumDistance = Math.max(54, window.innerWidth * .14);
+  if (elapsed > 900 || Math.abs(deltaX) < minimumDistance || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+  navigateMobileTabBySwipe(deltaX < 0 ? 1 : -1);
+});
+appContent.addEventListener('pointercancel', () => { mobileTabSwipeStart = null; });
 window.addEventListener('popstate', event => {
   if (!state.userId || appShell.classList.contains('is-hidden')) return;
   if (restoreBrowserNavigation(event.state)) return;
