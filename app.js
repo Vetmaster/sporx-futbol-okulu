@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.339';
+const APP_VERSION = '2026.08.23.340';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -835,7 +835,7 @@ function currentFeeStatus(student) { return monthlyFeeStatus(student, feeMonthKe
 function isActiveStudent(student) { return ['late', 'paid'].includes(currentFeeStatus(student)); }
 function unpaidFeePeriods(student) { return monthlyFeePeriods(student).filter(month => monthlyFeeStatus(student, month) === 'late'); }
 function monthlyFeeAmount(student, month) {
-  const historicalAmount = student.feeHistory?.[month]?.amount;
+  const historicalAmount = student?.feeHistory?.[month]?.amount;
   if (Number.isFinite(Number(historicalAmount)) && historicalAmount !== null) return Number(historicalAmount);
   const studentAmount = Number(student?.monthlyFeeAmount);
   return Number.isFinite(studentAmount) && studentAmount > 0 ? studentAmount : state.monthlyFeeAmount;
