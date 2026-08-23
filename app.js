@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.328';
+const APP_VERSION = '2026.08.23.329';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -145,6 +145,7 @@ const state = {
   schoolBankAccounts: [],
   trainingTypes: ['Teknik Antrenman', 'Taktik Çalışma', 'Kondisyon', 'Kaleci Çalışması', 'Maç Hazırlığı'],
   trainingCoaches: [],
+  trainingFields: [...new Set(localData.trainings.map(training => training.field).filter(Boolean))],
   pushStatus: 'checking',
   pushBusy: false,
   nativeFcmToken: NATIVE_FCM_TOKEN,
@@ -157,6 +158,7 @@ const state = {
   editingGroupName: null,
   editingTrainingTypeName: null,
   editingTrainingCoachName: null,
+  editingTrainingFieldName: null,
   invitingSchoolId: null,
   schoolInviteConfirmation: null,
   editingSchoolId: null,
@@ -164,6 +166,7 @@ const state = {
   groupSettingsOpen: false,
   trainingTypeSettingsOpen: false,
   trainingCoachSettingsOpen: false,
+  trainingFieldSettingsOpen: false,
   newestGroupPinned: false,
   newestGroupName: '',
   editingTrainingId: null,
@@ -213,6 +216,7 @@ function clearSensitiveState() {
   state.selectedParentStudentId = null;
   state.selectedParentPaymentMonth = null;
   state.trainingCoaches = [];
+  state.trainingFields = [];
   state.trainingTypes = ['Teknik Antrenman', 'Taktik Çalışma', 'Kondisyon', 'Kaleci Çalışması', 'Maç Hazırlığı'];
   window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
   window.localStorage.removeItem(SELECTED_SCHOOL_STORAGE_KEY);
@@ -652,6 +656,19 @@ function syncTrainingCoachOptions(selectedCoach = '') {
   if (currentCoach) select.value = currentCoach;
 }
 syncTrainingCoachOptions();
+function syncTrainingFieldOptions(selectedField = '') {
+  const select = document.querySelector('#trainingFieldSelect');
+  if (!select) return;
+  const currentField = selectedField || select.value;
+  const options = [...state.trainingFields];
+  if (currentField && !options.includes(currentField)) options.push(currentField);
+  select.replaceChildren(
+    new Option('Seçiniz', ''),
+    ...options.map(field => new Option(field, field))
+  );
+  if (currentField) select.value = currentField;
+}
+syncTrainingFieldOptions();
 document.querySelector('#headerVersionLabel').textContent = `v${APP_VERSION}`;
 document.querySelector('#authVersionLabel').textContent = `v${APP_VERSION}`;
 
@@ -1517,9 +1534,18 @@ function trainingSettingsView() {
     }
     return `<div class="group-settings-row"><div><strong>${escapeHtml(coach)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-coach" data-coach="${escapeHtml(coach)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-coach" data-coach="${escapeHtml(coach)}">Sil</button></div></div>`;
   }).join('');
+  const sortedFields = [...state.trainingFields].sort((left, right) => left.localeCompare(right, 'tr-TR', { numeric: true, sensitivity: 'base' }));
+  const fieldRows = sortedFields.map(field => {
+    const usageCount = state.trainings.filter(training => String(training.field || '').localeCompare(field, 'tr-TR', { sensitivity: 'base' }) === 0).length;
+    if (state.editingTrainingFieldName === field) {
+      return `<form class="group-settings-row training-field-rename-form" data-original-field="${escapeHtml(field)}"><div><label for="editTrainingFieldName">Saha adını düzenle</label><input id="editTrainingFieldName" name="trainingFieldName" maxlength="80" value="${escapeHtml(field)}" required><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-training-field">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
+    }
+    return `<div class="group-settings-row"><div><strong>${escapeHtml(field)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-field" data-field="${escapeHtml(field)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-field" data-field="${escapeHtml(field)}">Sil</button></div></div>`;
+  }).join('');
   const typePanel = `<details class="panel group-settings-panel training-type-settings-panel"${state.trainingTypeSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Antrenman isimleri</h3><small class="muted">${state.trainingTypes.length} kayıtlı isim</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingTypeSettingsForm" class="group-settings-form"><label for="newTrainingTypeName">Yeni antrenman adı</label><input id="newTrainingTypeName" name="trainingTypeName" maxlength="60" placeholder="Örn. Şut çalışması" required><button class="primary-button" type="submit">İsim ekle</button></form><div class="group-settings-list">${typeRows || '<div class="empty-state">Henüz antrenman ismi eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki isimler yeni antrenman formunda gösterilir. Geçmiş antrenman kayıtları silme işleminden etkilenmez.</small></div></details>`;
   const coachPanel = `<details class="panel group-settings-panel training-coach-settings-panel"${state.trainingCoachSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Antrenör isimleri</h3><small class="muted">${state.trainingCoaches.length} kayıtlı antrenör</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingCoachSettingsForm" class="group-settings-form"><label for="newTrainingCoachName">Yeni antrenör adı</label><input id="newTrainingCoachName" name="trainingCoachName" maxlength="80" placeholder="Adı soyadı" required><button class="primary-button" type="submit">Antrenör ekle</button></form><div class="group-settings-list">${coachRows || '<div class="empty-state">Henüz antrenör eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki antrenörler yeni antrenman formundaki açılır menüde gösterilir. Geçmiş kayıtlar silme işleminden etkilenmez.</small></div></details>`;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman ayarları</h2><p>Antrenman isimlerini ve antrenörleri yönetin</p></div></div>${typePanel}${coachPanel}</div>`;
+  const fieldPanel = `<details class="panel group-settings-panel training-field-settings-panel"${state.trainingFieldSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Sahalar</h3><small class="muted">${state.trainingFields.length} kayıtlı saha</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingFieldSettingsForm" class="group-settings-form"><label for="newTrainingFieldName">Yeni saha adı</label><input id="newTrainingFieldName" name="trainingFieldName" maxlength="80" placeholder="Örn. Ana saha" required><button class="primary-button" type="submit">Saha ekle</button></form><div class="group-settings-list">${fieldRows || '<div class="empty-state">Henüz saha eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki sahalar yeni antrenman formundaki açılır menüde gösterilir. Geçmiş kayıtlar silme işleminden etkilenmez.</small></div></details>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Antrenman ayarları</h2><p>Antrenman isimlerini, antrenörleri ve sahaları yönetin</p></div></div>${typePanel}${coachPanel}${fieldPanel}</div>`;
 }
 
 function attendanceView() {
@@ -1963,6 +1989,7 @@ function applyRemoteData(remoteData) {
   })).filter(account => account.bankName || account.accountHolder || account.iban);
   state.trainingTypes = Array.isArray(remoteData.trainingTypes) ? remoteData.trainingTypes : state.trainingTypes;
   state.trainingCoaches = Array.isArray(remoteData.trainingCoaches) ? remoteData.trainingCoaches : state.trainingCoaches;
+  state.trainingFields = Array.isArray(remoteData.trainingFields) ? remoteData.trainingFields : state.trainingFields;
   if (state.role === 'parent' && !state.students.some(student => Number(student.id) === Number(state.selectedParentStudentId))) {
     state.selectedParentStudentId = state.students[0]?.id || null;
   }
@@ -1973,6 +2000,7 @@ function applyRemoteData(remoteData) {
   syncGroupOptions();
   syncTrainingTypeOptions();
   syncTrainingCoachOptions();
+  syncTrainingFieldOptions();
   persistLocalData();
 }
 
@@ -2929,6 +2957,7 @@ function openTrainingDialog(training = null) {
   form.reset();
   syncTrainingTypeOptions(training?.title || '');
   syncTrainingCoachOptions(training?.coach || '');
+  syncTrainingFieldOptions(training?.field || '');
   state.editingTrainingId = training?.id || null;
   form.elements.date.value = training?.date || localDateValue();
   form.elements.time.value = training?.time || '09:00';
@@ -3516,6 +3545,29 @@ document.addEventListener('click', async event => {
     syncTrainingCoachOptions();
     render();
     showRecordCreated('Antrenör listeden kaldırıldı.');
+  }
+  else if (action === 'edit-training-field' && ['super_admin', 'admin'].includes(state.role)) {
+    state.editingTrainingFieldName = String(actionButton.dataset.field || '');
+    state.trainingFieldSettingsOpen = true;
+    render();
+    window.setTimeout(() => document.querySelector('#editTrainingFieldName')?.focus(), 0);
+  }
+  else if (action === 'cancel-edit-training-field' && ['super_admin', 'admin'].includes(state.role)) {
+    state.editingTrainingFieldName = null;
+    state.trainingFieldSettingsOpen = true;
+    render();
+  }
+  else if (action === 'delete-training-field' && ['super_admin', 'admin'].includes(state.role)) {
+    const fieldName = String(actionButton.dataset.field || '');
+    if (!fieldName || !window.confirm(`“${fieldName}” saha listesinden kaldırılsın mı? Geçmiş antrenman kayıtları değişmeyecek.`)) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.deleteTrainingField(fieldName));
+    if (!saved) return;
+    state.trainingFields = state.trainingFields.filter(field => field !== fieldName);
+    state.editingTrainingFieldName = null;
+    state.trainingFieldSettingsOpen = true;
+    syncTrainingFieldOptions();
+    render();
+    showRecordCreated('Saha listeden kaldırıldı.');
   }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = key === 'enrollmentDate' ? 'desc' : 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'monthly-fee-sort') {
@@ -4195,6 +4247,10 @@ appContent.addEventListener('toggle', event => {
     state.trainingCoachSettingsOpen = details.open;
     return;
   }
+  if (details.classList.contains('training-field-settings-panel')) {
+    state.trainingFieldSettingsOpen = details.open;
+    return;
+  }
   state.groupSettingsOpen = details.open;
   if (!details.open) {
     state.newestGroupPinned = false;
@@ -4350,6 +4406,57 @@ appContent.addEventListener('submit', async event => {
     event.target.reset();
     render();
     showRecordCreated('Yeni antrenör eklendi.');
+    return;
+  }
+  if (event.target.matches('.training-field-rename-form')) {
+    event.preventDefault();
+    if (!['super_admin', 'admin'].includes(state.role)) return;
+    const currentName = String(event.target.dataset.originalField || '');
+    const fieldName = String(new FormData(event.target).get('trainingFieldName') || '').trim().replace(/\s+/g, ' ');
+    if (!/^[\p{L}\p{N} .:()'\/\-]{1,80}$/u.test(fieldName)) {
+      showToast('Geçerli bir saha adı girin.');
+      return;
+    }
+    if (state.trainingFields.some(field => field !== currentName && field.localeCompare(fieldName, 'tr-TR', { sensitivity: 'base' }) === 0)) {
+      showToast('Bu saha zaten kayıtlı.');
+      return;
+    }
+    if (fieldName === currentName) {
+      state.editingTrainingFieldName = null;
+      state.trainingFieldSettingsOpen = true;
+      render();
+      return;
+    }
+    const saved = await runRemoteMutation(() => remoteDataStore.updateTrainingField(currentName, fieldName));
+    if (!saved) return;
+    state.trainingFields = state.trainingFields.map(field => field === currentName ? fieldName : field);
+    state.editingTrainingFieldName = null;
+    state.trainingFieldSettingsOpen = true;
+    syncTrainingFieldOptions();
+    render();
+    showToast('Saha adı güncellendi.');
+    return;
+  }
+  if (event.target.id === 'trainingFieldSettingsForm') {
+    event.preventDefault();
+    if (!['super_admin', 'admin'].includes(state.role)) return;
+    const fieldName = String(new FormData(event.target).get('trainingFieldName') || '').trim().replace(/\s+/g, ' ');
+    if (!/^[\p{L}\p{N} .:()'\/\-]{1,80}$/u.test(fieldName)) {
+      showToast('Geçerli bir saha adı girin.');
+      return;
+    }
+    if (state.trainingFields.some(field => field.localeCompare(fieldName, 'tr-TR', { sensitivity: 'base' }) === 0)) {
+      showToast('Bu saha zaten kayıtlı.');
+      return;
+    }
+    const saved = await runRemoteMutation(() => remoteDataStore.saveTrainingField(fieldName));
+    if (!saved) return;
+    state.trainingFields = [...state.trainingFields, fieldName];
+    state.trainingFieldSettingsOpen = true;
+    syncTrainingFieldOptions();
+    event.target.reset();
+    render();
+    showRecordCreated('Yeni saha eklendi.');
     return;
   }
   if (event.target.id === 'groupSettingsForm') {
