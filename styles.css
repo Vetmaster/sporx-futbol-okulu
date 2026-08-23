@@ -607,6 +607,8 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
 .install-prompt-actions .secondary-button { color: white; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
 .install-prompt-dismiss { min-height: 38px; padding: 7px 10px; border: 0; color: rgba(255,255,255,.72); background: transparent; font-weight: 700; cursor: pointer; }
 .bottom-nav, .sidebar-scrim { display: none; }
+@keyframes mobile-tab-enter-next { from { opacity: .68; transform: translateX(22px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes mobile-tab-enter-previous { from { opacity: .68; transform: translateX(-22px); } to { opacity: 1; transform: translateX(0); } }
 @media (min-width: 821px) {
   .sidebar { padding-top: 96px; }
   .app-banner { width: calc(100% + 248px); margin-left: -248px; z-index: 31; }
@@ -641,11 +643,16 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .subscription-school-row { grid-template-columns: minmax(160px, 1.3fr) repeat(2, minmax(100px, .7fr)); }
   .subscription-school-row > :nth-child(4), .subscription-school-row > :nth-child(5) { display: none; }
   #appContent { padding-bottom: 88px; }
+  #appContent.mobile-tab-swipe-next { animation: mobile-tab-enter-next .2s ease-out; }
+  #appContent.mobile-tab-swipe-previous { animation: mobile-tab-enter-previous .2s ease-out; }
   .bottom-nav { position: fixed; inset: auto 0 0; z-index: 22; display: grid; grid-template-columns: repeat(4, 1fr); padding: 7px max(8px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); border-top: 1px solid var(--line); background: rgba(255,253,249,.96); backdrop-filter: blur(12px); }
   .bottom-nav .nav-button { min-height: 52px; justify-content: center; flex-direction: column; gap: 2px; padding: 4px; color: var(--muted); font-size: 10px; }
   .bottom-nav .nav-button.active { color: var(--brand); background: var(--brand-soft); }
   .bottom-nav .nav-icon { height: 20px; }
   .toast { top: calc(12px + env(safe-area-inset-top)); right: 14px; bottom: auto; left: 14px; max-width: none; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #appContent.mobile-tab-swipe-next, #appContent.mobile-tab-swipe-previous { animation: none; }
 }
 @media (max-width: 620px) {
   .auth-screen { padding: 24px 16px; }
