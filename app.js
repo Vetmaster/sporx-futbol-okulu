@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.335';
+const APP_VERSION = '2026.08.23.338';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -80,15 +80,8 @@ const SUBSCRIPTION_PLANS = {
 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', stopped: 'Durduruldu' };
 const ACCOUNTING_PERIODS = [
-  { id: 'today', label: 'Bugün', type: 'days', value: 1 },
-  { id: '7d', label: 'Son 7 gün', type: 'days', value: 7 },
-  { id: '2w', label: 'Son 2 hafta', type: 'days', value: 14 },
-  { id: '1m', label: 'Son 1 ay', type: 'months', value: 1 },
-  { id: '3m', label: 'Son 3 ay', type: 'months', value: 3 },
-  { id: '6m', label: 'Son 6 ay', type: 'months', value: 6 },
-  { id: '1y', label: 'Son 1 yıl', type: 'years', value: 1 }
+  { id: 'today', label: 'Bugün' }
 ];
-const savedAccountingPeriod = window.localStorage.getItem('sporx_accounting_period');
 const NAVIGATION_STORAGE_KEY = 'sasa_navigation_state';
 const BROWSER_NAVIGATION_STATE_KEY = 'sasaAppNavigation';
 const SELECTED_SCHOOL_STORAGE_KEY = 'sasa_selected_school_id';
@@ -142,7 +135,10 @@ const state = {
   feeListSortKey: 'enrollmentDate',
   feeListSortDirection: 'desc',
   accountingFilter: 'all',
-  accountingPeriod: ACCOUNTING_PERIODS.some(period => period.id === savedAccountingPeriod) ? savedAccountingPeriod : '1m',
+  accountingPeriod: 'month',
+  accountingMonth: feeMonthKey(),
+  accountingDateRangeStart: '',
+  accountingDateRangeEnd: '',
   monthlyFeeAmount: 1500,
   schoolBankAccounts: [],
   trainingTypes: ['Teknik Antrenman', 'Taktik Çalışma', 'Kondisyon', 'Kaleci Çalışması', 'Maç Hazırlığı'],
@@ -956,19 +952,26 @@ function accountingDateInputValue(value) {
   const [day, month] = String(value).split(' ');
   return monthNumbers[month] ? `2026-${monthNumbers[month]}-${String(day).padStart(2, '0')}` : localDateValue();
 }
-function accountingPeriodLabel() { return ACCOUNTING_PERIODS.find(period => period.id === state.accountingPeriod)?.label || 'Son 1 ay'; }
-function accountingPeriodEntries() {
-  const period = ACCOUNTING_PERIODS.find(item => item.id === state.accountingPeriod) || ACCOUNTING_PERIODS[3];
+function accountingMonthOptions(count = 12) {
   const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (period.type === 'days') start.setDate(start.getDate() - (period.value - 1));
-  else if (period.type === 'months') start.setMonth(start.getMonth() - period.value);
-  else start.setFullYear(start.getFullYear() - period.value);
+  return Array.from({ length: count }, (_, index) => feeMonthKey(new Date(now.getFullYear(), now.getMonth() - index, 1)));
+}
+function accountingPeriodLabel() {
+  if (state.accountingDateRangeStart && state.accountingDateRangeEnd) return `${formatEnrollmentDate(state.accountingDateRangeStart)} – ${formatEnrollmentDate(state.accountingDateRangeEnd)}`;
+  if (state.accountingPeriod === 'today') return 'Bugün';
+  if (state.accountingMonth) return formatFeeMonth(state.accountingMonth);
+  return 'Bugün';
+}
+function accountingPeriodEntries() {
+  const start = state.accountingDateRangeStart;
+  const end = state.accountingDateRangeEnd;
+  const today = localDateValue();
   return state.accountingEntries.filter(entry => {
-    const [year, month, day] = accountingDateInputValue(entry.date).split('-').map(Number);
-    const entryDate = new Date(year, month - 1, day);
-    return entryDate >= start && entryDate <= end;
+    const entryDate = accountingDateInputValue(entry.date);
+    if (start && end) return entryDate >= start && entryDate <= end;
+    if (state.accountingPeriod === 'today') return entryDate === today;
+    if (state.accountingMonth) return entryDate.slice(0, 7) === state.accountingMonth;
+    return entryDate === today;
   }).sort((left, right) => {
     const dateOrder = accountingDateInputValue(right.date).localeCompare(accountingDateInputValue(left.date));
     return dateOrder || (Number(right.id) || 0) - (Number(left.id) || 0);
@@ -1710,7 +1713,10 @@ function sortFeeListRows(rows) {
 }
 
 function accountingPeriodFiltersMarkup() {
-  return `<div class="accounting-periods" role="group" aria-label="Muhasebe dönemi">${ACCOUNTING_PERIODS.map(period => `<button class="${state.accountingPeriod === period.id ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-period" data-period="${period.id}" aria-pressed="${state.accountingPeriod === period.id}">${period.label}</button>`).join('')}</div>`;
+  const hasDateRange = Boolean(state.accountingDateRangeStart && state.accountingDateRangeEnd);
+  const monthOptions = accountingMonthOptions();
+  const monthIsActive = state.accountingPeriod === 'month' && Boolean(state.accountingMonth);
+  return `<div class="accounting-periods" role="group" aria-label="Muhasebe dönemi"><button class="${state.accountingPeriod === 'today' ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-period" data-period="today" aria-pressed="${state.accountingPeriod === 'today'}">Bugün</button><label class="accounting-month-filter"><span class="sr-only">Ay seçin</span><select id="accountingMonthFilter" aria-label="Ay seçin"><option value="" ${monthIsActive ? '' : 'selected'}>Ay seçiniz</option>${monthOptions.map(month => `<option value="${month}" ${monthIsActive && month === state.accountingMonth ? 'selected' : ''}>${formatFeeMonth(month)}</option>`).join('')}</select></label><button class="${hasDateRange ? 'primary-button' : 'secondary-button'}" type="button" data-action="accounting-date-range" aria-pressed="${hasDateRange}">Aralık seç</button></div>`;
 }
 
 function paymentMethodTotals(entries, kind) {
@@ -1737,7 +1743,7 @@ function accountingView() {
     transfer: incomeMethods.transfer - expenseMethods.transfer,
     card: incomeMethods.card - expenseMethods.card
   };
-  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Muhasebe</h2><button class="heading-icon-button" type="button" data-page="accountingSettings" aria-label="Muhasebe ayarlarına git" title="Muhasebe ayarları">${MENU_ICONS.settings}</button></div><p>Gelir ve Gider kayıtları · ${accountingPeriodLabel()}</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="income">${incomeCount} kayıt</button>${paymentMethodSummary(incomeMethods)}</div></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="expense">${expenseCount} kayıt</button>${paymentMethodSummary(expenseMethods)}</div></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="all">${periodEntries.length} kayıt</button>${paymentMethodSummary(cashRegisterMethods)}</div></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries" data-kind="all">Tümünü gör</button></div>${accountingEntryRows(periodEntries.slice(0, 4))}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Muhasebe</h2><button class="heading-icon-button" type="button" data-page="accountingSettings" aria-label="Muhasebe ayarlarına git" title="Muhasebe ayarları">${MENU_ICONS.settings}</button></div><p>Gelir ve Gider kayıtları</p></div><button class="primary-button" data-action="new-entry">+ Yeni işlem</button></div>${accountingPeriodFiltersMarkup()}<div class="accounting-period-indicator">Gösterilen zaman dilimi: <strong>${accountingPeriodLabel()}</strong></div><section class="stats-grid"><article class="stat-card"><span class="label">Toplam gelir</span><strong>${formatCurrency(income)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="income">${incomeCount} kayıt</button>${paymentMethodSummary(incomeMethods)}</div></article><article class="stat-card"><span class="label">Toplam gider</span><strong>${formatCurrency(expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="expense">${expenseCount} kayıt</button>${paymentMethodSummary(expenseMethods)}</div></article><article class="stat-card"><span class="label">Kasa</span><strong>${formatCurrency(income - expense)}</strong><div class="stat-card-breakdown"><button class="stat-link accounting-record-count" type="button" data-action="accounting-entries" data-kind="all">${periodEntries.length} kayıt</button>${paymentMethodSummary(cashRegisterMethods)}</div></article></section><section class="panel"><div class="panel-heading"><h3>Son işlemler</h3><button class="text-button" type="button" data-action="accounting-entries" data-kind="all">Tümünü gör</button></div>${accountingEntryRows(periodEntries.slice(0, 4))}</section></div>`;
 }
 
 function accountingSettingsView() {
@@ -3026,6 +3032,13 @@ function openAccountingDialog(entry = null) {
   document.querySelector('#accountingDialog').showModal();
 }
 
+function openAccountingDateRangeDialog() {
+  const form = document.querySelector('#accountingDateRangeForm');
+  form.elements.startDate.value = state.accountingDateRangeStart || localDateValue();
+  form.elements.endDate.value = state.accountingDateRangeEnd || localDateValue();
+  document.querySelector('#accountingDateRangeDialog').showModal();
+}
+
 function updateFeePaymentFields() {
   const form = document.querySelector('#feeDefinitionForm');
   const paid = form.elements.status.value === 'paid';
@@ -3471,7 +3484,14 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'new-entry' && isAdminRole()) openAccountingDialog();
   else if (action === 'collect-fee' && ['super_admin', 'admin'].includes(state.role)) openFeeDefinitionDialog();
-  else if (action === 'accounting-period') { state.accountingPeriod = actionButton.dataset.period; window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod); render(); }
+  else if (action === 'accounting-period') {
+    state.accountingPeriod = 'today';
+    state.accountingDateRangeStart = '';
+    state.accountingDateRangeEnd = '';
+    window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod);
+    render();
+  }
+  else if (action === 'accounting-date-range') openAccountingDateRangeDialog();
   else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
   else if (action === 'pending-fees') navigateToPage('fees', { feeFilter: 'pending' });
   else if (action === 'scroll-profile-fees') document.querySelector('#monthlyFeeSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -3722,6 +3742,14 @@ appContent.addEventListener('input', event => {
 });
 
 appContent.addEventListener('change', async event => {
+  if (event.target.id === 'accountingMonthFilter') {
+    state.accountingMonth = event.target.value;
+    state.accountingDateRangeStart = '';
+    state.accountingDateRangeEnd = '';
+    state.accountingPeriod = state.accountingMonth ? 'month' : 'today';
+    render();
+    return;
+  }
   if (event.target.closest('#notificationForm') && event.target.name === 'audience') {
     state.notificationDraft.audience = event.target.value;
     return;
@@ -4280,6 +4308,21 @@ document.querySelector('#accountingForm').addEventListener('submit', async event
   if (state.page !== 'accountingEntries') state.page = 'accounting';
   if (wasEditing) showToast('Muhasebe işlemi Supabase’de güncellendi.');
   else showRecordCreated(`${entryRecord.type} kaydı oluşturuldu.`);
+  render();
+});
+document.querySelector('#accountingDateRangeForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const startDate = String(form.elements.startDate.value || '');
+  const endDate = String(form.elements.endDate.value || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < startDate) {
+    showToast('Geçerli bir başlangıç ve bitiş tarihi seçin.');
+    return;
+  }
+  state.accountingPeriod = 'range';
+  state.accountingDateRangeStart = startDate;
+  state.accountingDateRangeEnd = endDate;
+  document.querySelector('#accountingDateRangeDialog').close();
   render();
 });
 appContent.addEventListener('toggle', event => {
