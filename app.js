@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.329';
+const APP_VERSION = '2026.08.23.331';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3567,7 +3567,6 @@ document.addEventListener('click', async event => {
     state.trainingFieldSettingsOpen = true;
     syncTrainingFieldOptions();
     render();
-    showRecordCreated('Saha listeden kaldırıldı.');
   }
   else if (action === 'student-sort') { const key = actionButton.dataset.sortKey; if (state.studentSortKey === key) state.studentSortDirection = state.studentSortDirection === 'asc' ? 'desc' : 'asc'; else { state.studentSortKey = key; state.studentSortDirection = key === 'enrollmentDate' ? 'desc' : 'asc'; } updateStudentsTable(); updateStudentSortHeaders(); }
   else if (action === 'monthly-fee-sort') {
@@ -4456,7 +4455,6 @@ appContent.addEventListener('submit', async event => {
     syncTrainingFieldOptions();
     event.target.reset();
     render();
-    showRecordCreated('Yeni saha eklendi.');
     return;
   }
   if (event.target.id === 'groupSettingsForm') {
