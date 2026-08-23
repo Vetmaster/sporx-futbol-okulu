@@ -405,9 +405,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .attendance-training-row.is-past { background: #e4e5e3; }
 .attendance-training-row.is-past small { color: #686d69; }
 .training-list-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
-.attendance-history-filter { display: flex; justify-content: flex-end; }
+.attendance-history-filter { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .attendance-history-filter label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
 .attendance-history-filter select { min-width: 180px; }
+.attendance-history-filter .attendance-all-time-filter { color: var(--text); }
 .training-sort-control { width: max-content; display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 13px; }
 .training-sort-control select { width: auto; min-width: 210px; padding-block: 10px; color: var(--brand-dark); font-weight: 700; }
 .table-wrap { overflow-x: auto; }
@@ -763,7 +764,7 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .ledger-entry .ledger-amount { grid-column: 2; justify-content: flex-start; }
   .dialog-actions button { flex: 1; }
   .training-list-toolbar { flex-wrap: nowrap; gap: 8px; }
-  .attendance-history-filter { justify-content: stretch; }
+  .attendance-history-filter { align-items: stretch; }
   .attendance-history-filter label { width: 100%; }
   .attendance-history-filter select { flex: 1; min-width: 0; }
   .training-list-toolbar .students-active-filter { min-width: 0; flex: 1; font-size: 11px; }

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.334';
+const APP_VERSION = '2026.08.23.335';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -134,6 +134,7 @@ const state = {
   trainingSortDirection: 'desc',
   attendanceSortDirection: 'desc',
   studentAttendanceMonth: null,
+  studentAttendanceShowAll: false,
   showPastTrainings: false,
   showPastAttendance: false,
   feeFilter: 'all',
@@ -384,7 +385,10 @@ function navigateToPage(page, updates = {}) {
     state.trainingTypeSettingsOpen = false;
     state.trainingCoachSettingsOpen = false;
   }
-  if (pageChanged && targetPage === 'studentAttendanceHistory') state.studentAttendanceMonth = feeMonthKey();
+  if (pageChanged && targetPage === 'studentAttendanceHistory') {
+    state.studentAttendanceMonth = feeMonthKey();
+    state.studentAttendanceShowAll = false;
+  }
   Object.assign(state, updates);
   state.page = targetPage;
   document.querySelector('#sidebar').classList.remove('open');
@@ -1512,11 +1516,15 @@ function studentAttendanceHistoryView() {
   const currentMonth = feeMonthKey();
   const selectedMonth = monthOptions.includes(state.studentAttendanceMonth) ? state.studentAttendanceMonth : currentMonth;
   state.studentAttendanceMonth = selectedMonth;
-  const entries = attendanceEntriesForStudent(student).filter(entry => String(entry.training.date || '').slice(0, 7) === selectedMonth);
+  const allEntries = attendanceEntriesForStudent(student);
+  const entries = state.studentAttendanceShowAll
+    ? allEntries
+    : allEntries.filter(entry => String(entry.training.date || '').slice(0, 7) === selectedMonth);
   const presentCount = entries.filter(entry => entry.present).length;
   const absentCount = entries.length - presentCount;
-  const monthFilter = `<div class="attendance-history-filter"><label><span>Ay</span><select id="studentAttendanceMonthFilter" aria-label="Yoklama geçmişi ayını seçin">${monthOptions.map(month => `<option value="${month}" ${month === selectedMonth ? 'selected' : ''}>${formatFeeMonth(month)}</option>`).join('')}</select></label></div>`;
-  return `<div class="page-stack"><div class="section-heading"><div><h2>${student.name} · Yoklama geçmişi</h2><p>Kayıtlı antrenman katılım sonuçları</p></div></div>${monthFilter}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam yoklama</span><strong>${entries.length}</strong><small>${formatFeeMonth(selectedMonth)} kaydı</small></article><article class="stat-card"><span class="label">Geldi</span><strong>${presentCount}</strong><small>Katıldığı antrenman</small></article><article class="stat-card"><span class="label">Gelmedi</span><strong>${absentCount}</strong><small>Katılmadığı antrenman</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Tarih / Saat</th><th>Antrenman</th><th>Antrenör / Saha</th><th>Durum</th></tr></thead><tbody>${entries.map(entry => `<tr><td><strong>${formatTrainingDate(entry.training.date)}</strong><br><small class="muted">${entry.training.time}</small></td><td>${entry.training.title}<br><small class="muted">${entry.training.group}</small></td><td>${entry.training.coach}<br><small class="muted">${entry.training.field}</small></td><td><span class="status ${entry.present ? '' : 'danger'}">${entry.present ? 'Geldi' : 'Gelmedi'}</span></td></tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">${formatFeeMonth(selectedMonth)} için kayıtlı yoklama bulunmuyor.</div></td></tr>`}</tbody></table></section></div>`;
+  const filterLabel = state.studentAttendanceShowAll ? 'Tüm zamanlar' : formatFeeMonth(selectedMonth);
+  const monthFilter = `<div class="attendance-history-filter"><label><span>Ay</span><select id="studentAttendanceMonthFilter" aria-label="Yoklama geçmişi ayını seçin" ${state.studentAttendanceShowAll ? 'disabled' : ''}>${monthOptions.map(month => `<option value="${month}" ${month === selectedMonth ? 'selected' : ''}>${formatFeeMonth(month)}</option>`).join('')}</select></label><label class="students-active-filter attendance-all-time-filter"><input id="studentAttendanceShowAllFilter" type="checkbox" ${state.studentAttendanceShowAll ? 'checked' : ''}><span>Tüm zamanları göster</span></label></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>${student.name} · Yoklama geçmişi</h2><p>Kayıtlı antrenman katılım sonuçları</p></div></div>${monthFilter}<section class="stats-grid"><article class="stat-card"><span class="label">Toplam yoklama</span><strong>${entries.length}</strong><small>${filterLabel} kaydı</small></article><article class="stat-card"><span class="label">Geldi</span><strong>${presentCount}</strong><small>Katıldığı antrenman</small></article><article class="stat-card"><span class="label">Gelmedi</span><strong>${absentCount}</strong><small>Katılmadığı antrenman</small></article></section><section class="panel table-wrap"><table><thead><tr><th>Tarih / Saat</th><th>Antrenman</th><th>Antrenör / Saha</th><th>Durum</th></tr></thead><tbody>${entries.map(entry => `<tr><td><strong>${formatTrainingDate(entry.training.date)}</strong><br><small class="muted">${entry.training.time}</small></td><td>${entry.training.title}<br><small class="muted">${entry.training.group}</small></td><td>${entry.training.coach}<br><small class="muted">${entry.training.field}</small></td><td><span class="status ${entry.present ? '' : 'danger'}">${entry.present ? 'Geldi' : 'Gelmedi'}</span></td></tr>`).join('') || `<tr><td colspan="4"><div class="empty-state">${filterLabel} için kayıtlı yoklama bulunmuyor.</div></td></tr>`}</tbody></table></section></div>`;
 }
 
 function trainingsView() {
@@ -3733,6 +3741,11 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'studentAttendanceMonthFilter') {
     state.studentAttendanceMonth = event.target.value;
+    render();
+    return;
+  }
+  if (event.target.id === 'studentAttendanceShowAllFilter') {
+    state.studentAttendanceShowAll = event.target.checked;
     render();
     return;
   }
