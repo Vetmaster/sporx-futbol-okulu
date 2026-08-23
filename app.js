@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.325';
+const APP_VERSION = '2026.08.23.326';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1802,6 +1802,7 @@ function render() {
   const schoolSelect = document.querySelector('#schoolSelect');
   const canSwitchSchool = isActualSuperAdmin() || state.schools.length > 1;
   schoolSwitcher.classList.toggle('is-hidden', !canSwitchSchool);
+  document.querySelector('.topbar').classList.toggle('has-school-switcher', canSwitchSchool);
   if (canSwitchSchool) {
     setSafeHtml(schoolSelect, state.schools.map(school => `<option value="${school.id}" ${school.id === state.schoolId ? 'selected' : ''}>${escapeHtml(school.name)}${school.active ? '' : ' (Pasif)'}${!isActualSuperAdmin() && school.role ? ` · ${escapeHtml(roleNames[school.role])}` : ''}</option>`).join(''));
     schoolSelect.disabled = state.schools.length < 2;
