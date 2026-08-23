@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.327';
+const APP_VERSION = '2026.08.23.328';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -4086,11 +4086,6 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
     showToast('Antrenman Supabase’de güncellendi.');
     return;
   }
-  showRecordCreated(pushResult.sent > 0
-    ? `Antrenman kaydedildi ve ${pushResult.sent} telefona bildirim gönderildi.`
-    : pushResult.recipients > 0
-      ? 'Antrenman kaydedildi ancak gruptaki telefonlara bildirim ulaştırılamadı.'
-      : 'Antrenman kaydedildi; bu grupta bildirimi açık veli hesabı bulunamadı.');
 });
 document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
 document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', updateFeeDefinitionStudentResults);
