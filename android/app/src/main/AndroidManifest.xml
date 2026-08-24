@@ -153,7 +153,7 @@
                 <data android:scheme="https"
                     android:host="@string/hostName"
                 
-                    android:pathPrefix="/sporx-futbol-okulu/"
+                    android:pathPrefix="/"
                 
                 />
             </intent-filter>

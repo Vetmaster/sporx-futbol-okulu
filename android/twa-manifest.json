@@ -1,6 +1,6 @@
 {
   "packageId": "com.sasafutbol.yonetim",
-  "host": "vetmaster.github.io",
+  "host": "sasa-f.com",
   "name": "SASA-F Futbol Okulu Yönetim Sistemi",
   "launcherName": "SASA-F",
   "display": "standalone",
@@ -12,19 +12,19 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#F7F7F7",
   "enableNotifications": true,
-  "startUrl": "/sporx-futbol-okulu/?nativeVersion=25",
-  "iconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon-v3.svg?v=2026.08.02.192",
-  "maskableIconUrl": "https://vetmaster.github.io/sporx-futbol-okulu/sasa-f-icon-v3.svg?v=2026.08.02.192",
+  "startUrl": "/?nativeVersion=26",
+  "iconUrl": "https://sasa-f.com/sasa-f-icon-v3.svg?v=2026.08.02.192",
+  "maskableIconUrl": "https://sasa-f.com/sasa-f-icon-v3.svg?v=2026.08.02.192",
   "splashScreenFadeOutDuration": 0,
   "signingKey": {
     "path": "android.keystore",
     "alias": "sasaf"
   },
-  "appVersionName": "1.0.24-beta",
-  "appVersionCode": 25,
+  "appVersionName": "1.0.25-beta",
+  "appVersionCode": 26,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://vetmaster.github.io/sporx-futbol-okulu/manifest.webmanifest",
+  "webManifestUrl": "https://sasa-f.com/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -33,7 +33,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://vetmaster.github.io/sporx-futbol-okulu/",
+  "fullScopeUrl": "https://sasa-f.com/",
   "minSdkVersion": 23,
   "orientation": "default",
   "fingerprints": [],
@@ -43,5 +43,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1.0.24-beta"
+  "appVersion": "1.0.25-beta"
 }

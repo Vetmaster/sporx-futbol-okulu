@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sasafutbol.yonetim",
+      "sha256_cert_fingerprints": [
+        "36:EA:E4:88:B6:FC:2A:89:E4:1E:B5:3A:42:7C:F4:54:1E:9B:9A:C1:9A:EC:94:0B:2F:C1:2E:6B:2E:7B:5E:AB"
+      ]
+    }
+  }
+]
