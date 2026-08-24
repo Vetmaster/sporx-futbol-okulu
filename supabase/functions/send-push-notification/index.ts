@@ -330,7 +330,7 @@ Deno.serve(async request => {
                   title: notification.title,
                   body: notification.body,
                   notificationId: String(notification.id),
-                  url: 'https://vetmaster.github.io/sporx-futbol-okulu/?open=notifications'
+                  url: 'https://sasa-f.com/?open=notifications'
                 },
                 android: {
                   priority: 'HIGH',
@@ -370,7 +370,7 @@ Deno.serve(async request => {
     title: notification.title,
     body: notification.body,
     tag: `sasa-f-${notification.id}`,
-    url: 'https://vetmaster.github.io/sporx-futbol-okulu/?open=notifications'
+    url: 'https://sasa-f.com/?open=notifications'
   });
 
   const webFallbackSubscriptions = vapidPublicKey && vapidPrivateKey

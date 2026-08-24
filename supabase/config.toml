@@ -18,8 +18,10 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "https://vetmaster.github.io/sporx-futbol-okulu/"
+site_url = "https://sasa-f.com/"
 additional_redirect_urls = [
+  "https://sasa-f.com/",
+  "https://vetmaster.github.io/sporx-futbol-okulu/",
   "http://127.0.0.1:8765",
   "http://localhost:8765"
 ]

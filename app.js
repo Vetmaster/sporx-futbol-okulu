@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.24.342';
+const APP_VERSION = '2026.08.24.343';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.24-beta/SASA-F-v1.0.24-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -9,7 +9,7 @@ const PUSH_PROMPT_DISMISS_STORAGE_KEY = 'sasa_push_prompt_dismissed_v1';
 const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
-const AUTH_REDIRECT_URL = 'https://vetmaster.github.io/sporx-futbol-okulu/';
+const AUTH_REDIRECT_URL = 'https://sasa-f.com/';
 const NATIVE_FCM_TOKEN_STORAGE_KEY = 'sasa_native_fcm_token';
 const NATIVE_NOTIFICATION_PERMISSION_STORAGE_KEY = 'sasa_native_notification_permission';
 const runtimeQueryParameters = new URLSearchParams(window.location.search);

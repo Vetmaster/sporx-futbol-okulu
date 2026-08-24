@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-const inviteRedirectUrl = 'https://vetmaster.github.io/sporx-futbol-okulu/';
+const inviteRedirectUrl = 'https://sasa-f.com/';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

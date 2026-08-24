@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 
 const [email, fullName = 'Sasa Futbol Yöneticisi'] = process.argv.slice(2);
 const projectRef = 'tezeflsiljqprrqbsypl';
-const redirectTo = 'https://vetmaster.github.io/sporx-futbol-okulu/';
+const redirectTo = 'https://sasa-f.com/';
 
 if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
   throw new Error('Geçerli bir admin e-posta adresi gereklidir.');
@@ -80,4 +80,3 @@ console.log(JSON.stringify({
   role: profileResult[0]?.role,
   redirectTo
 }));
-
