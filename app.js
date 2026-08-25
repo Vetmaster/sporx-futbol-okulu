@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.345';
+const APP_VERSION = '2026.08.25.346';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1875,9 +1875,11 @@ function render() {
   document.querySelector('#sidebarBannerSubtitle').textContent = bannerSubtitle;
   const appBannerPlanBadge = document.querySelector('#appBannerPlanBadge');
   const activeSchoolPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan];
-  appBannerPlanBadge.textContent = activeSchoolPlan?.name || '';
-  appBannerPlanBadge.dataset.plan = activeSchoolPlan ? state.schoolSubscriptionPlan : '';
-  appBannerPlanBadge.classList.toggle('is-hidden', !activeSchoolPlan);
+  if (appBannerPlanBadge) {
+    appBannerPlanBadge.textContent = activeSchoolPlan?.name || '';
+    appBannerPlanBadge.dataset.plan = activeSchoolPlan ? state.schoolSubscriptionPlan : '';
+    appBannerPlanBadge.classList.toggle('is-hidden', !activeSchoolPlan);
+  }
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', isActualSuperAdmin() || state.role === 'parent');
@@ -3456,6 +3458,10 @@ document.addEventListener('click', async event => {
     const school = state.schools.find(item => item.id === actionButton.dataset.id);
     if (!school || school.subscriptionStatus !== 'active') return;
     const form = document.querySelector('#subscriptionExtensionForm');
+    if (!form) {
+      showToast('Yeni abonelik ekranı yüklenemedi. Lütfen sayfayı yenileyin.');
+      return;
+    }
     const today = localDateValue();
     const currentEnd = school.subscriptionEndsOn || today;
     const baseDate = currentEnd >= today ? currentEnd : today;
@@ -4030,13 +4036,16 @@ function syncTrialSubscriptionFields() {
   form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, billingPeriod);
   document.querySelector('#subscriptionFormHint').textContent = 'Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.';
 }
-document.querySelector('#subscriptionForm [name="plan"]').addEventListener('change', syncTrialSubscriptionFields);
-document.querySelector('#subscriptionForm [name="status"]').addEventListener('change', syncTrialSubscriptionFields);
-document.querySelector('#subscriptionForm [name="trialMode"]').addEventListener('change', syncTrialSubscriptionFields);
-document.querySelector('#subscriptionForm [name="billingPeriod"]').addEventListener('change', syncTrialSubscriptionFields);
-document.querySelector('#subscriptionForm [name="startsOn"]').addEventListener('change', event => {
-  if (event.currentTarget.form.elements.status.value !== 'trial') syncTrialSubscriptionFields();
-});
+const subscriptionForm = document.querySelector('#subscriptionForm');
+if (subscriptionForm) {
+  subscriptionForm.elements.plan.addEventListener('change', syncTrialSubscriptionFields);
+  subscriptionForm.elements.status.addEventListener('change', syncTrialSubscriptionFields);
+  subscriptionForm.elements.trialMode?.addEventListener('change', syncTrialSubscriptionFields);
+  subscriptionForm.elements.billingPeriod.addEventListener('change', syncTrialSubscriptionFields);
+  subscriptionForm.elements.startsOn.addEventListener('change', event => {
+    if (event.currentTarget.form.elements.status.value !== 'trial') syncTrialSubscriptionFields();
+  });
+}
 
 function syncSubscriptionExtensionFields() {
   const form = document.querySelector('#subscriptionExtensionForm');
@@ -4048,8 +4057,9 @@ function syncSubscriptionExtensionFields() {
   form.elements.periodPrice.value = subscriptionPrice(state.schools.find(item => item.id === form.elements.schoolId.value)?.subscriptionPlan || 'standard', period);
 }
 
-document.querySelector('#subscriptionExtensionForm [name="billingPeriod"]').addEventListener('change', syncSubscriptionExtensionFields);
-document.querySelector('#subscriptionExtensionForm').addEventListener('submit', async event => {
+const subscriptionExtensionForm = document.querySelector('#subscriptionExtensionForm');
+if (subscriptionExtensionForm) subscriptionExtensionForm.elements.billingPeriod.addEventListener('change', syncSubscriptionExtensionFields);
+if (subscriptionExtensionForm) subscriptionExtensionForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
   const form = event.currentTarget;
@@ -4080,7 +4090,7 @@ document.querySelector('#subscriptionExtensionForm').addEventListener('submit', 
   render();
   showToast(`Abonelik ${subscriptionPeriodLabel(billingPeriod).toLocaleLowerCase('tr-TR')} uzatıldı.`);
 });
-document.querySelector('#subscriptionForm').addEventListener('submit', async event => {
+subscriptionForm?.addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
   const form = event.currentTarget;
