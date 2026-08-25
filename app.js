@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.24.344';
+const APP_VERSION = '2026.08.25.345';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -73,10 +73,11 @@ const SUBSCRIPTION_PERIODS = {
   quarterly: { name: '3 aylık', months: 3 },
   yearly: { name: 'Yıllık', months: 12 }
 };
+const TRIAL_MODES = { time_limited: 'Süreli deneme' };
 const SUBSCRIPTION_PLANS = {
   standard: { name: 'Standart', prices: { monthly: 799, quarterly: 2199, yearly: 7990 }, studentLimit: 100, features: ['Temel Okul Yönetimi', '100 öğrenciye kadar kayıt'], unavailable: ['Online Ödeme', 'Online Market', 'Scoutlarla Video Paylaşımı'] },
-  premium: { name: 'Premium', prices: { monthly: 1299, quarterly: 3599, yearly: 12990 }, studentLimit: 500, features: ['Temel Okul Yönetimi', '500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online Market', 'Scoutlarla Video Paylaşımı'] },
-  pro: { name: 'Pro', prices: { monthly: 1899, quarterly: 5199, yearly: 18990 }, studentLimit: null, features: ['Temel Okul Yönetimi', 'Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
+  premium: { name: 'Plus', prices: { monthly: 1299, quarterly: 3599, yearly: 12990 }, studentLimit: 500, features: ['Temel Okul Yönetimi', '500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online Market', 'Scoutlarla Video Paylaşımı'] },
+  pro: { name: 'Premium', prices: { monthly: 1899, quarterly: 5199, yearly: 18990 }, studentLimit: null, features: ['Temel Okul Yönetimi', 'Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', stopped: 'Durduruldu' };
 const ACCOUNTING_PERIODS = [
@@ -100,6 +101,7 @@ const state = {
   schoolName: '',
   schoolSubscriptionPlan: 'standard',
   schoolSubscriptionStatus: 'trial',
+  schoolSubscriptionTrialMode: null,
   schools: [],
   userId: null,
   userFullName: '',
@@ -1136,6 +1138,7 @@ function schoolsView() {
         <span><small>Bekleyen aidat</small><strong>${formatCurrency(school.unpaidTotal)}</strong></span>
       </div>
       <div class="school-management-actions">
+        <button class="secondary-button school-plan-button" type="button" data-action="edit-subscription" data-id="${school.id}" data-plan="${escapeHtml(school.subscriptionPlan || 'standard')}" aria-label="${escapeHtml(school.name)} paketini değiştir">${escapeHtml(SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart')}</button>
         <button class="primary-button" type="button" data-action="select-school" data-id="${school.id}" ${school.id === state.schoolId ? 'disabled' : ''}>${school.id === state.schoolId ? 'Açık okul' : 'Okulu aç'}</button>
         <button class="secondary-button" type="button" data-action="invite-school-admin" data-id="${school.id}" ${school.active ? '' : 'disabled'}>Kullanıcı davet et</button>
         <button class="secondary-button" type="button" data-action="rename-school" data-id="${school.id}">Adını düzenle</button>
@@ -1173,6 +1176,14 @@ function subscriptionStatusMarkup(status) {
   return `<span class="status ${tone}">${SUBSCRIPTION_STATUSES[status] || 'Belirlenmedi'}</span>`;
 }
 
+function trialModeLabel(mode) {
+  return TRIAL_MODES[mode] || 'Deneme';
+}
+
+function effectiveStudentLimit(planCode) {
+  return SUBSCRIPTION_PLANS[planCode]?.studentLimit ?? SUBSCRIPTION_PLANS.standard.studentLimit;
+}
+
 function subscriptionPrice(planCode, billingPeriod = 'monthly') {
   return SUBSCRIPTION_PLANS[planCode]?.prices?.[billingPeriod] ?? SUBSCRIPTION_PLANS.standard.prices.monthly;
 }
@@ -1187,7 +1198,7 @@ function subscriptionsView() {
   const trialCount = schools.filter(school => school.subscriptionStatus === 'trial').length;
   const stoppedCount = schools.filter(school => school.subscriptionStatus === 'stopped').length;
   const recurringTotal = schools
-    .filter(school => ['active', 'trial'].includes(school.subscriptionStatus))
+    .filter(school => school.subscriptionStatus === 'active')
     .reduce((total, school) => {
       const billingPeriod = school.subscriptionBillingPeriod || 'monthly';
       const periodPrice = Number(school.subscriptionPeriodPrice) || subscriptionPrice(school.subscriptionPlan, billingPeriod);
@@ -1204,9 +1215,12 @@ function subscriptionsView() {
     <div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.slug)}</small></div>
     <span>${SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart'}</span>
     ${subscriptionStatusMarkup(school.subscriptionStatus)}
-    <span>${formatCurrency(school.subscriptionPeriodPrice || subscriptionPrice(school.subscriptionPlan, school.subscriptionBillingPeriod))}<small>${subscriptionPeriodLabel(school.subscriptionBillingPeriod)}</small></span>
+    <span>${school.subscriptionStatus === 'trial' ? 'Ücretsiz' : formatCurrency(school.subscriptionPeriodPrice || subscriptionPrice(school.subscriptionPlan, school.subscriptionBillingPeriod))}<small>${school.subscriptionStatus === 'trial' ? trialModeLabel(school.subscriptionTrialMode) : subscriptionPeriodLabel(school.subscriptionBillingPeriod)}</small></span>
     <span>${subscriptionDateLabel(school.subscriptionEndsOn)}<small>Bitiş / yenileme</small></span>
-    <button class="secondary-button" type="button" data-action="edit-subscription" data-id="${school.id}">Düzenle</button>
+    <div class="subscription-row-actions">
+      ${school.subscriptionStatus === 'active' ? `<button class="secondary-button" type="button" data-action="extend-subscription" data-id="${school.id}">Süre uzat</button>` : ''}
+      <button class="secondary-button" type="button" data-action="edit-subscription" data-id="${school.id}">Düzenle</button>
+    </div>
   </div>`).join('');
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Paketler ve abonelikler</h2><p>Okul bazında paket, ücret ve yenileme takibi</p></div></div>
@@ -1859,6 +1873,11 @@ function render() {
     : state.schoolName || 'Futbol Okulu';
   document.querySelector('#appBannerSubtitle').textContent = bannerSubtitle;
   document.querySelector('#sidebarBannerSubtitle').textContent = bannerSubtitle;
+  const appBannerPlanBadge = document.querySelector('#appBannerPlanBadge');
+  const activeSchoolPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan];
+  appBannerPlanBadge.textContent = activeSchoolPlan?.name || '';
+  appBannerPlanBadge.dataset.plan = activeSchoolPlan ? state.schoolSubscriptionPlan : '';
+  appBannerPlanBadge.classList.toggle('is-hidden', !activeSchoolPlan);
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', isActualSuperAdmin() || state.role === 'parent');
@@ -2018,6 +2037,7 @@ function applyRemoteData(remoteData) {
   state.schoolName = remoteData.schoolName || state.schools.find(school => school.id === remoteData.schoolId)?.name || '';
   state.schoolSubscriptionPlan = remoteData.subscriptionPlan || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionPlan || 'standard';
   state.schoolSubscriptionStatus = remoteData.subscriptionStatus || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionStatus || 'trial';
+  state.schoolSubscriptionTrialMode = remoteData.subscriptionTrialMode || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionTrialMode || null;
   state.students = remoteData.students;
   state.trainings = remoteData.trainings;
   state.accountingEntries = remoteData.accountingEntries;
@@ -2959,8 +2979,9 @@ function openStudentDialog(student = null) {
     return;
   }
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
-  if (!student && currentPlan.studentLimit !== null && state.students.length >= currentPlan.studentLimit) {
-    showToast(`${currentPlan.name} paketi en fazla ${currentPlan.studentLimit} öğrenci kaydına izin verir. Yeni kayıt için paket yükseltilmelidir.`);
+  const studentLimit = effectiveStudentLimit(state.schoolSubscriptionPlan);
+  if (!student && studentLimit !== null && state.students.length >= studentLimit) {
+    showToast(`${currentPlan.name} paketi en fazla ${studentLimit} öğrenci kaydına izin verir. Yeni kayıt için paket yükseltilmelidir.`);
     return;
   }
   const form = document.querySelector('#studentForm');
@@ -3422,12 +3443,31 @@ document.addEventListener('click', async event => {
     form.elements.schoolId.value = school.id;
     form.elements.plan.value = school.subscriptionPlan || 'standard';
     form.elements.status.value = school.subscriptionStatus || 'trial';
+    form.elements.trialMode.value = 'time_limited';
     form.elements.billingPeriod.value = school.subscriptionBillingPeriod || 'monthly';
-    form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, form.elements.billingPeriod.value);
+    form.elements.periodPrice.value = school.subscriptionStatus === 'trial' ? 0 : subscriptionPrice(form.elements.plan.value, form.elements.billingPeriod.value);
     form.elements.startsOn.value = school.subscriptionStartsOn || '';
     form.elements.endsOn.value = school.subscriptionEndsOn || '';
+    syncTrialSubscriptionFields();
     document.querySelector('#subscriptionDialogSchoolName').textContent = school.name;
     document.querySelector('#subscriptionDialog').showModal();
+  }
+  else if (action === 'extend-subscription' && state.role === 'super_admin') {
+    const school = state.schools.find(item => item.id === actionButton.dataset.id);
+    if (!school || school.subscriptionStatus !== 'active') return;
+    const form = document.querySelector('#subscriptionExtensionForm');
+    const today = localDateValue();
+    const currentEnd = school.subscriptionEndsOn || today;
+    const baseDate = currentEnd >= today ? currentEnd : today;
+    form.reset();
+    form.elements.schoolId.value = school.id;
+    form.elements.plan.value = SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart';
+    form.elements.billingPeriod.value = school.subscriptionBillingPeriod || 'yearly';
+    form.elements.currentEndsOn.value = currentEnd;
+    form.elements.startsOn.value = baseDate;
+    syncSubscriptionExtensionFields();
+    document.querySelector('#subscriptionExtensionSchoolName').textContent = school.name;
+    document.querySelector('#subscriptionExtensionDialog').showModal();
   }
   else if (action === 'select-fee-student') {
     const student = state.students.find(item => item.id === Number(actionButton.dataset.id));
@@ -3957,12 +3997,89 @@ document.querySelector('#schoolEditForm').addEventListener('submit', async event
   render();
   showToast('Okul adı güncellendi.');
 });
-function updateSubscriptionPriceField() {
-  const form = document.querySelector('#subscriptionForm');
-  form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, form.elements.billingPeriod.value);
+function localDateAfterMonths(value, months) {
+  const date = value ? new Date(`${value}T12:00:00`) : new Date();
+  date.setMonth(date.getMonth() + months);
+  return localDateValue(date);
 }
-document.querySelector('#subscriptionForm [name="plan"]').addEventListener('change', updateSubscriptionPriceField);
-document.querySelector('#subscriptionForm [name="billingPeriod"]').addEventListener('change', updateSubscriptionPriceField);
+
+function syncTrialSubscriptionFields() {
+  const form = document.querySelector('#subscriptionForm');
+  const isTrial = form.elements.status.value === 'trial';
+  const trialMode = form.elements.trialMode.value || 'time_limited';
+  document.querySelector('#subscriptionTrialModeField').classList.toggle('is-hidden', !isTrial);
+  document.querySelector('#subscriptionBillingPeriodField').classList.toggle('is-hidden', isTrial);
+  document.querySelector('#subscriptionPeriodPriceField').classList.toggle('is-hidden', isTrial);
+  form.elements.billingPeriod.disabled = isTrial;
+  form.elements.trialMode.disabled = !isTrial;
+  form.elements.startsOn.readOnly = false;
+  form.elements.endsOn.readOnly = false;
+  if (isTrial) {
+    const startsOn = form.elements.startsOn.value || localDateValue();
+    form.elements.startsOn.value = startsOn;
+    form.elements.endsOn.value = localDateAfterMonths(startsOn, 1);
+    form.elements.periodPrice.value = 0;
+    document.querySelector('#subscriptionFormHint').textContent = 'Süreli deneme ücretsizdir; başlangıç ve bitiş tarihlerini düzenleyebilirsiniz.';
+    return;
+  }
+  const billingPeriod = form.elements.billingPeriod.value || 'monthly';
+  const periodMonths = { monthly: 1, quarterly: 3, yearly: 12 }[billingPeriod] || 1;
+  const startsOn = form.elements.startsOn.value || localDateValue();
+  form.elements.startsOn.value = startsOn;
+  form.elements.endsOn.value = localDateAfterMonths(startsOn, periodMonths);
+  form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, billingPeriod);
+  document.querySelector('#subscriptionFormHint').textContent = 'Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.';
+}
+document.querySelector('#subscriptionForm [name="plan"]').addEventListener('change', syncTrialSubscriptionFields);
+document.querySelector('#subscriptionForm [name="status"]').addEventListener('change', syncTrialSubscriptionFields);
+document.querySelector('#subscriptionForm [name="trialMode"]').addEventListener('change', syncTrialSubscriptionFields);
+document.querySelector('#subscriptionForm [name="billingPeriod"]').addEventListener('change', syncTrialSubscriptionFields);
+document.querySelector('#subscriptionForm [name="startsOn"]').addEventListener('change', event => {
+  if (event.currentTarget.form.elements.status.value !== 'trial') syncTrialSubscriptionFields();
+});
+
+function syncSubscriptionExtensionFields() {
+  const form = document.querySelector('#subscriptionExtensionForm');
+  const period = form.elements.billingPeriod.value || 'monthly';
+  const months = { monthly: 1, quarterly: 3, yearly: 12 }[period] || 1;
+  const startsOn = form.elements.startsOn.value || localDateValue();
+  form.elements.startsOn.value = startsOn;
+  form.elements.endsOn.value = localDateAfterMonths(startsOn, months);
+  form.elements.periodPrice.value = subscriptionPrice(state.schools.find(item => item.id === form.elements.schoolId.value)?.subscriptionPlan || 'standard', period);
+}
+
+document.querySelector('#subscriptionExtensionForm [name="billingPeriod"]').addEventListener('change', syncSubscriptionExtensionFields);
+document.querySelector('#subscriptionExtensionForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (state.role !== 'super_admin') return;
+  const form = event.currentTarget;
+  const school = state.schools.find(item => item.id === String(form.elements.schoolId.value));
+  const billingPeriod = String(form.elements.billingPeriod.value || '');
+  const startsOn = String(form.elements.startsOn.value || '');
+  const endsOn = String(form.elements.endsOn.value || '');
+  if (!school || school.subscriptionStatus !== 'active' || !SUBSCRIPTION_PERIODS[billingPeriod] || !startsOn || !endsOn || endsOn <= startsOn) {
+    showToast('Süre uzatma bilgilerini kontrol edin.');
+    return;
+  }
+  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({
+    schoolId: school.id,
+    plan: school.subscriptionPlan || 'standard',
+    status: 'active',
+    trialMode: null,
+    billingPeriod,
+    startsOn: school.subscriptionStartsOn || startsOn,
+    endsOn
+  }));
+  if (!saved) return;
+  await refreshSchools();
+  if (school.id === state.schoolId) {
+    state.schoolSubscriptionStatus = 'active';
+    state.schoolSubscriptionTrialMode = null;
+  }
+  document.querySelector('#subscriptionExtensionDialog').close();
+  render();
+  showToast(`Abonelik ${subscriptionPeriodLabel(billingPeriod).toLocaleLowerCase('tr-TR')} uzatıldı.`);
+});
 document.querySelector('#subscriptionForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
@@ -3971,11 +4088,12 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
   const schoolId = String(data.get('schoolId') || '');
   const plan = String(data.get('plan') || '');
   const status = String(data.get('status') || '');
+  const trialMode = status === 'trial' ? String(data.get('trialMode') || '') : null;
   const billingPeriod = String(data.get('billingPeriod') || '');
-  const periodPrice = subscriptionPrice(plan, billingPeriod);
+  const periodPrice = status === 'trial' ? 0 : subscriptionPrice(plan, billingPeriod);
   const startsOn = String(data.get('startsOn') || '');
   const endsOn = String(data.get('endsOn') || '');
-  if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_PLANS[plan] || !SUBSCRIPTION_STATUSES[status] || !SUBSCRIPTION_PERIODS[billingPeriod] || !Number.isFinite(periodPrice) || periodPrice < 0) {
+  if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_PLANS[plan] || !SUBSCRIPTION_STATUSES[status] || (status === 'trial' && !TRIAL_MODES[trialMode]) || (status !== 'trial' && !SUBSCRIPTION_PERIODS[billingPeriod]) || !Number.isFinite(periodPrice) || periodPrice < 0) {
     showToast('Paket ve abonelik bilgilerini kontrol edin.');
     return;
   }
@@ -3983,10 +4101,14 @@ document.querySelector('#subscriptionForm').addEventListener('submit', async eve
     showToast('Bitiş tarihi başlangıç tarihinden önce olamaz.');
     return;
   }
-  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, billingPeriod, startsOn: startsOn || null, endsOn: endsOn || null }));
+  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, trialMode, billingPeriod: status === 'trial' ? 'monthly' : billingPeriod, startsOn: startsOn || null, endsOn: endsOn || null }));
   if (!saved) return;
   await refreshSchools();
-  if (schoolId === state.schoolId) state.schoolSubscriptionPlan = plan;
+  if (schoolId === state.schoolId) {
+    state.schoolSubscriptionPlan = plan;
+    state.schoolSubscriptionStatus = status;
+    state.schoolSubscriptionTrialMode = trialMode;
+  }
   state.editingSubscriptionSchoolId = null;
   document.querySelector('#subscriptionDialog').close();
   form.reset();
@@ -4046,8 +4168,9 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim(), monthlyFeeAmount: studentMonthlyFeeAmount };
   const wasEditing = Boolean(state.editingStudentId);
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
-  if (!wasEditing && currentPlan.studentLimit !== null && state.students.length >= currentPlan.studentLimit) {
-    showToast(`${currentPlan.name} paketinin ${currentPlan.studentLimit} öğrenci sınırına ulaşıldı.`);
+  const studentLimit = effectiveStudentLimit(state.schoolSubscriptionPlan);
+  if (!wasEditing && studentLimit !== null && state.students.length >= studentLimit) {
+    showToast(`${currentPlan.name} paketinin ${studentLimit} öğrenci sınırına ulaşıldı.`);
     return;
   }
   const prepaymentMonths = wasEditing

@@ -18,8 +18,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <script src="custom-domain.js?v=2026.08.24.344"></script>
-  <link rel="stylesheet" href="styles.css?v=2026.08.24.344">
+  <script src="custom-domain.js?v=2026.08.25.345"></script>
+  <link rel="stylesheet" href="styles.css?v=2026.08.25.345">
 </head>
 <body>
   <main class="domain-maintenance" id="domainMaintenance" aria-labelledby="maintenanceTitle">
@@ -101,7 +101,7 @@
         <button class="app-banner-home" type="button" data-page="dashboard" aria-label="SASA-F ana sayfasına git">
           <img class="banner-mark" src="sasa-f-banner-icon.svg?v=2026.07.30.173" alt="" aria-hidden="true">
           <span class="app-banner-brand-copy">
-            <strong class="brand-title-row"><span>SASA-F</span><span class="brand-football" aria-hidden="true">⚽</span></strong>
+            <strong class="brand-title-row"><span>SASA-F</span><span class="brand-football" aria-hidden="true">⚽</span><span class="app-banner-plan-badge is-hidden" id="appBannerPlanBadge" aria-label="Okul paketi"></span></strong>
             <small id="appBannerSubtitle">Futbol Okulu Yönetim Sistemi</small>
           </span>
         </button>
@@ -354,15 +354,33 @@
       <div class="dialog-heading"><div><span class="eyebrow">ABONELİK AYARLARI</span><h2 id="subscriptionDialogSchoolName">Okul aboneliği</h2><p>Paket, ücret ve abonelik dönemini güncelleyin.</p></div><button class="icon-button" type="button" data-dialog-close="subscriptionDialog">×</button></div>
       <input name="schoolId" type="hidden">
       <div class="form-grid">
-        <label>Paket<select name="plan" required><option value="standard">Standart</option><option value="premium">Premium</option><option value="pro">Pro</option></select></label>
+        <label>Paket<select name="plan" required><option value="standard">Standart</option><option value="premium">Plus</option><option value="pro">Premium</option></select></label>
         <label>Abonelik durumu<select name="status" required><option value="trial">Deneme</option><option value="active">Aktif</option><option value="stopped">Durduruldu</option></select></label>
-        <label>Ödeme dönemi<select name="billingPeriod" required><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label>
-        <label>Dönem ücreti (₺)<input name="periodPrice" type="number" min="0" step="1" inputmode="numeric" readonly required></label>
+        <label class="is-hidden" id="subscriptionTrialModeField">Deneme türü<select name="trialMode"><option value="time_limited">Süreli deneme</option></select></label>
+        <label id="subscriptionBillingPeriodField">Ödeme dönemi<select name="billingPeriod" required><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label>
+        <label id="subscriptionPeriodPriceField">Dönem ücreti (₺)<input name="periodPrice" type="number" min="0" step="1" inputmode="numeric" readonly required></label>
         <label>Başlangıç tarihi<input name="startsOn" type="date"></label>
         <label>Bitiş / yenileme tarihi<input name="endsOn" type="date"></label>
       </div>
-      <small class="form-hint">Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.</small>
+      <small class="form-hint" id="subscriptionFormHint">Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.</small>
       <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="subscriptionDialog">Vazgeç</button><button class="primary-button" type="submit">Aboneliği kaydet</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="subscriptionExtensionDialog">
+    <form method="dialog" class="dialog-form" id="subscriptionExtensionForm">
+      <div class="dialog-heading"><div><span class="eyebrow">ABONELİK YENİLEME</span><h2 id="subscriptionExtensionSchoolName">Aboneliği uzat</h2><p>Mevcut bitiş tarihinin üzerine yeni dönem eklenir.</p></div><button class="icon-button" type="button" data-dialog-close="subscriptionExtensionDialog">×</button></div>
+      <input name="schoolId" type="hidden">
+      <div class="form-grid">
+        <label>Paket<input name="plan" readonly></label>
+        <label>Mevcut bitiş tarihi<input name="currentEndsOn" type="date" readonly></label>
+        <label>Yeni ödeme dönemi<select name="billingPeriod" required><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label>
+        <label>Yeni dönemin başlangıcı<input name="startsOn" type="date" readonly></label>
+        <label>Yeni bitiş / yenileme tarihi<input name="endsOn" type="date" readonly></label>
+        <label>Dönem ücreti (₺)<input name="periodPrice" type="number" readonly></label>
+      </div>
+      <small class="form-hint">Uzunluk, mevcut bitiş tarihinden itibaren hesaplanır.</small>
+      <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="subscriptionExtensionDialog">Vazgeç</button><button class="primary-button" type="submit">Süreyi uzat</button></div>
     </form>
   </dialog>
 
@@ -371,7 +389,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.24.344"></script>
-  <script src="app.js?v=2026.08.24.344"></script>
+  <script src="supabase-data.js?v=2026.08.25.345"></script>
+  <script src="app.js?v=2026.08.25.345"></script>
 </body>
 </html>

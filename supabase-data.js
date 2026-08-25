@@ -15,6 +15,10 @@
     return ['trial', 'active'].includes(value) ? value : 'stopped';
   }
 
+  function normalizeSubscriptionTrialMode(value) {
+    return value === 'time_limited' ? value : null;
+  }
+
   async function edgeFunctionErrorMessage(error, data, fallback) {
     if (data?.error) return String(data.error);
     const context = error?.context;
@@ -136,9 +140,9 @@
   }
 
   async function fetchSchoolSettings(client, schoolId, role) {
-    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, bank_accounts, is_active, subscription_plan, subscription_status';
+    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status, subscription_trial_mode' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, bank_accounts, is_active, subscription_plan, subscription_status, subscription_trial_mode';
     let result = await client.from('schools').select(columns).eq('id', schoolId).single();
-    if (result.error && /bank_name|bank_account_holder|bank_iban|bank_accounts/i.test(String(result.error.message || ''))) {
+    if (result.error && /bank_name|bank_account_holder|bank_iban|bank_accounts|subscription_trial_mode/i.test(String(result.error.message || ''))) {
       const compatibilityColumns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, is_active, subscription_plan, subscription_status';
       result = await client.from('schools').select(compatibilityColumns).eq('id', schoolId).single();
     }
@@ -346,6 +350,7 @@
         schoolActive: schoolSettingsResult.data?.is_active !== false,
         subscriptionPlan: normalizeSubscriptionPlan(schoolSettingsResult.data?.subscription_plan),
         subscriptionStatus: normalizeSubscriptionStatus(schoolSettingsResult.data?.subscription_status),
+        subscriptionTrialMode: normalizeSubscriptionTrialMode(schoolSettingsResult.data?.subscription_trial_mode),
         monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
         bankAccounts: Array.isArray(schoolSettingsResult.data?.bank_accounts) && schoolSettingsResult.data.bank_accounts.length
           ? schoolSettingsResult.data.bank_accounts.slice(0, 4)
@@ -377,18 +382,24 @@
         if (fallback.error) throw error;
         rows = fallback.data || [];
       }
-      const subscriptionResult = await client
+      let subscriptionResult = await client
         .from('schools')
-        .select('id, subscription_plan, subscription_status, subscription_monthly_price, subscription_billing_period, subscription_period_price, subscription_starts_on, subscription_ends_on');
+        .select('id, subscription_plan, subscription_status, subscription_trial_mode, subscription_monthly_price, subscription_billing_period, subscription_period_price, subscription_starts_on, subscription_ends_on');
+      if (subscriptionResult.error && String(subscriptionResult.error.message || '').includes('subscription_trial_mode')) {
+        subscriptionResult = await client
+          .from('schools')
+          .select('id, subscription_plan, subscription_status, subscription_monthly_price, subscription_billing_period, subscription_period_price, subscription_starts_on, subscription_ends_on');
+      }
       const subscriptionBySchool = new Map((subscriptionResult.data || []).map(item => [item.id, item]));
       return rows.map(school => {
         const subscription = subscriptionBySchool.get(school.id) || {};
         return {
           subscriptionPlan: normalizeSubscriptionPlan(subscription.subscription_plan),
           subscriptionStatus: normalizeSubscriptionStatus(subscription.subscription_status),
-          subscriptionMonthlyPrice: Number(subscription.subscription_monthly_price) || subscriptionPlanPrice(subscription.subscription_plan, 'monthly'),
+          subscriptionTrialMode: normalizeSubscriptionTrialMode(subscription.subscription_trial_mode),
+          subscriptionMonthlyPrice: Number.isFinite(Number(subscription.subscription_monthly_price)) ? Number(subscription.subscription_monthly_price) : subscriptionPlanPrice(subscription.subscription_plan, 'monthly'),
           subscriptionBillingPeriod: subscription.subscription_billing_period || 'monthly',
-          subscriptionPeriodPrice: Number(subscription.subscription_period_price) || subscriptionPlanPrice(subscription.subscription_plan, subscription.subscription_billing_period),
+          subscriptionPeriodPrice: Number.isFinite(Number(subscription.subscription_period_price)) ? Number(subscription.subscription_period_price) : subscriptionPlanPrice(subscription.subscription_plan, subscription.subscription_billing_period),
           subscriptionStartsOn: subscription.subscription_starts_on || '',
           subscriptionEndsOn: subscription.subscription_ends_on || '',
           id: school.id,
@@ -426,15 +437,29 @@
       return Array.isArray(data) ? data[0] : data;
     }
 
-    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, billingPeriod, startsOn, endsOn }) {
-      const { data, error } = await client.rpc('update_school_subscription', {
+    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, trialMode, billingPeriod, startsOn, endsOn }) {
+      const parameters = {
         target_school_id: targetSchoolId,
         plan_code: plan,
         subscription_state: status,
+        trial_mode_code: trialMode,
         billing_period_code: billingPeriod,
         starts_on: startsOn,
         ends_on: endsOn
-      });
+      };
+      let { data, error } = await client.rpc('update_school_subscription', parameters);
+      // The six-parameter RPC remains on older installations until the trial
+      // migration is deployed. Active subscription actions can safely use it.
+      if (error && status !== 'trial' && /trial_mode_code|Could not find the function|function .*update_school_subscription/i.test(String(error.message || ''))) {
+        ({ data, error } = await client.rpc('update_school_subscription', {
+          target_school_id: targetSchoolId,
+          plan_code: plan,
+          subscription_state: status,
+          billing_period_code: billingPeriod,
+          starts_on: startsOn,
+          ends_on: endsOn
+        }));
+      }
       if (error) throw error;
       return Array.isArray(data) ? data[0] : data;
     }
