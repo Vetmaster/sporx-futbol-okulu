@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.346';
+const APP_VERSION = '2026.08.25.347';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3445,7 +3445,7 @@ document.addEventListener('click', async event => {
     form.elements.schoolId.value = school.id;
     form.elements.plan.value = school.subscriptionPlan || 'standard';
     form.elements.status.value = school.subscriptionStatus || 'trial';
-    form.elements.trialMode.value = 'time_limited';
+    if (form.elements.trialMode) form.elements.trialMode.value = 'time_limited';
     form.elements.billingPeriod.value = school.subscriptionBillingPeriod || 'monthly';
     form.elements.periodPrice.value = school.subscriptionStatus === 'trial' ? 0 : subscriptionPrice(form.elements.plan.value, form.elements.billingPeriod.value);
     form.elements.startsOn.value = school.subscriptionStartsOn || '';
@@ -3457,11 +3457,7 @@ document.addEventListener('click', async event => {
   else if (action === 'extend-subscription' && state.role === 'super_admin') {
     const school = state.schools.find(item => item.id === actionButton.dataset.id);
     if (!school || school.subscriptionStatus !== 'active') return;
-    const form = document.querySelector('#subscriptionExtensionForm');
-    if (!form) {
-      showToast('Yeni abonelik ekranı yüklenemedi. Lütfen sayfayı yenileyin.');
-      return;
-    }
+    const form = ensureSubscriptionExtensionDialog();
     const today = localDateValue();
     const currentEnd = school.subscriptionEndsOn || today;
     const baseDate = currentEnd >= today ? currentEnd : today;
@@ -4012,12 +4008,12 @@ function localDateAfterMonths(value, months) {
 function syncTrialSubscriptionFields() {
   const form = document.querySelector('#subscriptionForm');
   const isTrial = form.elements.status.value === 'trial';
-  const trialMode = form.elements.trialMode.value || 'time_limited';
-  document.querySelector('#subscriptionTrialModeField').classList.toggle('is-hidden', !isTrial);
-  document.querySelector('#subscriptionBillingPeriodField').classList.toggle('is-hidden', isTrial);
-  document.querySelector('#subscriptionPeriodPriceField').classList.toggle('is-hidden', isTrial);
+  const trialMode = form.elements.trialMode?.value || 'time_limited';
+  document.querySelector('#subscriptionTrialModeField')?.classList.toggle('is-hidden', !isTrial);
+  document.querySelector('#subscriptionBillingPeriodField')?.classList.toggle('is-hidden', isTrial);
+  document.querySelector('#subscriptionPeriodPriceField')?.classList.toggle('is-hidden', isTrial);
   form.elements.billingPeriod.disabled = isTrial;
-  form.elements.trialMode.disabled = !isTrial;
+  if (form.elements.trialMode) form.elements.trialMode.disabled = !isTrial;
   form.elements.startsOn.readOnly = false;
   form.elements.endsOn.readOnly = false;
   if (isTrial) {
@@ -4025,7 +4021,8 @@ function syncTrialSubscriptionFields() {
     form.elements.startsOn.value = startsOn;
     form.elements.endsOn.value = localDateAfterMonths(startsOn, 1);
     form.elements.periodPrice.value = 0;
-    document.querySelector('#subscriptionFormHint').textContent = 'Süreli deneme ücretsizdir; başlangıç ve bitiş tarihlerini düzenleyebilirsiniz.';
+    const formHint = document.querySelector('#subscriptionFormHint');
+    if (formHint) formHint.textContent = 'Süreli deneme ücretsizdir; başlangıç ve bitiş tarihlerini düzenleyebilirsiniz.';
     return;
   }
   const billingPeriod = form.elements.billingPeriod.value || 'monthly';
@@ -4034,7 +4031,8 @@ function syncTrialSubscriptionFields() {
   form.elements.startsOn.value = startsOn;
   form.elements.endsOn.value = localDateAfterMonths(startsOn, periodMonths);
   form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, billingPeriod);
-  document.querySelector('#subscriptionFormHint').textContent = 'Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.';
+  const formHint = document.querySelector('#subscriptionFormHint');
+  if (formHint) formHint.textContent = 'Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.';
 }
 const subscriptionForm = document.querySelector('#subscriptionForm');
 if (subscriptionForm) {
@@ -4057,9 +4055,20 @@ function syncSubscriptionExtensionFields() {
   form.elements.periodPrice.value = subscriptionPrice(state.schools.find(item => item.id === form.elements.schoolId.value)?.subscriptionPlan || 'standard', period);
 }
 
-const subscriptionExtensionForm = document.querySelector('#subscriptionExtensionForm');
-if (subscriptionExtensionForm) subscriptionExtensionForm.elements.billingPeriod.addEventListener('change', syncSubscriptionExtensionFields);
-if (subscriptionExtensionForm) subscriptionExtensionForm.addEventListener('submit', async event => {
+function ensureSubscriptionExtensionDialog() {
+  let form = document.querySelector('#subscriptionExtensionForm');
+  if (form) return form;
+  document.body.insertAdjacentHTML('beforeend', `<dialog id="subscriptionExtensionDialog"><form method="dialog" class="dialog-form" id="subscriptionExtensionForm"><div class="dialog-heading"><div><span class="eyebrow">ABONELİK YENİLEME</span><h2 id="subscriptionExtensionSchoolName">Aboneliği uzat</h2><p>Mevcut bitiş tarihinin üzerine yeni dönem eklenir.</p></div><button class="icon-button" type="button" data-dialog-close="subscriptionExtensionDialog">×</button></div><input name="schoolId" type="hidden"><div class="form-grid"><label>Paket<input name="plan" readonly></label><label>Mevcut bitiş tarihi<input name="currentEndsOn" type="date" readonly></label><label>Yeni ödeme dönemi<select name="billingPeriod" required><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><label>Yeni dönemin başlangıcı<input name="startsOn" type="date" readonly></label><label>Yeni bitiş / yenileme tarihi<input name="endsOn" type="date" readonly></label><label>Dönem ücreti (₺)<input name="periodPrice" type="number" readonly></label></div><small class="form-hint">Uzunluk, mevcut bitiş tarihinden itibaren hesaplanır.</small><div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="subscriptionExtensionDialog">Vazgeç</button><button class="primary-button" type="submit">Süreyi uzat</button></div></form></dialog>`);
+  form = document.querySelector('#subscriptionExtensionForm');
+  bindSubscriptionExtensionForm(form);
+  return form;
+}
+
+function bindSubscriptionExtensionForm(form) {
+  if (!form || form.dataset.bound === 'true') return;
+  form.dataset.bound = 'true';
+  form.elements.billingPeriod.addEventListener('change', syncSubscriptionExtensionFields);
+  form.addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
   const form = event.currentTarget;
@@ -4089,7 +4098,9 @@ if (subscriptionExtensionForm) subscriptionExtensionForm.addEventListener('submi
   document.querySelector('#subscriptionExtensionDialog').close();
   render();
   showToast(`Abonelik ${subscriptionPeriodLabel(billingPeriod).toLocaleLowerCase('tr-TR')} uzatıldı.`);
-});
+  });
+}
+bindSubscriptionExtensionForm(document.querySelector('#subscriptionExtensionForm'));
 subscriptionForm?.addEventListener('submit', async event => {
   event.preventDefault();
   if (state.role !== 'super_admin') return;
