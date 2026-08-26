@@ -92,14 +92,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .icon-button:hover { background: rgba(127,127,127,.12); }
 .content-shell { min-width: 0; }
 .app-banner { min-height: 74px; position: sticky; top: 0; z-index: 21; display: flex; align-items: center; padding: 10px clamp(18px, 4vw, 46px) 10px 18px; background: var(--brand-dark); border-bottom: 1px solid rgba(255,255,255,.12); box-shadow: 0 8px 24px rgba(52,61,62,.16); }
-.app-banner::after { content: attr(data-plan-label); position: absolute; z-index: 4; top: 50%; left: 194px; display: inline-flex; align-items: center; min-height: 20px; padding: 0 7px; border: 1px solid rgba(255,255,255,.56); border-radius: 999px; color: #fff; background: rgba(255,255,255,.22); font-family: var(--font); font-size: 10px; font-weight: 900; line-height: 1; white-space: nowrap; transform: translateY(-50%); pointer-events: none; }
-.app-banner[data-plan="premium"]::after { border-color: #f0c433; background: #d19f08; }
-.app-banner[data-plan="pro"]::after { border-color: rgba(255,255,255,.64); background: #151515; }
 .app-banner-home { min-width: 0; display: flex; align-items: center; gap: 9px; padding: 0 110px 0 0; color: white; border: 0; background: transparent; text-align: left; }
 .banner-mark { width: 42px; height: auto; flex: 0 0 42px; display: block; border-radius: 11px; background: #fff; object-fit: cover; }
 .app-banner-brand-copy { width: min(280px, 52vw); min-width: 0; display: grid; gap: 2px; }
 .app-banner-brand-copy strong { overflow: hidden; font-family: "Anta", var(--font); font-size: 23px; letter-spacing: .04em; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
-.app-banner-plan-badge { position: absolute; z-index: 2; top: 50%; left: 194px; display: inline-flex; align-items: center; min-height: 20px; padding: 0 7px; border: 1px solid rgba(255,255,255,.5); border-radius: 999px; color: #fff; background: rgba(255,255,255,.16); font-family: var(--font); font-size: 10px; font-weight: 900; letter-spacing: 0; line-height: 1; white-space: nowrap; transform: translateY(-50%); pointer-events: none; }
+.app-banner-plan-badge { display: inline-flex; flex: 0 0 auto; align-items: center; min-height: 20px; padding: 0 7px; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; color: #fff; background: rgba(255,255,255,.16); font-family: var(--font); font-size: 10px; font-weight: 900; letter-spacing: 0; line-height: 1; }
 .app-banner-plan-badge[data-plan="premium"] { border-color: #f0c433; color: #fff; background: #d19f08; }
 .app-banner-plan-badge[data-plan="pro"] { border-color: rgba(255,255,255,.62); color: #fff; background: #151515; }
 .app-banner-brand-copy small { overflow: hidden; color: rgba(255,255,255,.64); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -701,13 +698,10 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .brand-name { font-size: 40px; }
   .auth-brand p { font-size: 14px; }
   .app-banner { min-height: 64px; }
-  .app-banner::after { left: 180px; min-height: 18px; padding-inline: 6px; font-size: 9px; }
   .app-banner-home { max-width: 100%; gap: 7px; padding-right: 82px; }
   .banner-mark { width: 34px; flex-basis: 34px; border-radius: 9px; font-size: 15px; }
-  .app-banner-brand-copy { width: calc(100vw - 145px); overflow: visible; }
-  .app-banner-brand-copy strong, .brand-title-row { overflow: visible; }
   .app-banner-brand-copy strong { font-size: 19px; }
-  .app-banner-plan-badge { left: 180px; min-height: 18px; padding-inline: 6px; font-size: 9px; }
+  .app-banner-plan-badge { min-height: 18px; padding-inline: 6px; font-size: 9px; }
   .app-banner-brand-copy small { font-size: 10px; }
   .app-banner-build { min-height: 21px; top: 26px; right: 14px; padding-inline: 6px; font-size: 9px; }
   .app-version-label { top: 8px; font-size: 9px; }
