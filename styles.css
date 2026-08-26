@@ -700,8 +700,10 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .app-banner { min-height: 64px; }
   .app-banner-home { max-width: 100%; gap: 7px; padding-right: 82px; }
   .banner-mark { width: 34px; flex-basis: 34px; border-radius: 9px; font-size: 15px; }
+  .app-banner-brand-copy { width: calc(100vw - 145px); overflow: visible; }
+  .app-banner-brand-copy strong, .brand-title-row { overflow: visible; }
   .app-banner-brand-copy strong { font-size: 19px; }
-  .app-banner-plan-badge { min-height: 18px; padding-inline: 6px; font-size: 9px; }
+  .app-banner-plan-badge { min-height: 18px; padding-inline: 6px; font-size: 9px; white-space: nowrap; }
   .app-banner-brand-copy small { font-size: 10px; }
   .app-banner-build { min-height: 21px; top: 26px; right: 14px; padding-inline: 6px; font-size: 9px; }
   .app-version-label { top: 8px; font-size: 9px; }
