@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.353';
+const APP_VERSION = '2026.08.26.354';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1874,6 +1874,7 @@ function render() {
   document.querySelector('#appBannerSubtitle').textContent = bannerSubtitle;
   document.querySelector('#sidebarBannerSubtitle').textContent = bannerSubtitle;
   const appBannerPlanBadge = document.querySelector('#appBannerPlanBadge');
+  const appBanner = document.querySelector('.app-banner');
   // A school's package should remain visible even while an older client is
   // catching up with the subscription payload. In that case, display the
   // default package instead of leaving an empty/invisible badge behind.
@@ -1882,6 +1883,10 @@ function render() {
     appBannerPlanBadge.textContent = activeSchoolPlan.name;
     appBannerPlanBadge.dataset.plan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] ? state.schoolSubscriptionPlan : 'standard';
     appBannerPlanBadge.classList.remove('is-hidden');
+  }
+  if (appBanner) {
+    appBanner.dataset.planLabel = activeSchoolPlan.name;
+    appBanner.dataset.plan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] ? state.schoolSubscriptionPlan : 'standard';
   }
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
@@ -2517,7 +2522,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.26.353', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.26.354', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2528,7 +2533,7 @@ async function getPushRegistration() {
 // every launch, even when push notifications have never been enabled.
 if (pushSupported()) {
   navigator.serviceWorker
-    .register('./service-worker.js?v=2026.08.26.353', { scope: './', updateViaCache: 'none' })
+    .register('./service-worker.js?v=2026.08.26.354', { scope: './', updateViaCache: 'none' })
     .then(registration => registration.update().catch(() => {}))
     .catch(error => console.warn('Uygulama önbelleği güncellenemedi:', error));
 }
