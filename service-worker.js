@@ -5,6 +5,14 @@ const NOTIFICATION_BADGE_URL = new URL('./sasa-f-notification-badge.png?v=2026.0
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(clients.claim()));
 
+// The Android shell always starts from the same URL. Fetch navigation
+// requests fresh so a GitHub Pages CDN cache cannot hold the app on an older
+// index.html after a web release. Static assets remain normally cacheable.
+self.addEventListener('fetch', event => {
+  if (event.request.mode !== 'navigate') return;
+  event.respondWith(fetch(event.request, { cache: 'reload' }));
+});
+
 self.addEventListener('push', event => {
   let payload = {};
   try {
