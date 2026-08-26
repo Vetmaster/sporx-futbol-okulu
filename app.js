@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.350';
+const APP_VERSION = '2026.08.26.351';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1879,11 +1879,9 @@ function render() {
   // default package instead of leaving an empty/invisible badge behind.
   const activeSchoolPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
   if (appBannerPlanBadge) {
-    const hasSelectedSchool = Boolean(state.schoolId || state.schoolName);
-    const shouldShowPlanBadge = state.role !== 'super_admin' || hasSelectedSchool;
-    appBannerPlanBadge.textContent = shouldShowPlanBadge ? activeSchoolPlan.name : '';
-    appBannerPlanBadge.dataset.plan = shouldShowPlanBadge ? (SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] ? state.schoolSubscriptionPlan : 'standard') : '';
-    appBannerPlanBadge.classList.toggle('is-hidden', !shouldShowPlanBadge);
+    appBannerPlanBadge.textContent = activeSchoolPlan.name;
+    appBannerPlanBadge.dataset.plan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] ? state.schoolSubscriptionPlan : 'standard';
+    appBannerPlanBadge.classList.remove('is-hidden');
   }
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
