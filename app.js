@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.351';
+const APP_VERSION = '2026.08.26.352';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2517,10 +2517,20 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.26.350', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.26.352', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
+}
+
+// Keep the navigation service worker active independently from notification
+// permission. This lets the Android shell refresh the latest web release on
+// every launch, even when push notifications have never been enabled.
+if (pushSupported()) {
+  navigator.serviceWorker
+    .register('./service-worker.js?v=2026.08.26.352', { scope: './', updateViaCache: 'none' })
+    .then(registration => registration.update().catch(() => {}))
+    .catch(error => console.warn('Uygulama önbelleği güncellenemedi:', error));
 }
 
 async function invokePushFunction(body) {
