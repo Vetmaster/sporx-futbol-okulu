@@ -18,8 +18,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <script src="custom-domain.js?v=2026.08.25.347"></script>
-  <link rel="stylesheet" href="styles.css?v=2026.08.25.347">
+  <script src="custom-domain.js?v=2026.08.27.354"></script>
+  <link rel="stylesheet" href="styles.css?v=2026.08.27.354">
 </head>
 <body>
   <main class="domain-maintenance" id="domainMaintenance" aria-labelledby="maintenanceTitle">
@@ -58,6 +58,7 @@
       <button class="primary-button" id="loginSubmitButton" type="submit">Giriş yap</button>
       <div class="auth-secondary-actions" id="authSecondaryActions">
         <button class="auth-link-button" id="forgotPasswordButton" type="button">Şifremi unuttum</button>
+        <button class="auth-link-button" id="schoolApplicationButton" type="button">Futbol okulunuz için başvurun</button>
       </div>
       <a class="auth-link-button auth-android-download is-hidden" data-android-apk-download href="#">↓ Android uygulamasını indir</a>
       <button class="auth-link-button is-hidden" id="backToLoginButton" type="button">Giriş ekranına dön</button>
@@ -79,6 +80,22 @@
       <button class="auth-link-button" id="adminMfaCancelButton" type="button">Güvenli çıkış yap</button>
     </form>
   </section>
+  <dialog id="schoolApplicationDialog">
+    <form class="dialog-form" id="schoolApplicationForm">
+      <div class="dialog-heading"><div><span class="eyebrow">YENİ MÜŞTERİ BAŞVURUSU</span><h2>Futbol okulunuzu başlatın</h2><p>Başvurunuz incelenir; bu aşamada okul veya kullanıcı hesabı oluşturulmaz.</p></div><button class="icon-button" type="button" data-dialog-close="schoolApplicationDialog">×</button></div>
+      <div class="form-grid">
+        <label>Futbol okulu adı<input name="schoolName" maxlength="120" required></label>
+        <label>İl<input name="city" maxlength="80" required></label>
+        <label>İlçe<input name="district" maxlength="80" required></label>
+        <label>Yetkili adı soyadı<input name="applicantName" maxlength="120" required></label>
+        <label>Telefon<input name="phone" maxlength="30" inputmode="tel" required></label>
+        <label>E-posta<input name="email" maxlength="254" type="email" autocomplete="email" required></label>
+        <label class="form-grid-full">Açıklama <small>(isteğe bağlı)</small><textarea name="note" maxlength="1200" rows="3" placeholder="Okulunuzla ilgili kısa notunuz"></textarea></label>
+      </div>
+      <p class="auth-message is-hidden" id="schoolApplicationMessage" role="status"></p>
+      <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="schoolApplicationDialog">Vazgeç</button><button class="primary-button" type="submit">Başvuruyu gönder</button></div>
+    </form>
+  </dialog>
 
   <div class="app-shell is-hidden" id="appShell">
     <aside class="sidebar" id="sidebar">
@@ -389,7 +406,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.25.347"></script>
-  <script src="app.js?v=2026.08.25.347"></script>
+  <script src="supabase-data.js?v=2026.08.27.354"></script>
+  <script src="app.js?v=2026.08.27.354"></script>
 </body>
 </html>

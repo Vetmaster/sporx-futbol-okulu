@@ -505,6 +505,83 @@
       return data;
     }
 
+    async function submitSchoolApplication(application) {
+      const { data, error } = await client.functions.invoke('submit-school-application', {
+        body: application
+      });
+      if (error) throw new Error(await edgeFunctionErrorMessage(error, data, 'Başvuru gönderilemedi.'));
+      if (data?.error) throw new Error(data.error);
+      return data;
+    }
+
+    async function listSchoolApplications() {
+      const { data, error } = await client
+        .from('school_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function reviewSchoolApplication({ applicationId, status, customerMessage, internalNote }) {
+      const { data, error } = await client.rpc('review_school_application', {
+        target_application_id: applicationId,
+        next_status: status,
+        customer_note: customerMessage || null,
+        private_note: internalNote || null
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    }
+
+    async function approveSchoolApplication(applicationId) {
+      const { data, error } = await client.functions.invoke('approve-school-application', { body: { applicationId } });
+      if (error) throw new Error(await edgeFunctionErrorMessage(error, data, 'Başvuru onaylanamadı.'));
+      if (data?.error) throw new Error(data.error);
+      return data;
+    }
+
+    async function getMySchoolOnboarding() {
+      const { data, error } = await client.from('school_onboardings').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (error) throw error;
+      return data || null;
+    }
+
+    async function startSchoolTrial() {
+      const { data, error } = await client.rpc('start_school_trial');
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    }
+
+    async function createSubscriptionPaymentReport({ plan, billingPeriod, note }) {
+      const { data, error } = await client.rpc('create_subscription_payment_report', {
+        requested_plan: plan,
+        requested_billing_period: billingPeriod,
+        payer_note: note || null
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    }
+
+    async function listSubscriptionPaymentReports() {
+      const { data, error } = await client
+        .from('subscription_payment_reports')
+        .select('*, schools(name), school_subscription_periods(plan_code, billing_period, starts_on, ends_on)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function reviewSubscriptionPaymentReport({ reportId, approved, note }) {
+      const { data, error } = await client.rpc('review_subscription_payment_report', {
+        target_report_id: reportId,
+        approved,
+        reviewer_note: note || null
+      });
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    }
+
     async function saveSchoolSettings(monthlyFeeAmount) {
       requireContext();
       const amount = Number(monthlyFeeAmount);
@@ -1031,6 +1108,15 @@
       deleteSchool,
       updateSchoolSubscription,
       inviteSchoolAdmin,
+      submitSchoolApplication,
+      listSchoolApplications,
+      reviewSchoolApplication,
+      approveSchoolApplication,
+      getMySchoolOnboarding,
+      startSchoolTrial,
+      createSubscriptionPaymentReport,
+      listSubscriptionPaymentReports,
+      reviewSubscriptionPaymentReport,
       saveSchoolSettings,
       saveSchoolBankDetails,
       saveGroup,

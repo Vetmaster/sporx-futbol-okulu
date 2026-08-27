@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.347';
+const APP_VERSION = '2026.08.27.354';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -114,6 +114,9 @@ const state = {
   notifications: localData.notifications,
   attendanceRecords: localData.attendanceRecords,
   accessRequests: [],
+  schoolApplications: [],
+  subscriptionPaymentReports: [],
+  onboarding: null,
   activeTrainingId: null,
   selectedStudentId: null,
   selectedParentStudentId: null,
@@ -256,6 +259,9 @@ const navItems = {
   schools: { label: 'Okullar', icon: MENU_ICONS.schools, roles: ['super_admin'] },
   settings: { label: 'Ayarlar', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   subscriptions: { label: 'Paket ve Abonelik', icon: MENU_ICONS.subscriptions, roles: ['super_admin'], hidden: true },
+  applications: { label: 'Başvurular', icon: '✦', roles: ['super_admin'] },
+  subscriptionPayments: { label: 'Ödemeler', icon: MENU_ICONS.subscriptions, roles: ['super_admin'] },
+  onboarding: { label: 'Aboneliği başlat', icon: MENU_ICONS.subscriptions, roles: ['admin'], hidden: true },
   bankSettings: { label: 'Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin', 'admin'], hidden: true },
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'coach'] },
   studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
@@ -278,7 +284,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini ve antrenörleri yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -1171,6 +1177,11 @@ function subscriptionDateLabel(value) {
   return new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
 }
 
+function formatDateTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
 function subscriptionStatusMarkup(status) {
   const tone = status === 'active' ? '' : status === 'trial' ? 'blue' : 'warning';
   return `<span class="status ${tone}">${SUBSCRIPTION_STATUSES[status] || 'Belirlenmedi'}</span>`;
@@ -1234,6 +1245,48 @@ function subscriptionsView() {
       <div class="subscription-school-list">${rows || '<div class="empty-state">Henüz okul bulunmuyor.</div>'}</div>
     </section>
   </div>`;
+}
+
+function applicationStatusLabel(status) {
+  return ({ PENDING: 'Bekliyor', INFO_REQUESTED: 'Bilgi bekleniyor', APPROVED: 'Onaylandı', REJECTED: 'Reddedildi' })[status] || status;
+}
+
+function applicationsView() {
+  const rows = state.schoolApplications.map(application => {
+    const canReview = ['PENDING', 'INFO_REQUESTED'].includes(application.status);
+    return `<article class="panel application-card">
+      <div class="panel-heading"><div><span class="eyebrow">${escapeHtml(application.city)} · ${escapeHtml(application.district)}</span><h3>${escapeHtml(application.school_name)}</h3><small>${escapeHtml(application.applicant_name)} · ${escapeHtml(application.email)} · ${escapeHtml(application.phone)}</small></div><span class="status ${application.status === 'APPROVED' ? '' : application.status === 'REJECTED' ? 'warning' : 'blue'}">${applicationStatusLabel(application.status)}</span></div>
+      ${application.note ? `<p>${escapeHtml(application.note)}</p>` : ''}
+      ${application.customer_message ? `<p class="muted"><strong>Müşteriye not:</strong> ${escapeHtml(application.customer_message)}</p>` : ''}
+      ${application.internal_note ? `<p class="muted"><strong>İç not:</strong> ${escapeHtml(application.internal_note)}</p>` : ''}
+      <small class="muted">Başvuru: ${formatDateTime(application.created_at)}</small>
+      ${canReview ? `<div class="subscription-row-actions"><button class="secondary-button" type="button" data-action="request-application-info" data-id="${application.id}">Bilgi iste</button><button class="danger-button" type="button" data-action="reject-application" data-id="${application.id}">Reddet</button><button class="primary-button" type="button" data-action="approve-application" data-id="${application.id}">Onayla ve davet et</button></div>` : ''}
+    </article>`;
+  }).join('');
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><section class="page-stack">${rows || '<div class="panel empty-state">İncelenecek başvuru bulunmuyor.</div>'}</section></div>`;
+}
+
+function subscriptionPaymentsView() {
+  const rows = state.subscriptionPaymentReports.map(report => {
+    const period = report.school_subscription_periods || {};
+    const school = Array.isArray(report.schools) ? report.schools[0] : report.schools;
+    const pending = report.status === 'PENDING_REVIEW';
+    return `<article class="panel application-card"><div class="panel-heading"><div><span class="eyebrow">HAVALE BİLDİRİMİ</span><h3>${escapeHtml(school?.name || 'Okul')}</h3><small>${SUBSCRIPTION_PLANS[period.plan_code]?.name || period.plan_code} · ${subscriptionPeriodLabel(period.billing_period)} · ${subscriptionDateLabel(period.starts_on)} – ${subscriptionDateLabel(period.ends_on)}</small></div><span class="status ${pending ? 'blue' : report.status === 'APPROVED' ? '' : 'warning'}">${pending ? 'İncelemede' : report.status === 'APPROVED' ? 'Onaylandı' : 'Reddedildi'}</span></div><strong>${formatCurrency(report.amount)}</strong>${report.payer_note ? `<p class="muted">${escapeHtml(report.payer_note)}</p>` : ''}<small class="muted">Bildirim: ${formatDateTime(report.created_at)}</small>${pending ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="review-payment-report" data-approved="false" data-id="${report.id}">Reddet</button><button class="primary-button" type="button" data-action="review-payment-report" data-approved="true" data-id="${report.id}">Ödemeyi onayla</button></div>` : ''}</article>`;
+  }).join('');
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Ödemeler ve abonelikler</h2><p>Havale bildirimi tek başına aboneliği aktifleştirmez; onay burada verilir.</p></div></div>${rows || '<div class="panel empty-state">İncelenecek ödeme bildirimi bulunmuyor.</div>'}</div>`;
+}
+
+function onboardingView() {
+  const onboarding = state.onboarding;
+  const paymentPending = onboarding?.status === 'PAYMENT_PENDING';
+  const trialStarted = onboarding?.status === 'TRIAL_STARTED';
+  if (trialStarted) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Premium özellikleriniz 14 gün boyunca açık.</h2><p>Deneme sonunda paket seçerek devam edebilirsiniz.</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+  if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında seçtiğiniz paket etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
+  const plans = Object.entries(SUBSCRIPTION_PLANS).map(([code, plan]) => `<label class="subscription-choice"><input type="radio" name="onboardingPlan" value="${code}" ${code === 'standard' ? 'checked' : ''}><strong>${plan.name}</strong><small>${formatCurrency(plan.prices.monthly)} / ay başlangıç</small></label>`).join('');
+  const bankAccounts = state.schoolBankAccounts?.length
+    ? `<div class="parent-bank-account-list">${state.schoolBankAccounts.map(account => `<article class="parent-bank-account"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
+    : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için Süper Admin ile iletişime geçin.</p>';
+  return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>14 gün boyunca Premium özellikleri ücretsiz deneyebilir veya paketinizi seçip havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">14 gün ücretsiz dene</button></section><section class="panel onboarding-card"><h3>Paket seçerek devam et</h3><div class="subscription-choice-list">${plans}</div><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale açıklaması <small>(isteğe bağlı)</small><input id="onboardingPaymentNote" maxlength="300" placeholder="Ödeme yapan kişi / açıklama"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra Süper Admin onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
 }
 
 function settingsView() {
@@ -1857,10 +1910,14 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, bankSettings: bankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, applications: applicationsView, subscriptionPayments: subscriptionPaymentsView, onboarding: onboardingView, bankSettings: bankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
+  if (state.role === 'admin' && state.onboarding && ['PENDING_CHOICE', 'PAYMENT_PENDING'].includes(state.onboarding.status) && state.page !== 'onboarding') {
+    state.page = 'onboarding';
+    state.pageHistory = [];
+  }
   persistNavigationState();
   renderNavigation();
   const [title, subtitle] = pageMeta[state.page];
@@ -2275,7 +2332,15 @@ async function showAuthenticatedApp(user) {
         .eq('id', initialSchoolId)
         .single();
       if (subscriptionError) throw subscriptionError;
-      if (subscriptionSchool?.subscription_status === 'stopped') throw new Error('SUBSCRIPTION_STOPPED');
+      if (subscriptionSchool?.subscription_status === 'stopped') {
+        const { data: onboarding } = await supabaseClient
+          .from('school_onboardings')
+          .select('status')
+          .eq('school_id', initialSchoolId)
+          .eq('applicant_user_id', user.id)
+          .maybeSingle();
+        if (!onboarding || !['PENDING_CHOICE', 'PAYMENT_PENDING'].includes(onboarding.status)) throw new Error('SUBSCRIPTION_STOPPED');
+      }
     }
     remoteData = await remoteDataStore.load({ school_id: initialSchoolId, user_id: user.id, role: initialRole });
     profile.role = initialRole;
@@ -2301,11 +2366,21 @@ async function showAuthenticatedApp(user) {
   state.notificationComposeOpen = false;
   state.notificationDraft = { audience: 'Tüm kullanıcılar', title: '', body: '' };
   applyRemoteData(remoteData);
+  try {
+    state.onboarding = profile.role === 'admin' ? await remoteDataStore.getMySchoolOnboarding() : null;
+  } catch (onboardingError) {
+    console.warn('Okul başlangıç durumu yüklenemedi:', onboardingError);
+    state.onboarding = null;
+  }
   if (openDashboardAfterPasswordLogin) {
     window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
     openDashboardAfterPasswordLogin = false;
   } else {
     restoreNavigationState(user.id);
+  }
+  if (state.onboarding && ['PENDING_CHOICE', 'PAYMENT_PENDING', 'TRIAL_STARTED'].includes(state.onboarding.status) && profile.role === 'admin') {
+    state.page = 'onboarding';
+    state.pageHistory = [];
   }
   const requestedPage = new URLSearchParams(window.location.search).get('open');
   if (requestedPage === 'notifications' && navItems.notifications.roles.includes(state.role)) {
@@ -3192,6 +3267,36 @@ loginForm.addEventListener('submit', async event => {
 
 document.querySelector('#forgotPasswordButton').addEventListener('click', () => configureAuthForm('reset-password'));
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
+document.querySelector('#schoolApplicationButton').addEventListener('click', () => {
+  const form = document.querySelector('#schoolApplicationForm');
+  form?.reset();
+  const message = document.querySelector('#schoolApplicationMessage');
+  message?.classList.add('is-hidden');
+  document.querySelector('#schoolApplicationDialog')?.showModal();
+});
+document.querySelector('#schoolApplicationForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = document.querySelector('#schoolApplicationMessage');
+  const submit = form.querySelector('button[type="submit"]');
+  const values = Object.fromEntries(new FormData(form).entries());
+  message.classList.add('is-hidden');
+  submit.disabled = true;
+  submit.textContent = 'Başvuru gönderiliyor…';
+  try {
+    if (!remoteDataStore) throw new Error('Başvuru hizmetine ulaşılamadı.');
+    await remoteDataStore.submitSchoolApplication(values);
+    form.reset();
+    message.textContent = 'Başvurunuz alındı. İnceleme sonrasında e-posta adresiniz üzerinden bilgilendirileceksiniz.';
+    message.classList.remove('is-hidden');
+  } catch (error) {
+    message.textContent = error.message || 'Başvuru gönderilemedi.';
+    message.classList.remove('is-hidden');
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Başvuruyu gönder';
+  }
+});
 
 adminMfaForm.addEventListener('submit', async event => {
   event.preventDefault();
@@ -3325,6 +3430,12 @@ document.addEventListener('click', async event => {
     if (pageButton.dataset.page === 'schools' && state.role === 'super_admin') {
       try { await refreshSchools(); } catch (error) { showToast(`Okul özeti yenilenemedi: ${error.message || 'Bağlantı hatası'}`); }
     }
+    if (pageButton.dataset.page === 'applications' && state.role === 'super_admin') {
+      try { state.schoolApplications = await remoteDataStore.listSchoolApplications(); } catch (error) { showToast(`Başvurular yüklenemedi: ${error.message || 'Bağlantı hatası'}`); }
+    }
+    if (pageButton.dataset.page === 'subscriptionPayments' && state.role === 'super_admin') {
+      try { state.subscriptionPaymentReports = await remoteDataStore.listSubscriptionPaymentReports(); } catch (error) { showToast(`Ödeme bildirimleri yüklenemedi: ${error.message || 'Bağlantı hatası'}`); }
+    }
     navigateToPage(pageButton.dataset.page, pageButton.dataset.page === 'fees' ? { feeFilter: 'all' } : {});
     return;
   }
@@ -3334,6 +3445,72 @@ document.addEventListener('click', async event => {
     return;
   }
   const action = actionButton.dataset.action;
+  if (action === 'request-application-info' && state.role === 'super_admin') {
+    const applicationId = actionButton.dataset.id;
+    const customerMessage = window.prompt('Başvuru sahibinden istenecek bilgi / mesaj:');
+    if (customerMessage === null) return;
+    const internalNote = window.prompt('İç not (isteğe bağlı):') || '';
+    const saved = await runRemoteMutation(() => remoteDataStore.reviewSchoolApplication({ applicationId, status: 'INFO_REQUESTED', customerMessage, internalNote }));
+    if (!saved) return;
+    state.schoolApplications = await remoteDataStore.listSchoolApplications();
+    render();
+    showToast('Ek bilgi isteği kaydedildi.');
+  }
+  else if (action === 'reject-application' && state.role === 'super_admin') {
+    const applicationId = actionButton.dataset.id;
+    if (!window.confirm('Bu başvuru reddedilsin mi?')) return;
+    const customerMessage = window.prompt('Başvuru sahibine iletilecek mesaj (isteğe bağlı):') || '';
+    const internalNote = window.prompt('İç not (isteğe bağlı):') || '';
+    const saved = await runRemoteMutation(() => remoteDataStore.reviewSchoolApplication({ applicationId, status: 'REJECTED', customerMessage, internalNote }));
+    if (!saved) return;
+    state.schoolApplications = await remoteDataStore.listSchoolApplications();
+    render();
+    showToast('Başvuru reddedildi.');
+  }
+  else if (action === 'approve-application' && state.role === 'super_admin') {
+    const application = state.schoolApplications.find(item => item.id === actionButton.dataset.id);
+    if (!application || !window.confirm(`${application.school_name} başvurusu onaylansın mı? Okul ve ilk Admin hesabı oluşturulacak.`)) return;
+    const saved = await runRemoteMutation(() => remoteDataStore.approveSchoolApplication(application.id));
+    if (!saved) return;
+    state.schoolApplications = await remoteDataStore.listSchoolApplications();
+    await refreshSchools();
+    render();
+    showToast(saved.invitationSent ? 'Başvuru onaylandı; şifre oluşturma daveti gönderildi.' : 'Başvuru onaylandı; mevcut kullanıcı okul Admini olarak bağlandı.');
+  }
+  else if (action === 'review-payment-report' && state.role === 'super_admin') {
+    const approved = actionButton.dataset.approved === 'true';
+    const note = window.prompt(approved ? 'Onay notu (isteğe bağlı):' : 'Reddetme nedeni (isteğe bağlı):') || '';
+    const saved = await runRemoteMutation(() => remoteDataStore.reviewSubscriptionPaymentReport({ reportId: actionButton.dataset.id, approved, note }));
+    if (!saved) return;
+    state.subscriptionPaymentReports = await remoteDataStore.listSubscriptionPaymentReports();
+    await refreshSchools();
+    render();
+    showToast(approved ? 'Ödeme onaylandı ve abonelik dönemi işlendi.' : 'Ödeme bildirimi reddedildi.');
+  }
+  else if (action === 'start-school-trial' && state.role === 'admin') {
+    const saved = await runRemoteMutation(() => remoteDataStore.startSchoolTrial());
+    if (!saved) return;
+    state.onboarding = saved;
+    state.schoolSubscriptionPlan = 'pro';
+    state.schoolSubscriptionStatus = 'trial';
+    render();
+    showToast('14 günlük ücretsiz deneme başlatıldı.');
+  }
+  else if (action === 'report-subscription-payment' && state.role === 'admin') {
+    const plan = document.querySelector('input[name="onboardingPlan"]:checked')?.value || 'standard';
+    const billingPeriod = document.querySelector('#onboardingBillingPeriod')?.value || 'monthly';
+    const note = document.querySelector('#onboardingPaymentNote')?.value || '';
+    const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ plan, billingPeriod, note }));
+    if (!saved) return;
+    state.onboarding = { ...state.onboarding, status: 'PAYMENT_PENDING' };
+    render();
+    showToast('Ödeme bildiriminiz incelemeye gönderildi.');
+  }
+  else if (action === 'complete-onboarding' && state.role === 'admin') {
+    state.page = 'dashboard';
+    state.pageHistory = [];
+    render();
+  }
   if (action === 'add-bank-account' && isAdminRole()) {
     const form = actionButton.closest('#schoolBankSettingsForm');
     const list = form?.querySelector('.bank-account-settings-list');
