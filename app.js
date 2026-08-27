@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.354';
+const APP_VERSION = '2026.08.27.355';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2499,8 +2499,9 @@ function showToast(message, tone = 'info', duration = 2800) {
   showToast.timer = window.setTimeout(() => toast.classList.remove('show'), duration);
 }
 
-function showRecordCreated(message) {
-  const visibleDuration = 3000;
+function showRecordCreated(message, options = {}) {
+  const visibleDuration = Number.isFinite(Number(options.duration)) ? Math.max(1000, Number(options.duration)) : 3000;
+  const titleText = String(options.title || 'İşlem tamamlandı');
   hideDataSaveLoading();
   window.clearTimeout(showRecordCreated.openTimer);
   window.clearTimeout(showRecordCreated.closeTimer);
@@ -2519,7 +2520,7 @@ function showRecordCreated(message) {
     icon.style.cssText = 'display:grid;place-items:center;width:52px;height:52px;border-radius:50%;color:#fff;background:#176b45;box-shadow:0 10px 24px rgba(23,107,69,.28);font-size:28px;font-weight:900;';
     const copy = document.createElement('div');
     const title = document.createElement('strong');
-    title.textContent = 'İşlem tamamlandı';
+    title.textContent = titleText;
     title.style.cssText = 'display:block;color:#176b45;font-size:19px;';
     const description = document.createElement('p');
     description.textContent = message;
@@ -3287,8 +3288,11 @@ document.querySelector('#schoolApplicationForm').addEventListener('submit', asyn
     if (!remoteDataStore) throw new Error('Başvuru hizmetine ulaşılamadı.');
     await remoteDataStore.submitSchoolApplication(values);
     form.reset();
-    message.textContent = 'Başvurunuz alındı. İnceleme sonrasında e-posta adresiniz üzerinden bilgilendirileceksiniz.';
-    message.classList.remove('is-hidden');
+    document.querySelector('#schoolApplicationDialog')?.close();
+    showRecordCreated('İnceleme sonrasında e-posta adresiniz üzerinden bilgilendirileceksiniz.', {
+      title: 'Başvurunuz alındı',
+      duration: 5000
+    });
   } catch (error) {
     message.textContent = error.message || 'Başvuru gönderilemedi.';
     message.classList.remove('is-hidden');
