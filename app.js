@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.355';
+const APP_VERSION = '2026.08.27.356';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3288,11 +3288,14 @@ document.querySelector('#schoolApplicationForm').addEventListener('submit', asyn
     if (!remoteDataStore) throw new Error('Başvuru hizmetine ulaşılamadı.');
     await remoteDataStore.submitSchoolApplication(values);
     form.reset();
-    document.querySelector('#schoolApplicationDialog')?.close();
-    showRecordCreated('İnceleme sonrasında e-posta adresiniz üzerinden bilgilendirileceksiniz.', {
+    message.textContent = '';
+    message.classList.add('is-hidden');
+    const dialog = form.closest('dialog');
+    if (dialog?.open) dialog.close();
+    window.setTimeout(() => showRecordCreated('İnceleme sonrasında e-posta adresiniz üzerinden bilgilendirileceksiniz.', {
       title: 'Başvurunuz alındı',
       duration: 5000
-    });
+    }), 0);
   } catch (error) {
     message.textContent = error.message || 'Başvuru gönderilemedi.';
     message.classList.remove('is-hidden');
