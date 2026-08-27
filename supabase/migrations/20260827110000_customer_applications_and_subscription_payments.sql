@@ -9,7 +9,7 @@ create table if not exists public.school_applications (
   district text not null check (char_length(btrim(district)) between 2 and 80),
   applicant_name text not null check (char_length(btrim(applicant_name)) between 2 and 120),
   phone text not null check (char_length(btrim(phone)) between 7 and 30),
-  email text not null check (email = lower(btrim(email)) and email ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'),
+  email text not null check (email = lower(btrim(email)) and email ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'),
   note text,
   status text not null default 'PENDING' check (status in ('PENDING', 'INFO_REQUESTED', 'APPROVED', 'REJECTED')),
   internal_note text,
