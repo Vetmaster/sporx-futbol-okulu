@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.357';
+const APP_VERSION = '2026.08.28.358';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2394,6 +2394,20 @@ async function showAuthenticatedApp(user) {
       `${notificationUrl.pathname}${notificationUrl.search}${notificationUrl.hash}`
     );
   }
+  if (state.role === 'super_admin' && state.page === 'applications') {
+    try {
+      state.schoolApplications = await remoteDataStore.listSchoolApplications();
+    } catch (applicationError) {
+      console.warn('Başvurular ilk açılışta yüklenemedi:', applicationError);
+    }
+  }
+  if (state.role === 'super_admin' && state.page === 'subscriptionPayments') {
+    try {
+      state.subscriptionPaymentReports = await remoteDataStore.listSubscriptionPaymentReports();
+    } catch (paymentError) {
+      console.warn('Ödeme bildirimleri ilk açılışta yüklenemedi:', paymentError);
+    }
+  }
   initializeBrowserNavigation();
   document.querySelector('#authPasswordField').classList.remove('is-hidden');
   loginSubmitButton.classList.remove('is-hidden');
@@ -3268,14 +3282,14 @@ loginForm.addEventListener('submit', async event => {
 
 document.querySelector('#forgotPasswordButton').addEventListener('click', () => configureAuthForm('reset-password'));
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
-document.querySelector('#schoolApplicationButton').addEventListener('click', () => {
+document.querySelector('#schoolApplicationButton')?.addEventListener('click', () => {
   const form = document.querySelector('#schoolApplicationForm');
   form?.reset();
   const message = document.querySelector('#schoolApplicationMessage');
   message?.classList.add('is-hidden');
   document.querySelector('#schoolApplicationDialog')?.showModal();
 });
-document.querySelector('#schoolApplicationForm').addEventListener('submit', async event => {
+document.querySelector('#schoolApplicationForm')?.addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const message = document.querySelector('#schoolApplicationMessage');
