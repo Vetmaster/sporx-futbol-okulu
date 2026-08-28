@@ -148,6 +148,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   application_row public.school_applications%rowtype;
   created_school public.schools%rowtype;
@@ -197,7 +198,7 @@ begin
   set status = 'APPROVED', reviewed_by = actor_user_id, reviewed_at = now(), approved_school_id = created_school.id, approved_user_id = applicant_user_id
   where id = application_row.id;
 
-  return query select created_school.id, created_onboarding.school_id;
+  return query select created_school.id, created_onboarding.id;
 end;
 $$;
 revoke all on function public.approve_school_application_from_service(uuid, uuid, text, uuid) from public, anon, authenticated;
