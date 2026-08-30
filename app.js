@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30.361';
+const APP_VERSION = '2026.08.30.363';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -2427,6 +2427,7 @@ async function logout() {
   if (!supabaseClient) return;
   persistNavigationState();
   signedOutMessage = 'Oturumunuz güvenli biçimde kapatıldı.';
+  if (!runsInAndroidAppShell()) await unregisterWebFcmToken().catch(() => {});
   const { error } = await supabaseClient.auth.signOut();
   if (error) {
     signedOutMessage = '';
@@ -2580,7 +2581,8 @@ async function registerNativeFcmToken() {
   if (!state.userId || !state.nativeFcmToken) return false;
   const { error } = await supabaseClient.rpc('register_fcm_token', {
     fcm_registration_token: state.nativeFcmToken,
-    fcm_device_name: navigator.userAgent
+    fcm_device_name: navigator.userAgent,
+    fcm_platform: 'android'
   });
   if (error) throw error;
   clearNativeBridgeFragment();
@@ -2600,7 +2602,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.11.269', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.30.363', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -2735,6 +2737,90 @@ async function createTrainingAndSendNotification(training) {
 
 let pushStatusRefreshPromise = null;
 let enablePhoneNotificationsPromise = null;
+let webFirebaseMessagingPromise = null;
+let webFirebaseForegroundUnsubscribe = null;
+let webFirebaseToken = '';
+
+function firebaseWebConfigIsReady() {
+  const config = window.SasaFirebaseWebConfig || {};
+  return ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'vapidKey']
+    .every(key => typeof config[key] === 'string' && config[key].trim().length > 0);
+}
+
+async function getWebFirebaseMessaging(registration) {
+  if (!firebaseWebConfigIsReady()) return null;
+  if (!webFirebaseMessagingPromise) {
+    webFirebaseMessagingPromise = (async () => {
+      const config = window.SasaFirebaseWebConfig;
+      const [{ getApps, initializeApp }, { getMessaging, getToken, onMessage, deleteToken }] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js')
+      ]);
+      const app = getApps().find(item => item.options.projectId === config.projectId) || initializeApp(config);
+      const messaging = getMessaging(app);
+      if (!webFirebaseForegroundUnsubscribe) {
+        webFirebaseForegroundUnsubscribe = onMessage(messaging, payload => {
+          const data = payload?.data || {};
+          if (data.title || data.body) {
+            showToast(data.title ? `${data.title}: ${data.body || 'Yeni bildiriminiz var.'}` : (data.body || 'Yeni bildiriminiz var.'));
+          }
+        });
+      }
+      return {
+        async token() {
+          return getToken(messaging, {
+            vapidKey: config.vapidKey,
+            serviceWorkerRegistration: registration
+          });
+        },
+        async deleteToken() {
+          return deleteToken(messaging);
+        }
+      };
+    })().catch(error => {
+      webFirebaseMessagingPromise = null;
+      console.warn('Firebase Web Messaging başlatılamadı; klasik Web Push kullanılacak.', error);
+      return null;
+    });
+  }
+  return webFirebaseMessagingPromise;
+}
+
+async function registerWebFcmToken(registration) {
+  const firebaseMessaging = await getWebFirebaseMessaging(registration);
+  if (!firebaseMessaging || !state.userId) return false;
+  const token = await firebaseMessaging.token();
+  if (!token) return false;
+  const { error } = await supabaseClient.rpc('register_fcm_token', {
+    fcm_registration_token: token,
+    fcm_device_name: navigator.userAgent,
+    fcm_platform: 'web'
+  });
+  if (error) throw error;
+  webFirebaseToken = token;
+  return true;
+}
+
+async function unregisterWebFcmToken() {
+  if (!state.userId) return;
+  let firebaseMessaging = await webFirebaseMessagingPromise?.catch(() => null);
+  if (!firebaseMessaging && firebaseWebConfigIsReady()) {
+    const registration = await getPushRegistration().catch(() => null);
+    if (registration) firebaseMessaging = await getWebFirebaseMessaging(registration);
+  }
+  // Sayfa yenilendiyse anahtar yalnızca bellekte olmayabilir. İzin zaten verilmiş
+  // ise Firebase'den aynı tarayıcı anahtarını sessizce alıp sadece onu kaldırırız.
+  const token = webFirebaseToken || await firebaseMessaging?.token().catch(() => '');
+  if (!token) return;
+  const { error } = await supabaseClient
+    .from('fcm_tokens')
+    .delete()
+    .eq('user_id', state.userId)
+    .eq('token', token);
+  if (error) throw error;
+  await firebaseMessaging?.deleteToken().catch(() => {});
+  webFirebaseToken = '';
+}
 
 async function refreshPushStatus(shouldRender = false) {
   if (!pushStatusRefreshPromise) {
@@ -2790,6 +2876,23 @@ async function refreshPushStatus(shouldRender = false) {
         console.error('Bildirim altyapısı kullanılamıyor:', error);
         state.pushStatus = 'unsupported';
         return;
+      }
+
+      if (permission === 'granted' && state.userId) {
+        try {
+          if (await registerWebFcmToken(registration)) {
+            // Aynı tarayıcıdaki eski VAPID aboneliğini kaldırarak çift bildirimi önleriz.
+            if (subscription) {
+              await supabaseClient.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
+              await subscription.unsubscribe().catch(() => {});
+            }
+            state.pushStatus = 'enabled';
+            window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+            return;
+          }
+        } catch (error) {
+          console.warn('Firebase Web tokenı kaydedilemedi; klasik Web Push korunuyor:', error);
+        }
       }
 
       if (subscription) {
@@ -2897,15 +3000,7 @@ async function enablePhoneNotifications() {
     }
     const registration = await getPushRegistration();
     let subscription = await registration.pushManager.getSubscription();
-    if (subscription) {
-      await savePushSubscription(subscription);
-      window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
-      state.pushStatus = 'enabled';
-      return;
-    }
     let permission = currentPushPermission();
-    // Android uygulama izni yerel açılış ekranında alınır. Burada yalnızca
-    // web push izni istenir; böylece toggle tek bir izin penceresi gösterir.
     if (permission === 'default' && 'Notification' in window) {
       permission = await Notification.requestPermission();
     }
@@ -2913,6 +3008,25 @@ async function enablePhoneNotifications() {
     if (permission !== 'granted') {
       state.pushStatus = permission === 'denied' ? 'denied' : 'disabled';
       throw new Error('Bildirim izni verilmedi.');
+    }
+    try {
+      if (await registerWebFcmToken(registration)) {
+        if (subscription) {
+          await supabaseClient.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
+          await subscription.unsubscribe().catch(() => {});
+        }
+        window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+        state.pushStatus = 'enabled';
+        return;
+      }
+    } catch (error) {
+      console.warn('Firebase Web tokenı alınamadı; klasik Web Push kullanılacak:', error);
+    }
+    if (subscription) {
+      await savePushSubscription(subscription);
+      window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
+      state.pushStatus = 'enabled';
+      return;
     }
     subscription = await createAndSavePushSubscription(registration);
     window.localStorage.setItem(PUSH_PREFERENCE_STORAGE_KEY, 'enabled');
@@ -2932,6 +3046,7 @@ async function disablePhoneNotifications() {
     state.pushStatus = 'disabled';
     return;
   }
+  await unregisterWebFcmToken();
   const registration = await getPushRegistration();
   const subscription = await registration?.pushManager.getSubscription();
   if (subscription) {

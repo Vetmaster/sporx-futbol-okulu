@@ -286,12 +286,12 @@ Deno.serve(async request => {
     if (recipientsError) return json({ error: recipientsError.message }, 500);
   }
 
-  let fcmTokens: Array<{ id: number; user_id: string; token: string }> = [];
+  let fcmTokens: Array<{ id: number; user_id: string; token: string; platform: 'android' | 'web' }> = [];
   let subscriptions: Array<{ id: number; user_id: string; endpoint: string; p256dh: string; auth_secret: string }> = [];
   if (recipientIds.length) {
     const { data: tokenData } = await admin
       .from('fcm_tokens')
-      .select('id, user_id, token')
+      .select('id, user_id, token, platform')
       .in('user_id', recipientIds);
     fcmTokens = tokenData || [];
 
@@ -303,6 +303,9 @@ Deno.serve(async request => {
   }
 
   const deliveredRecipientIds = new Set<string>();
+  const webFcmRecipientIds = new Set(
+    fcmTokens.filter(token => token.platform === 'web').map(token => token.user_id)
+  );
   if (firebaseServiceAccountJson && fcmTokens.length) {
     try {
       const firebaseCredentials = JSON.parse(firebaseServiceAccountJson);
@@ -330,17 +333,29 @@ Deno.serve(async request => {
                   title: notification.title,
                   body: notification.body,
                   notificationId: String(notification.id),
-                  url: 'https://sasa-f.com/?open=notifications'
+                  url: 'https://sasa-f.com/?open=notifications',
+                  icon: 'https://sasa-f.com/sasa-f-icon-v3.svg',
+                  badge: 'https://sasa-f.com/sasa-f-notification-badge.png',
+                  tag: `sasa-f-${notification.id}`
                 },
-                android: {
-                  priority: 'HIGH',
-                  notification: {
-                    channel_id: 'sasa_f_notifications',
-                    icon: 'ic_notification_status',
-                    color: '#E31B15',
-                    sound: 'default'
+                ...(device.platform === 'web'
+                  ? {
+                    webpush: {
+                      headers: { TTL: '3600', Urgency: 'high' },
+                      fcm_options: { link: 'https://sasa-f.com/?open=notifications' }
+                    }
                   }
-                }
+                  : {
+                    android: {
+                      priority: 'HIGH',
+                      notification: {
+                        channel_id: 'sasa_f_notifications',
+                        icon: 'ic_notification_status',
+                        color: '#E31B15',
+                        sound: 'default'
+                      }
+                    }
+                  })
               }
             })
           }),
@@ -373,8 +388,10 @@ Deno.serve(async request => {
     url: 'https://sasa-f.com/?open=notifications'
   });
 
+  // Aynı tarayıcı hem eski VAPID hem web FCM ile kayıtlıysa çift bildirim
+  // göndermemek için web FCM tokenı bulunan kullanıcıda yalnızca FCM tercih edilir.
   const webFallbackSubscriptions = vapidPublicKey && vapidPrivateKey
-    ? subscriptions.filter(subscription => !deliveredRecipientIds.has(subscription.user_id))
+    ? subscriptions.filter(subscription => !webFcmRecipientIds.has(subscription.user_id))
     : [];
   if (vapidPublicKey && vapidPrivateKey) {
     webpush.setVapidDetails('mailto:00vetmaster00@gmail.com', vapidPublicKey, vapidPrivateKey);
