@@ -814,4 +814,6 @@ html.show-domain-maintenance .domain-maintenance { display: grid; }
 .domain-maintenance .eyebrow { color: #dcecf2; }
 .domain-maintenance h1 { margin: 10px 0 14px; font-size: clamp(30px, 7vw, 48px); line-height: 1.04; }
 .domain-maintenance p { max-width: 400px; margin: 0 auto 22px; color: rgba(255,255,255,.9); font-size: 18px; line-height: 1.55; }
+.domain-maintenance-login { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 2px auto 20px; padding: 0 22px; border: 1px solid rgba(255,255,255,.58); border-radius: 12px; color: white; background: rgba(255,255,255,.14); font-weight: 800; text-decoration: none; transition: background .2s ease, transform .2s ease; }
+.domain-maintenance-login:hover, .domain-maintenance-login:focus-visible { color: white; background: rgba(255,255,255,.24); transform: translateY(-1px); }
 .domain-maintenance small { color: rgba(255,255,255,.7); }
