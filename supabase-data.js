@@ -156,6 +156,7 @@
   function create(client) {
     let schoolId = null;
     let userId = null;
+    let profileRole = null;
     let groupsByName = new Map();
 
     function requireContext() {
@@ -172,9 +173,15 @@
       schoolId = profile.school_id;
       userId = profile.user_id;
       const role = profile.role;
+      profileRole = role;
       const isCoach = role === 'coach';
       requireContext();
 
+      // Açılışta yalnızca genel bakışın ihtiyaç duyduğu güncel veriyi alırız.
+      // Geçmiş aidat, muhasebe, yoklama ve bildirim verileri ilgili ekran
+      // açıldığında load* yardımcılarıyla ayrıca yüklenir.
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const today = new Date().toISOString().slice(0, 10);
       const [
         schoolSettingsResult,
         groupsResult,
@@ -183,12 +190,7 @@
         trainingFieldsResult,
         studentsRows,
         feeRows,
-        trainingRows,
-        accountingRows,
-        notificationRows,
-        notificationReadRows,
-        attendanceRows,
-        accessRequestRows
+        trainingRows
       ] = await Promise.all([
         fetchSchoolSettings(client, schoolId, role),
         client.from('training_groups').select('id, name, sort_order').eq('school_id', schoolId).order('sort_order'),
@@ -198,41 +200,36 @@
         isCoach
           ? client.rpc('coach_student_directory', { target_school_id: schoolId }).then(({ data, error }) => { if (error) throw error; return data || []; })
           : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, monthly_fee_amount, attendance_rate, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId }),
-        isCoach ? Promise.resolve([]) : fetchAll(client, 'fee_periods', 'id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at', 'id', { school_id: schoolId }),
-        fetchAll(client, 'trainings', 'id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)', 'training_date', { school_id: schoolId }),
-        isCoach ? Promise.resolve([]) : fetchAll(client, 'accounting_entries', 'id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference', 'occurred_on', { school_id: schoolId }),
-        fetchAll(client, 'notifications', 'id, audience, title, body, status, sent_by, sent_at, created_at, recipient_count, delivered_count, read_count', 'created_at', { school_id: schoolId }),
-        fetchAll(client, 'notification_reads', 'notification_id, read_at', 'notification_id'),
-        fetchAll(client, 'attendance_sessions', 'id, training_id, taken_at, attendance_records(student_id, present)', 'taken_at', { school_id: schoolId }),
-        isCoach ? Promise.resolve([]) : fetchAccessRequests(client, schoolId)
+        isCoach
+          ? Promise.resolve([])
+          : client.from('fee_periods').select('id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at').eq('school_id', schoolId).eq('fee_month', `${currentMonth}-01`),
+        client.from('trainings').select('id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)').eq('school_id', schoolId).gte('training_date', today).order('training_date').order('start_time')
       ]);
+
+      const accountingRows = [];
+      const notificationRows = [];
+      const notificationReadRows = [];
+      const attendanceRows = [];
+      const accessRequestRows = [];
 
       if (schoolSettingsResult.error) throw schoolSettingsResult.error;
       if (groupsResult.error) throw groupsResult.error;
       if (trainingTypesResult.error) throw trainingTypesResult.error;
       if (trainingCoachesResult.error) throw trainingCoachesResult.error;
       if (trainingFieldsResult.error) throw trainingFieldsResult.error;
+      if (feeRows.error) throw feeRows.error;
+      if (trainingRows.error) throw trainingRows.error;
       const groups = groupsResult.data || [];
       groupsByName = new Map(groups.map(group => [group.name, group.id]));
+      const currentFeeRows = feeRows.data || feeRows;
+      const currentTrainingRows = trainingRows.data || trainingRows;
 
       const feesByStudent = new Map();
-      feeRows.forEach(row => {
+      currentFeeRows.forEach(row => {
         if (!feesByStudent.has(Number(row.student_id))) feesByStudent.set(Number(row.student_id), []);
         feesByStudent.get(Number(row.student_id)).push(row);
       });
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const studentPhotoPaths = [...new Set(studentsRows.map(row => row.profile_photo_path).filter(Boolean))];
       const studentPhotoUrls = new Map();
-      if (studentPhotoPaths.length) {
-        const { data: signedPhotos, error: signedPhotoError } = await client.storage
-          .from('student-profile-photos')
-          .createSignedUrls(studentPhotoPaths, 60 * 60);
-        if (!signedPhotoError) {
-          (signedPhotos || []).forEach(photo => {
-            if (photo.path && photo.signedUrl && !photo.error) studentPhotoUrls.set(photo.path, photo.signedUrl);
-          });
-        }
-      }
 
       const students = studentsRows.map(row => {
         const fees = feesByStudent.get(Number(row.id)) || [];
@@ -270,7 +267,7 @@
         };
       });
 
-      const trainings = trainingRows.map(row => ({
+      const trainings = currentTrainingRows.map(row => ({
         id: Number(row.id),
         date: row.training_date,
         time: String(row.start_time || '').slice(0, 5),
@@ -371,6 +368,127 @@
         notifications,
         attendanceRecords,
         accessRequests
+      };
+    }
+
+    function applyDateRange(query, column, { from = '', to = '' } = {}) {
+      if (from) query = query.gte(column, from);
+      if (to) query = query.lte(column, to);
+      return query;
+    }
+
+    async function loadFeePeriods({ from = '', to = '', studentId = null } = {}) {
+      requireContext();
+      let query = client
+        .from('fee_periods')
+        .select('id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at')
+        .eq('school_id', schoolId)
+        .order('fee_month', { ascending: false });
+      if (studentId) query = query.eq('student_id', studentId);
+      query = applyDateRange(query, 'fee_month', { from: from ? `${monthKey(from)}-01` : '', to: to ? `${monthKey(to)}-01` : '' });
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function loadAccountingEntries({ from = '', to = '' } = {}) {
+      requireContext();
+      let query = client
+        .from('accounting_entries')
+        .select('id, student_id, fee_period_id, occurred_on, title, kind, amount, payment_method, source, reference')
+        .eq('school_id', schoolId)
+        .order('occurred_on', { ascending: false });
+      query = applyDateRange(query, 'occurred_on', { from, to });
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function loadAttendanceSessions({ from = '', toExclusive = '' } = {}) {
+      requireContext();
+      let query = client
+        .from('attendance_sessions')
+        .select('id, training_id, taken_at, attendance_records(student_id, present)')
+        .eq('school_id', schoolId)
+        .order('taken_at', { ascending: false });
+      if (from) query = query.gte('taken_at', from);
+      if (toExclusive) query = query.lt('taken_at', toExclusive);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function loadTrainings({ from = '', to = '' } = {}) {
+      requireContext();
+      let query = client
+        .from('trainings')
+        .select('id, training_date, start_time, duration_minutes, title, coach, field, training_groups(name)')
+        .eq('school_id', schoolId)
+        .order('training_date', { ascending: true })
+        .order('start_time', { ascending: true });
+      query = applyDateRange(query, 'training_date', { from, to });
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function loadNotifications() {
+      requireContext();
+      const [notificationsResult, readsResult] = await Promise.all([
+        client.from('notifications').select('id, audience, title, body, status, sent_by, sent_at, created_at, recipient_count, delivered_count, read_count').eq('school_id', schoolId).order('created_at', { ascending: false }).limit(100),
+        client.from('notification_reads').select('notification_id, read_at').eq('user_id', userId).order('notification_id')
+      ]);
+      if (notificationsResult.error) throw notificationsResult.error;
+      if (readsResult.error) throw readsResult.error;
+      return { notifications: notificationsResult.data || [], reads: readsResult.data || [] };
+    }
+
+    async function loadAccessRequests() {
+      requireContext();
+      return fetchAccessRequests(client, schoolId);
+    }
+
+    async function loadStudents() {
+      requireContext();
+      if (profileRole === 'coach') {
+        const { data, error } = await client.rpc('coach_student_directory', { target_school_id: schoolId });
+        if (error) throw error;
+        return data || [];
+      }
+      return fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, monthly_fee_amount, attendance_rate, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId });
+    }
+
+    async function loadStudentPhotoUrls(paths) {
+      const uniquePaths = [...new Set((paths || []).filter(Boolean))];
+      if (!uniquePaths.length) return new Map();
+      const { data, error } = await client.storage
+        .from('student-profile-photos')
+        .createSignedUrls(uniquePaths, 60 * 60);
+      if (error) throw error;
+      return new Map((data || []).filter(photo => photo.path && photo.signedUrl && !photo.error).map(photo => [photo.path, photo.signedUrl]));
+    }
+
+    async function loadConfiguration(role = profileRole) {
+      requireContext();
+      const [schoolSettingsResult, groupsResult, typesResult, coachesResult, fieldsResult] = await Promise.all([
+        fetchSchoolSettings(client, schoolId, role),
+        client.from('training_groups').select('id, name, sort_order').eq('school_id', schoolId).order('sort_order'),
+        fetchTrainingTypes(client, schoolId),
+        fetchTrainingCoaches(client, schoolId),
+        fetchTrainingFields(client, schoolId)
+      ]);
+      if (schoolSettingsResult.error) throw schoolSettingsResult.error;
+      if (groupsResult.error) throw groupsResult.error;
+      if (typesResult.error) throw typesResult.error;
+      if (coachesResult.error) throw coachesResult.error;
+      if (fieldsResult.error) throw fieldsResult.error;
+      groupsByName = new Map((groupsResult.data || []).map(group => [group.name, group.id]));
+      return {
+        school: schoolSettingsResult.data || {},
+        groups: groupsResult.data || [],
+        trainingTypes: (typesResult.data || []).map(item => item.name),
+        trainingCoaches: (coachesResult.data || []).map(item => item.name),
+        trainingFields: (fieldsResult.data || []).map(item => item.name)
       };
     }
 
@@ -1100,6 +1218,15 @@
 
     return {
       load,
+      loadFeePeriods,
+      loadAccountingEntries,
+      loadAttendanceSessions,
+      loadTrainings,
+      loadNotifications,
+      loadAccessRequests,
+      loadStudents,
+      loadStudentPhotoUrls,
+      loadConfiguration,
       listSchools,
       listUserSchools,
       activateUserSchool,
