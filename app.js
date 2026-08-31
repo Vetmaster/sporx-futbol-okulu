@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.30.363';
+const APP_VERSION = '2026.08.31.364';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -396,10 +396,14 @@ function navigateToPage(page, updates = {}) {
   if (pageChanged && browserNavigationReady) {
     window.history.pushState(browserNavigationState(), document.title);
   }
-  if (targetPage === 'notifications') {
-    refreshPushStatus(true);
-    markAllNotificationsRead();
-  }
+  // Sayfa görünür olur; sayfaya ait veri arka planda getirilip yalnızca o
+  // ekran yeniden çizilir. Böylece sekme geçişi tüm okul verisini çekmez.
+  loadPageData(targetPage).then(() => {
+    if (state.page !== targetPage) return;
+    render();
+    if (targetPage === 'notifications') markAllNotificationsRead();
+  }).catch(error => console.error(`${targetPage} verisi yüklenemedi:`, error));
+  if (targetPage === 'notifications') refreshPushStatus(true);
 }
 
 function isMobileTabSwipeBlocked(target) {
@@ -799,6 +803,16 @@ function studentBirthYearLabel(student) {
   return year ? `${year} doğumlu` : 'Doğum yılı belirtilmedi';
 }
 function feeMonthKey(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
+function notificationDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Bugün';
+  if (date.toDateString() === yesterday.toDateString()) return 'Dün';
+  return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(date);
+}
 function formatFeeMonth(key) { const [year, month] = String(key).split('-').map(Number); return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)); }
 function upcomingFeeMonths(count = 6) {
   const cursor = new Date();
@@ -2088,6 +2102,11 @@ function showPasswordSetupScreen() {
 }
 
 function applyRemoteData(remoteData) {
+  const schoolChanged = state.schoolId && state.schoolId !== remoteData.schoolId;
+  if (schoolChanged && typeof loadedPageData !== 'undefined') {
+    loadedPageData.clear();
+    pendingPageDataLoads.clear();
+  }
   state.schoolId = remoteData.schoolId;
   state.schoolName = remoteData.schoolName || state.schools.find(school => school.id === remoteData.schoolId)?.name || '';
   state.schoolSubscriptionPlan = remoteData.subscriptionPlan || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionPlan || 'standard';
@@ -2123,6 +2142,147 @@ function applyRemoteData(remoteData) {
   syncTrainingCoachOptions();
   syncTrainingFieldOptions();
   persistLocalData();
+}
+
+// Sayfa verileri açılışta topluca çekilmez. Bu yardımcılar ilgili sayfaya
+// girildiğinde yalnız o modülün güncel dönem verisini Supabase'den alır.
+const loadedPageData = new Map();
+const pendingPageDataLoads = new Map();
+
+function monthBounds(month = feeMonthKey()) {
+  const [year, monthNumber] = String(month).split('-').map(Number);
+  const start = new Date(year, monthNumber - 1, 1);
+  const next = new Date(year, monthNumber, 1);
+  const end = new Date(year, monthNumber, 0);
+  return {
+    from: localDateValue(start),
+    to: localDateValue(end),
+    next: localDateValue(next)
+  };
+}
+
+function applyFeeRows(rows) {
+  const currentMonth = feeMonthKey();
+  rows.forEach(row => {
+    const student = state.students.find(item => Number(item.id) === Number(row.student_id));
+    if (!student) return;
+    const month = String(row.fee_month || '').slice(0, 7);
+    if (!month) return;
+    student.feePayments ||= {};
+    student.feeHistory ||= {};
+    student.feePayments[month] = row.status;
+    student.feeHistory[month] = {
+      status: row.status,
+      amount: row.amount === null ? null : Number(row.amount),
+      note: row.note,
+      source: row.source,
+      paymentMethod: row.payment_method,
+      paidAt: row.paid_at,
+      createdAt: row.created_at
+    };
+    if (month === currentMonth) student.fee = row.status;
+  });
+}
+
+function mapAccountingRows(rows) {
+  return rows.map(row => ({
+    id: Number(row.id), date: row.occurred_on, title: row.title,
+    type: row.kind === 'income' ? 'Gelir' : 'Gider', amount: Number(row.amount), kind: row.kind,
+    paymentMethod: row.payment_method, source: row.source, reference: row.reference,
+    studentId: row.student_id ? Number(row.student_id) : null,
+    feePeriodId: row.fee_period_id ? Number(row.fee_period_id) : null
+  }));
+}
+
+function mapAttendanceRows(rows) {
+  return rows.map(row => ({
+    id: Number(row.id), trainingId: Number(row.training_id), date: row.taken_at,
+    presentStudentIds: (row.attendance_records || []).filter(record => record.present).map(record => Number(record.student_id))
+  }));
+}
+
+function mapTrainingRows(rows) {
+  return rows.map(row => ({
+    id: Number(row.id), date: row.training_date, time: String(row.start_time || '').slice(0, 5),
+    duration: Number(row.duration_minutes), group: row.training_groups?.name || 'Atanmamış',
+    title: row.title, coach: row.coach, field: row.field
+  }));
+}
+
+function mapNotificationRows(rows, reads) {
+  const readIds = new Set(reads.map(row => Number(row.notification_id)));
+  return rows.map(row => {
+    const timestamp = row.sent_at || row.created_at;
+    return {
+      id: Number(row.id), date: notificationDate(timestamp), title: row.title, body: row.body,
+      audience: row.audience, sentBy: row.sent_by,
+      time: new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp)),
+      status: row.status === 'sent' ? 'Teslim edildi' : row.status === 'failed' || (row.status === 'queued' && Date.now() - new Date(timestamp).getTime() > 120000) ? 'Başarısız' : row.status === 'queued' ? 'Sırada' : 'Taslak',
+      recipientCount: row.recipient_count === null ? null : Number(row.recipient_count),
+      deliveredCount: row.delivered_count === null ? null : Number(row.delivered_count),
+      readCount: Number(row.read_count || 0), read: readIds.has(Number(row.id))
+    };
+  });
+}
+
+async function loadPageData(page = state.page, { force = false } = {}) {
+  if (!remoteDataStore || !state.schoolId || !state.userId) return;
+  const accountingMonth = state.accountingPeriod === 'month' && state.accountingMonth ? state.accountingMonth : feeMonthKey();
+  const attendanceMonth = state.studentAttendanceMonth || feeMonthKey();
+  const key = `${page}:${accountingMonth}:${attendanceMonth}:${state.accountingDateRangeStart}:${state.accountingDateRangeEnd}`;
+  if (!force && loadedPageData.get(key)) return;
+  if (pendingPageDataLoads.has(key)) return pendingPageDataLoads.get(key);
+
+  const task = (async () => {
+    if (['students', 'studentProfile', 'studentAttendanceHistory'].includes(page)) {
+      const selectedStudent = state.students.find(item => Number(item.id) === Number(state.selectedStudentId)) || currentParentStudent();
+      const paths = page === 'students'
+        ? state.students.map(student => student.photoPath).filter(Boolean)
+        : [selectedStudent?.photoPath].filter(Boolean);
+      try {
+        const photoUrls = await remoteDataStore.loadStudentPhotoUrls(paths);
+        state.students.forEach(student => {
+          if (photoUrls.has(student.photoPath)) student.photoUrl = photoUrls.get(student.photoPath);
+        });
+      } catch (error) {
+        console.warn('Öğrenci fotoğrafları yüklenemedi:', error);
+      }
+    }
+    if (['fees', 'studentProfile', 'parentPayment', 'parentBankTransfer', 'parentCardPayment'].includes(page)) {
+      const selectedStudent = state.students.find(item => Number(item.id) === Number(state.selectedStudentId)) || currentParentStudent();
+      const from = page === 'studentProfile' && selectedStudent?.enrollmentDate
+        ? String(selectedStudent.enrollmentDate).slice(0, 7)
+        : feeMonthKey();
+      applyFeeRows(await remoteDataStore.loadFeePeriods({ from, to: feeMonthKey(), studentId: page === 'fees' ? null : selectedStudent?.id }));
+    }
+    if (['dashboard', 'accounting', 'accountingEntries'].includes(page) && !isCoachRole() && state.role !== 'parent') {
+      const bounds = monthBounds(accountingMonth);
+      const from = state.accountingDateRangeStart || (state.accountingPeriod === 'today' ? localDateValue() : bounds.from);
+      const to = state.accountingDateRangeEnd || (state.accountingPeriod === 'today' ? localDateValue() : bounds.to);
+      state.accountingEntries = mapAccountingRows(await remoteDataStore.loadAccountingEntries({ from, to }));
+    }
+    if ((page === 'dashboard' && isCoachRole()) || ['attendance', 'studentAttendanceHistory', 'studentProfile'].includes(page)) {
+      const bounds = monthBounds(attendanceMonth);
+      const from = page === 'studentProfile' ? bounds.from : (state.studentAttendanceShowAll ? '' : bounds.from);
+      const toExclusive = page === 'studentProfile' ? bounds.next : (state.studentAttendanceShowAll ? '' : bounds.next);
+      state.attendanceRecords = mapAttendanceRows(await remoteDataStore.loadAttendanceSessions({ from, toExclusive }));
+    }
+    if (page === 'trainings') {
+      const current = localDateValue();
+      state.trainings = mapTrainingRows(await remoteDataStore.loadTrainings({ from: state.showPastTrainings ? '' : current }));
+    }
+    if (page === 'notifications') {
+      const notificationData = await remoteDataStore.loadNotifications();
+      state.notifications = mapNotificationRows(notificationData.notifications, notificationData.reads);
+    }
+    if (page === 'userApprovals') {
+      const rows = await remoteDataStore.loadAccessRequests();
+      state.accessRequests = rows.map(row => ({ id: Number(row.id), userId: row.user_id, email: row.email, fullName: row.full_name, requestedRole: row.requested_role, status: row.status, emailVerifiedAt: row.email_verified_at, reviewedAt: row.reviewed_at, createdAt: row.created_at }));
+    }
+    loadedPageData.set(key, true);
+  })().finally(() => pendingPageDataLoads.delete(key));
+  pendingPageDataLoads.set(key, task);
+  return task;
 }
 
 async function refreshSchools() {
@@ -2170,6 +2330,9 @@ const REALTIME_TABLES = [
   'profiles',
   'schools',
   'training_groups',
+  'training_types',
+  'training_coaches',
+  'training_fields',
   'students',
   'fee_periods',
   'trainings',
@@ -2186,11 +2349,13 @@ let realtimeChannel = null;
 let realtimeRefreshTimer = null;
 let realtimeRefreshInFlight = false;
 let realtimeRefreshQueued = false;
+const realtimeChangedTables = new Set();
 
 function stopRealtimeSync() {
   window.clearTimeout(realtimeRefreshTimer);
   realtimeRefreshTimer = null;
   realtimeRefreshQueued = false;
+  realtimeChangedTables.clear();
   if (realtimeChannel && supabaseClient) supabaseClient.removeChannel(realtimeChannel);
   realtimeChannel = null;
 }
@@ -2203,9 +2368,62 @@ async function refreshRemoteDataFromRealtime() {
   }
   realtimeRefreshInFlight = true;
   try {
-    if (!isActualSuperAdmin()) state.schools = await remoteDataStore.listUserSchools();
-    const remoteData = await remoteDataStore.load({ school_id: state.schoolId, user_id: state.userId, role: state.actualRole });
-    applyRemoteData(remoteData);
+    const tables = new Set(realtimeChangedTables);
+    realtimeChangedTables.clear();
+    const currentMonth = feeMonthKey();
+    const tasks = [];
+    if (tables.has('students')) {
+      tasks.push(remoteDataStore.loadStudents().then(rows => {
+        const byId = new Map(state.students.map(student => [Number(student.id), student]));
+        state.students = rows.map(row => {
+          const previous = byId.get(Number(row.id));
+          return {
+            id: Number(row.id), name: row.full_name,
+            birth: row.birth_date || row.birth_year || '',
+            group: (state.actualRole === 'coach' ? row.group_name : row.training_groups?.name) || 'Atanmamış',
+            position: (state.actualRole === 'coach' ? row.player_position : row.position) || '',
+            parent: row.guardian_name || '', phone: row.phone || '', email: row.email || '', address: row.address || '', notes: row.notes || '',
+            photoPath: row.profile_photo_path || '', photoUrl: previous?.photoPath === row.profile_photo_path ? previous.photoUrl : '',
+            playerCard: row.player_card && typeof row.player_card === 'object' ? row.player_card : null,
+            enrollmentDate: row.enrollment_date, feeTrackingStartDate: row.fee_tracking_start_date,
+            monthlyFeeAmount: Number(row.monthly_fee_amount) || 0,
+            feePayments: previous?.feePayments || {}, feeHistory: previous?.feeHistory || {},
+            fee: previous?.feePayments?.[currentMonth] || 'none', attendance: Number(row.attendance_rate || 0)
+          };
+        });
+      }));
+    }
+    if (tables.has('fee_periods')) {
+      tasks.push(remoteDataStore.loadFeePeriods({ from: currentMonth, to: currentMonth }).then(applyFeeRows));
+    }
+    if (tables.has('trainings')) {
+      tasks.push(remoteDataStore.loadTrainings({ from: state.showPastTrainings || state.page === 'trainings' ? '' : localDateValue() }).then(rows => { state.trainings = mapTrainingRows(rows); }));
+    }
+    if (tables.has('accounting_entries') && ['dashboard', 'accounting', 'accountingEntries'].includes(state.page)) {
+      const bounds = monthBounds(state.accountingMonth || currentMonth);
+      tasks.push(remoteDataStore.loadAccountingEntries({ from: bounds.from, to: bounds.to }).then(rows => { state.accountingEntries = mapAccountingRows(rows); }));
+    }
+    if ((tables.has('attendance_sessions') || tables.has('attendance_records')) && ['attendance', 'studentAttendanceHistory', 'studentProfile', 'dashboard'].includes(state.page)) {
+      const bounds = monthBounds(state.studentAttendanceMonth || currentMonth);
+      tasks.push(remoteDataStore.loadAttendanceSessions({ from: bounds.from, toExclusive: bounds.next }).then(rows => { state.attendanceRecords = mapAttendanceRows(rows); }));
+    }
+    if (tables.has('notifications') || tables.has('notification_reads') || tables.has('notification_recipients')) {
+      tasks.push(remoteDataStore.loadNotifications().then(data => { state.notifications = mapNotificationRows(data.notifications, data.reads); }));
+    }
+    if (tables.has('access_requests') && state.page === 'userApprovals') {
+      tasks.push(remoteDataStore.loadAccessRequests().then(rows => { state.accessRequests = rows.map(row => ({ id: Number(row.id), userId: row.user_id, email: row.email, fullName: row.full_name, requestedRole: row.requested_role, status: row.status, emailVerifiedAt: row.email_verified_at, reviewedAt: row.reviewed_at, createdAt: row.created_at })); }));
+    }
+    if (tables.has('schools') || tables.has('training_groups') || tables.has('training_types') || tables.has('training_coaches') || tables.has('training_fields') || tables.has('school_user_memberships')) {
+      tasks.push(remoteDataStore.loadConfiguration(state.actualRole).then(configuration => {
+        state.schoolName = configuration.school.name || state.schoolName;
+        state.monthlyFeeAmount = Number(configuration.school.monthly_fee_amount) || state.monthlyFeeAmount;
+        state.trainingTypes = configuration.trainingTypes;
+        state.trainingCoaches = configuration.trainingCoaches;
+        state.trainingFields = configuration.trainingFields;
+        GROUPS = configuration.groups.map(group => group.name);
+      }));
+    }
+    await Promise.all(tasks);
     render();
     if (state.page === 'notifications') markAllNotificationsRead();
   } catch (error) {
@@ -2232,8 +2450,9 @@ function scheduleRealtimeRefresh(payload = null) {
     supabaseClient.auth.signOut();
     return;
   }
+  if (payload?.table) realtimeChangedTables.add(payload.table);
   window.clearTimeout(realtimeRefreshTimer);
-  realtimeRefreshTimer = window.setTimeout(refreshRemoteDataFromRealtime, 300);
+  realtimeRefreshTimer = window.setTimeout(refreshRemoteDataFromRealtime, 700);
 }
 
 function startRealtimeSync() {
@@ -2413,7 +2632,10 @@ async function showAuthenticatedApp(user) {
   render();
   startRealtimeSync();
   refreshPushStatus(state.page === 'notifications' || state.page === 'dashboard');
-  if (state.page === 'notifications') markAllNotificationsRead();
+  loadPageData(state.page).then(() => {
+    render();
+    if (state.page === 'notifications') markAllNotificationsRead();
+  }).catch(error => console.error('Açılış sayfası verisi yüklenemedi:', error));
   })();
   activeProfileLoad = { userId: user.id, promise: loadPromise };
   try {
@@ -3848,6 +4070,7 @@ document.addEventListener('click', async event => {
     state.accountingDateRangeEnd = '';
     window.localStorage.setItem('sporx_accounting_period', state.accountingPeriod);
     render();
+    loadPageData(state.page, { force: true }).then(render).catch(error => console.error('Bugünkü muhasebe yüklenemedi:', error));
   }
   else if (action === 'accounting-date-range') openAccountingDateRangeDialog();
   else if (action === 'accounting-entries') navigateToPage('accountingEntries', { accountingFilter: actionButton.dataset.kind || 'all' });
@@ -4106,6 +4329,7 @@ appContent.addEventListener('change', async event => {
     state.accountingDateRangeEnd = '';
     state.accountingPeriod = state.accountingMonth ? 'month' : 'today';
     render();
+    loadPageData(state.page, { force: true }).then(render).catch(error => console.error('Muhasebe dönemi yüklenemedi:', error));
     return;
   }
   if (event.target.closest('#notificationForm') && event.target.name === 'audience') {
@@ -4128,16 +4352,19 @@ appContent.addEventListener('change', async event => {
   if (event.target.id === 'studentAttendanceMonthFilter') {
     state.studentAttendanceMonth = event.target.value;
     render();
+    loadPageData('studentAttendanceHistory', { force: true }).then(render).catch(error => console.error('Yoklama dönemi yüklenemedi:', error));
     return;
   }
   if (event.target.id === 'studentAttendanceShowAllFilter') {
     state.studentAttendanceShowAll = event.target.checked;
     render();
+    loadPageData('studentAttendanceHistory', { force: true }).then(render).catch(error => console.error('Yoklama geçmişi yüklenemedi:', error));
     return;
   }
   if (event.target.id === 'showPastTrainingsFilter') {
     state.showPastTrainings = event.target.checked;
     render();
+    loadPageData('trainings', { force: true }).then(render).catch(error => console.error('Antrenman takvimi yüklenemedi:', error));
     return;
   }
   if (event.target.id === 'showPastAttendanceFilter') {
@@ -4792,6 +5019,7 @@ document.querySelector('#accountingDateRangeForm').addEventListener('submit', ev
   state.accountingDateRangeEnd = endDate;
   document.querySelector('#accountingDateRangeDialog').close();
   render();
+  loadPageData(state.page, { force: true }).then(render).catch(error => console.error('Muhasebe aralığı yüklenemedi:', error));
 });
 appContent.addEventListener('toggle', event => {
   const details = event.target;
