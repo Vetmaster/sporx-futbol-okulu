@@ -20,7 +20,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
   <script src="custom-domain.js?v=2026.09.07.365"></script>
   <script src="firebase-web-config.js?v=2026.08.30.363"></script>
-  <link rel="stylesheet" href="styles.css?v=2026.08.30.361">
+  <link rel="stylesheet" href="styles.css?v=2026.09.07.366">
 </head>
 <body>
   <main class="domain-maintenance" id="domainMaintenance" aria-labelledby="maintenanceTitle">
@@ -189,6 +189,7 @@
         <button class="icon-button" type="button" data-dialog-close="studentDialog" aria-label="Kapat">×</button>
       </div>
       <div class="form-grid">
+        <label class="full-field is-hidden" id="studentActiveStatusField">Oyuncu durumu<select name="studentActiveStatus"><option value="active">Aktif oyuncu</option><option value="inactive">Pasif oyuncu</option></select><small class="form-hint">Pasif oyuncular yoklama listesinde görünmez.</small></label>
         <div class="student-photo-field full-field">
           <div class="student-photo-preview student-icon-avatar" id="studentPhotoPreview" aria-label="Öğrenci fotoğrafı önizlemesi"></div>
           <div class="student-photo-controls">
@@ -255,8 +256,9 @@
   <dialog id="attendanceDialog">
     <form method="dialog" class="dialog-form" id="attendanceForm">
       <div class="dialog-heading"><div><span class="eyebrow">YOKLAMA</span><h2 id="attendanceTitle">U12 Antrenmanı</h2></div><button class="icon-button" type="button" data-dialog-close="attendanceDialog" aria-label="Kapat">×</button></div>
+      <label class="attendance-search" for="attendanceStudentSearch"><span class="sr-only">Sporcu ara</span><input id="attendanceStudentSearch" type="search" autocomplete="off" placeholder="Sporcu ara"></label>
       <div id="attendanceList" class="attendance-list"></div>
-      <div class="dialog-actions"><button type="button" data-dialog-close="attendanceDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button">Yoklamayı kaydet</button></div>
+      <div class="dialog-actions"><button type="button" data-dialog-close="attendanceDialog" class="secondary-button">Vazgeç</button><button type="submit" value="default" class="primary-button" id="attendanceSubmitButton" disabled>Yoklamayı kaydet</button></div>
     </form>
   </dialog>
 
@@ -407,7 +409,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.08.31.364"></script>
-  <script src="app.js?v=2026.08.31.364"></script>
+  <script src="supabase-data.js?v=2026.09.07.366"></script>
+  <script src="app.js?v=2026.09.07.366"></script>
 </body>
 </html>
