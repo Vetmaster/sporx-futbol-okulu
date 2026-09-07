@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.31.364';
+const APP_VERSION = '2026.09.07.366';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -851,7 +851,7 @@ function monthlyFeeStatus(student, month) {
   return 'none';
 }
 function currentFeeStatus(student) { return monthlyFeeStatus(student, feeMonthKey()); }
-function isActiveStudent(student) { return ['late', 'paid'].includes(currentFeeStatus(student)); }
+function isActiveStudent(student) { return student?.active !== false; }
 function unpaidFeePeriods(student) { return monthlyFeePeriods(student).filter(month => monthlyFeeStatus(student, month) === 'late'); }
 function monthlyFeeAmount(student, month) {
   const historicalAmount = student?.feeHistory?.[month]?.amount;
@@ -998,7 +998,7 @@ function accountingPeriodEntries() {
     return dateOrder || (Number(right.id) || 0) - (Number(left.id) || 0);
   });
 }
-function studentsForTraining(training) { return state.students.filter(student => student.group === training.group); }
+function studentsForTraining(training) { return state.students.filter(student => student.group === training.group && isActiveStudent(student)); }
 function latestAttendanceForTraining(training) { return state.attendanceRecords.find(record => Number(record.trainingId) === Number(training.id)); }
 function attendanceEntriesForStudent(student) {
   const seenTrainingIds = new Set();
@@ -2388,7 +2388,8 @@ async function refreshRemoteDataFromRealtime() {
             enrollmentDate: row.enrollment_date, feeTrackingStartDate: row.fee_tracking_start_date,
             monthlyFeeAmount: Number(row.monthly_fee_amount) || 0,
             feePayments: previous?.feePayments || {}, feeHistory: previous?.feeHistory || {},
-            fee: previous?.feePayments?.[currentMonth] || 'none', attendance: Number(row.attendance_rate || 0)
+            fee: previous?.feePayments?.[currentMonth] || 'none', attendance: Number(row.attendance_rate || 0),
+            active: row.is_active !== false
           };
         });
       }));
@@ -3296,8 +3297,28 @@ function openAttendance(id) {
   const latestAttendance = latestAttendanceForTraining(training);
   state.activeTrainingId = training.id;
   document.querySelector('#attendanceTitle').textContent = `${training.group} · ${training.title}`;
-  setSafeHtml(document.querySelector('#attendanceList'), trainingStudents.map(s => `<div class="attendance-item"><input id="attendance-${s.id}" type="checkbox" data-student-id="${s.id}" aria-label="${escapeHtml(s.name)} antrenmana katıldı" ${!latestAttendance || latestAttendance.presentStudentIds.includes(s.id) ? 'checked' : ''}><span>${studentNameLink(s)} <small class="muted">· ${escapeHtml(s.group)}</small></span></div>`).join('') || '<div class="empty-state">Bu gruba kayıtlı öğrenci bulunmuyor.</div>');
+  document.querySelector('#attendanceStudentSearch').value = '';
+  setSafeHtml(document.querySelector('#attendanceList'), trainingStudents.map(s => {
+    const previousStatus = !latestAttendance ? '' : latestAttendance.presentStudentIds.includes(s.id) ? 'present' : 'absent';
+    return `<div class="attendance-item" data-student-id="${s.id}" data-attendance-search-name="${escapeHtml(s.name.toLocaleLowerCase('tr'))}"><span class="attendance-student">${studentNameLink(s)} <small class="muted">· ${escapeHtml(s.group)}</small></span><div class="attendance-status-options" role="group" aria-label="${escapeHtml(s.name)} yoklama durumu"><label class="attendance-status-option present"><input type="checkbox" data-attendance-status="present" data-student-id="${s.id}" aria-label="${escapeHtml(s.name)} geldi" ${previousStatus === 'present' ? 'checked' : ''}><span>Geldi</span></label><label class="attendance-status-option absent"><input type="checkbox" data-attendance-status="absent" data-student-id="${s.id}" aria-label="${escapeHtml(s.name)} gelmedi" ${previousStatus === 'absent' ? 'checked' : ''}><span>Gelmedi</span></label></div></div>`;
+  }).join('') || '<div class="empty-state">Bu gruba kayıtlı aktif öğrenci bulunmuyor.</div>');
+  updateAttendanceSubmitState();
   document.querySelector('#attendanceDialog').showModal();
+}
+
+function updateAttendanceSubmitState() {
+  const attendanceList = document.querySelector('#attendanceList');
+  const saveButton = document.querySelector('#attendanceSubmitButton');
+  if (!attendanceList || !saveButton) return;
+  const rows = [...attendanceList.querySelectorAll('.attendance-item[data-student-id]')];
+  saveButton.disabled = !rows.length || rows.some(row => !row.querySelector('[data-attendance-status]:checked'));
+}
+
+function filterAttendanceStudents(query = '') {
+  const normalizedQuery = String(query).trim().toLocaleLowerCase('tr');
+  document.querySelectorAll('#attendanceList .attendance-item').forEach(row => {
+    row.classList.toggle('is-filtered-out', Boolean(normalizedQuery) && !String(row.dataset.attendanceSearchName || '').includes(normalizedQuery));
+  });
 }
 
 function releaseStudentPhotoPreview() {
@@ -3423,11 +3444,13 @@ function openStudentDialog(student = null) {
   form.elements.email.value = student?.email || '';
   form.elements.address.value = student?.address || '';
   form.elements.studentMonthlyFeeAmount.value = String(monthlyFeeAmount(student, feeMonthKey()));
+  form.elements.studentActiveStatus.value = student?.active === false ? 'inactive' : 'active';
   showStudentPhotoPreview(student?.photoUrl || '');
   document.querySelector('#studentEyebrow').textContent = student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
   document.querySelector('#studentDialogTitle').textContent = student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
   document.querySelector('#studentSubmitButton').textContent = student ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet';
   document.querySelector('#guardianInviteHint').classList.toggle('is-hidden', Boolean(student));
+  document.querySelector('#studentActiveStatusField').classList.toggle('is-hidden', !student);
   const prepaymentSection = document.querySelector('#studentPrepaymentSection');
   prepaymentSection.classList.toggle('is-hidden', Boolean(student));
   prepaymentSection.open = false;
@@ -4722,7 +4745,7 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
       return;
     }
   }
-  const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim(), monthlyFeeAmount: studentMonthlyFeeAmount };
+  const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim(), monthlyFeeAmount: studentMonthlyFeeAmount, active: data.get('studentActiveStatus') !== 'inactive' };
   const wasEditing = Boolean(state.editingStudentId);
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
   const studentLimit = effectiveStudentLimit(state.schoolSubscriptionPlan);
@@ -4848,11 +4871,31 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     showRecordCreated(`Öğrenci kaydedildi${savedPrepaymentMonths.length ? ` ve ${savedPrepaymentMonths.length} aylık ön ödeme işlendi` : ''}; mevcut veli hesabına bağlandı.`);
   }
 });
+document.querySelector('#attendanceList').addEventListener('change', event => {
+  const input = event.target.closest('[data-attendance-status]');
+  if (!input) return;
+  const row = input.closest('.attendance-item');
+  if (!row) return;
+  const otherInput = row.querySelector(`[data-attendance-status="${input.dataset.attendanceStatus === 'present' ? 'absent' : 'present'}"]`);
+  if (input.checked && otherInput) otherInput.checked = false;
+  updateAttendanceSubmitState();
+});
+
+document.querySelector('#attendanceStudentSearch').addEventListener('input', event => filterAttendanceStudents(event.currentTarget.value));
+
 document.querySelector('#attendanceForm').addEventListener('submit', async event => {
   event.preventDefault();
-  const presentStudentIds = [...document.querySelectorAll('#attendanceList [data-student-id]:checked')].map(input => Number(input.dataset.studentId));
+  const attendanceRows = [...document.querySelectorAll('#attendanceList .attendance-item[data-student-id]')];
+  if (!attendanceRows.length || attendanceRows.some(row => !row.querySelector('[data-attendance-status]:checked'))) {
+    showToast('Yoklamayı kaydetmek için her sporcu için geldi veya gelmedi seçin.');
+    updateAttendanceSubmitState();
+    return;
+  }
+  const presentStudentIds = attendanceRows
+    .filter(row => row.querySelector('[data-attendance-status="present"]:checked'))
+    .map(row => Number(row.dataset.studentId));
   const training = state.trainings.find(item => Number(item.id) === Number(state.activeTrainingId));
-  const allStudentIds = training ? studentsForTraining(training).map(student => student.id) : [];
+  const allStudentIds = attendanceRows.map(row => Number(row.dataset.studentId));
   let sessionId;
   const saved = await runRemoteMutation(async () => {
     sessionId = await remoteDataStore.saveAttendance(state.activeTrainingId, allStudentIds, presentStudentIds);
