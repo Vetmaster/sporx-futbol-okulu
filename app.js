@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.07.368';
+const APP_VERSION = '2026.09.07.369';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3451,6 +3451,7 @@ function openStudentDialog(student = null) {
     control.disabled = coachStatusOnly && control.name !== 'studentActiveStatus';
   });
   document.querySelector('.student-photo-field').classList.toggle('is-hidden', coachStatusOnly);
+  form.querySelectorAll('.student-private-field').forEach(field => field.classList.toggle('is-hidden', coachStatusOnly));
   showStudentPhotoPreview(student?.photoUrl || '');
   document.querySelector('#studentEyebrow').textContent = coachStatusOnly ? 'OYUNCU DURUMU' : student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
   document.querySelector('#studentDialogTitle').textContent = coachStatusOnly ? 'Aktiflik durumunu güncelle' : student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
