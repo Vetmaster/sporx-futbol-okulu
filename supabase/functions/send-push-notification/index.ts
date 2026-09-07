@@ -60,6 +60,7 @@ Deno.serve(async request => {
   if (!requestedSchoolId) {
     return json({ error: 'Forbidden school context' }, 403);
   }
+  const requestedAction = String(body.action || '');
   if (!isPlatformSuperAdmin) {
     const { data: callerMembership, error: membershipError } = await admin
       .from('school_user_memberships')
@@ -67,7 +68,8 @@ Deno.serve(async request => {
       .eq('user_id', userResult.user.id)
       .eq('school_id', requestedSchoolId)
       .maybeSingle();
-    if (membershipError || callerMembership?.role !== 'admin') {
+    const canCreateTrainingAsCoach = requestedAction === 'create-training-and-send' && callerMembership?.role === 'coach';
+    if (membershipError || (callerMembership?.role !== 'admin' && !canCreateTrainingAsCoach)) {
       return json({ error: 'Forbidden school context' }, 403);
     }
   }

@@ -6,8 +6,8 @@
     return String(value || '').slice(0, 7);
   }
 
-  function normalizeSubscriptionPlan(value) {
-    return ({ starter: 'standard', professional: 'premium', enterprise: 'pro', custom: 'pro' })[value] || value || 'standard';
+  function normalizeSubscriptionPlan() {
+    return 'standard';
   }
 
   function normalizeSubscriptionStatus(value) {
@@ -50,13 +50,13 @@
     return remainder === 1;
   }
 
-  function subscriptionPlanPrice(value, billingPeriod = 'monthly') {
+  function subscriptionPlanPrice(_value, billingPeriod = 'monthly') {
     const prices = {
-      standard: { monthly: 799, quarterly: 2199, yearly: 7990 },
-      premium: { monthly: 1299, quarterly: 3599, yearly: 12990 },
-      pro: { monthly: 1899, quarterly: 5199, yearly: 18990 }
+      monthly: 799,
+      quarterly: 2199,
+      yearly: 7990
     };
-    return prices[normalizeSubscriptionPlan(value)]?.[billingPeriod] || prices.standard.monthly;
+    return prices[billingPeriod] || prices.monthly;
   }
 
   function notificationDate(value) {
@@ -556,10 +556,10 @@
       return Array.isArray(data) ? data[0] : data;
     }
 
-    async function updateSchoolSubscription({ schoolId: targetSchoolId, plan, status, trialMode, billingPeriod, startsOn, endsOn }) {
+    async function updateSchoolSubscription({ schoolId: targetSchoolId, status, trialMode, billingPeriod, startsOn, endsOn }) {
       const parameters = {
         target_school_id: targetSchoolId,
-        plan_code: plan,
+        plan_code: 'standard',
         subscription_state: status,
         trial_mode_code: trialMode,
         billing_period_code: billingPeriod,
@@ -572,7 +572,7 @@
       if (error && status !== 'trial' && /trial_mode_code|Could not find the function|function .*update_school_subscription/i.test(String(error.message || ''))) {
         ({ data, error } = await client.rpc('update_school_subscription', {
           target_school_id: targetSchoolId,
-          plan_code: plan,
+          plan_code: 'standard',
           subscription_state: status,
           billing_period_code: billingPeriod,
           starts_on: startsOn,
@@ -672,9 +672,9 @@
       return Array.isArray(data) ? data[0] : data;
     }
 
-    async function createSubscriptionPaymentReport({ plan, billingPeriod, note }) {
+    async function createSubscriptionPaymentReport({ billingPeriod, note }) {
       const { data, error } = await client.rpc('create_subscription_payment_report', {
-        requested_plan: plan,
+        requested_plan: 'standard',
         requested_billing_period: billingPeriod,
         payer_note: note || null
       });

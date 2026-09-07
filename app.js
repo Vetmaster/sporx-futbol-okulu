@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.07.369';
+const APP_VERSION = '2026.09.07.370';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -70,11 +70,7 @@ const SUBSCRIPTION_PERIODS = {
   yearly: { name: 'Yıllık', months: 12 }
 };
 const TRIAL_MODES = { time_limited: 'Süreli deneme' };
-const SUBSCRIPTION_PLANS = {
-  standard: { name: 'Standart', prices: { monthly: 799, quarterly: 2199, yearly: 7990 }, studentLimit: 100, features: ['Temel Okul Yönetimi', '100 öğrenciye kadar kayıt'], unavailable: ['Online Ödeme', 'Online Market', 'Scoutlarla Video Paylaşımı'] },
-  premium: { name: 'Plus', prices: { monthly: 1299, quarterly: 3599, yearly: 12990 }, studentLimit: 500, features: ['Temel Okul Yönetimi', '500 öğrenciye kadar kayıt', 'Online ödeme', 'Öğrenci performans değerlendirme'], unavailable: ['Online Market', 'Scoutlarla Video Paylaşımı'] },
-  pro: { name: 'Premium', prices: { monthly: 1899, quarterly: 5199, yearly: 18990 }, studentLimit: null, features: ['Temel Okul Yönetimi', 'Sınırsız öğrenci kaydı', 'Online ödeme', 'Öğrenci performans değerlendirme', 'Online market', 'Scoutlarla video paylaşımı'], unavailable: [] }
-};
+const STANDARD_SUBSCRIPTION_PRICES = { monthly: 799, quarterly: 2199, yearly: 7990 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', stopped: 'Durduruldu' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün' }
@@ -254,7 +250,7 @@ const navItems = {
   dashboard: { label: 'Genel Bakış', icon: '⌂', roles: ['super_admin', 'admin', 'coach', 'parent'] },
   schools: { label: 'Okullar', icon: MENU_ICONS.schools, roles: ['super_admin'] },
   settings: { label: 'Ayarlar', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
-  subscriptions: { label: 'Paket ve Abonelik', icon: MENU_ICONS.subscriptions, roles: ['super_admin'], hidden: true },
+  subscriptions: { label: 'Abonelikler', icon: MENU_ICONS.subscriptions, roles: ['super_admin'], hidden: true },
   applications: { label: 'Başvurular', icon: '✦', roles: ['super_admin'] },
   subscriptionPayments: { label: 'Ödemeler', icon: MENU_ICONS.subscriptions, roles: ['super_admin'] },
   onboarding: { label: 'Aboneliği başlat', icon: MENU_ICONS.subscriptions, roles: ['admin'], hidden: true },
@@ -280,7 +276,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Paket ve Abonelik', 'Okulların paket ve abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Abonelikler', 'Okulların abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini ve antrenörleri yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -1154,7 +1150,6 @@ function schoolsView() {
         <span><small>Bekleyen aidat</small><strong>${formatCurrency(school.unpaidTotal)}</strong></span>
       </div>
       <div class="school-management-actions">
-        <button class="secondary-button school-plan-button" type="button" data-action="edit-subscription" data-id="${school.id}" data-plan="${escapeHtml(school.subscriptionPlan || 'standard')}" aria-label="${escapeHtml(school.name)} paketini değiştir">${escapeHtml(SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart')}</button>
         <button class="primary-button" type="button" data-action="select-school" data-id="${school.id}" ${school.id === state.schoolId ? 'disabled' : ''}>${school.id === state.schoolId ? 'Açık okul' : 'Okulu aç'}</button>
         <button class="secondary-button" type="button" data-action="invite-school-admin" data-id="${school.id}" ${school.active ? '' : 'disabled'}>Kullanıcı davet et</button>
         <button class="secondary-button" type="button" data-action="rename-school" data-id="${school.id}">Adını düzenle</button>
@@ -1201,12 +1196,8 @@ function trialModeLabel(mode) {
   return TRIAL_MODES[mode] || 'Deneme';
 }
 
-function effectiveStudentLimit(planCode) {
-  return SUBSCRIPTION_PLANS[planCode]?.studentLimit ?? SUBSCRIPTION_PLANS.standard.studentLimit;
-}
-
-function subscriptionPrice(planCode, billingPeriod = 'monthly') {
-  return SUBSCRIPTION_PLANS[planCode]?.prices?.[billingPeriod] ?? SUBSCRIPTION_PLANS.standard.prices.monthly;
+function subscriptionPrice(_planCode, billingPeriod = 'monthly') {
+  return STANDARD_SUBSCRIPTION_PRICES[billingPeriod] ?? STANDARD_SUBSCRIPTION_PRICES.monthly;
 }
 
 function subscriptionPeriodLabel(billingPeriod) {
@@ -1222,21 +1213,13 @@ function subscriptionsView() {
     .filter(school => school.subscriptionStatus === 'active')
     .reduce((total, school) => {
       const billingPeriod = school.subscriptionBillingPeriod || 'monthly';
-      const periodPrice = Number(school.subscriptionPeriodPrice) || subscriptionPrice(school.subscriptionPlan, billingPeriod);
+      const periodPrice = Number(school.subscriptionPeriodPrice) || subscriptionPrice('standard', billingPeriod);
       return total + periodPrice / (SUBSCRIPTION_PERIODS[billingPeriod]?.months || 1);
     }, 0);
-  const planCards = Object.entries(SUBSCRIPTION_PLANS).map(([code, plan]) => {
-    const count = schools.filter(school => school.subscriptionPlan === code).length;
-    const included = plan.features.map(feature => `<li class="included"><span aria-hidden="true">✓</span>${feature}</li>`).join('');
-    const unavailable = plan.unavailable.map(feature => `<li class="unavailable"><span aria-hidden="true">×</span>${feature}</li>`).join('');
-    const prices = Object.entries(SUBSCRIPTION_PERIODS).map(([periodCode, period]) => `<div class="subscription-price-option"><span>${period.name}</span><strong>${formatCurrency(subscriptionPrice(code, periodCode))}</strong>${periodCode === 'quarterly' ? '<small>Yaklaşık %8 avantaj</small>' : periodCode === 'yearly' ? '<small>Yaklaşık 2 ay avantaj</small>' : '<small>Aylık ödeme</small>'}</div>`).join('');
-    return `<article class="panel subscription-plan-card"><span class="eyebrow">PAKET</span><div class="subscription-plan-heading"><h3>${plan.name}</h3></div><div class="subscription-price-list">${prices}</div><ul class="subscription-feature-list">${included}${unavailable}</ul><span class="subscription-school-count">${count} okul</span></article>`;
-  }).join('');
   const rows = schools.map(school => `<div class="subscription-school-row">
     <div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.slug)}</small></div>
-    <span>${SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart'}</span>
     ${subscriptionStatusMarkup(school.subscriptionStatus)}
-    <span>${school.subscriptionStatus === 'trial' ? 'Ücretsiz' : formatCurrency(school.subscriptionPeriodPrice || subscriptionPrice(school.subscriptionPlan, school.subscriptionBillingPeriod))}<small>${school.subscriptionStatus === 'trial' ? trialModeLabel(school.subscriptionTrialMode) : subscriptionPeriodLabel(school.subscriptionBillingPeriod)}</small></span>
+    <span>${school.subscriptionStatus === 'trial' ? 'Ücretsiz' : formatCurrency(school.subscriptionPeriodPrice || subscriptionPrice('standard', school.subscriptionBillingPeriod))}<small>${school.subscriptionStatus === 'trial' ? trialModeLabel(school.subscriptionTrialMode) : subscriptionPeriodLabel(school.subscriptionBillingPeriod)}</small></span>
     <span>${subscriptionDateLabel(school.subscriptionEndsOn)}<small>Bitiş / yenileme</small></span>
     <div class="subscription-row-actions">
       ${school.subscriptionStatus === 'active' ? `<button class="secondary-button" type="button" data-action="extend-subscription" data-id="${school.id}">Süre uzat</button>` : ''}
@@ -1244,14 +1227,13 @@ function subscriptionsView() {
     </div>
   </div>`).join('');
   return `<div class="page-stack">
-    <div class="section-heading"><div><h2>Paketler ve abonelikler</h2><p>Okul bazında paket, ücret ve yenileme takibi</p></div></div>
+    <div class="section-heading"><div><h2>Abonelikler</h2><p>Okul bazında ücret ve yenileme takibi</p></div></div>
     <section class="stats-grid subscription-summary-grid">
       <article class="stat-card"><span class="label">Aktif abonelik</span><strong>${activeCount}</strong><small>${trialCount} deneme hesabı</small></article>
       <article class="stat-card"><span class="label">Durdurulan abonelik</span><strong>${stoppedCount}</strong><small>Erişimi durdurulan okul</small></article>
       <article class="stat-card"><span class="label">Aylık eşdeğer gelir</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
     </section>
-    <section class="subscription-plan-grid">${planCards}</section>
-    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Paket ve ödeme dönemi seçildiğinde dönem ücreti otomatik uygulanır.</small></div><span class="status blue">${schools.length} okul</span></div>
+    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Dönem ücreti ödeme dönemine göre otomatik uygulanır.</small></div><span class="status blue">${schools.length} okul</span></div>
       <div class="subscription-school-list">${rows || '<div class="empty-state">Henüz okul bulunmuyor.</div>'}</div>
     </section>
   </div>`;
@@ -1281,7 +1263,7 @@ function subscriptionPaymentsView() {
     const period = report.school_subscription_periods || {};
     const school = Array.isArray(report.schools) ? report.schools[0] : report.schools;
     const pending = report.status === 'PENDING_REVIEW';
-    return `<article class="panel application-card"><div class="panel-heading"><div><span class="eyebrow">HAVALE BİLDİRİMİ</span><h3>${escapeHtml(school?.name || 'Okul')}</h3><small>${SUBSCRIPTION_PLANS[period.plan_code]?.name || period.plan_code} · ${subscriptionPeriodLabel(period.billing_period)} · ${subscriptionDateLabel(period.starts_on)} – ${subscriptionDateLabel(period.ends_on)}</small></div><span class="status ${pending ? 'blue' : report.status === 'APPROVED' ? '' : 'warning'}">${pending ? 'İncelemede' : report.status === 'APPROVED' ? 'Onaylandı' : 'Reddedildi'}</span></div><strong>${formatCurrency(report.amount)}</strong>${report.payer_note ? `<p class="muted">${escapeHtml(report.payer_note)}</p>` : ''}<small class="muted">Bildirim: ${formatDateTime(report.created_at)}</small>${pending ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="review-payment-report" data-approved="false" data-id="${report.id}">Reddet</button><button class="primary-button" type="button" data-action="review-payment-report" data-approved="true" data-id="${report.id}">Ödemeyi onayla</button></div>` : ''}</article>`;
+    return `<article class="panel application-card"><div class="panel-heading"><div><span class="eyebrow">HAVALE BİLDİRİMİ</span><h3>${escapeHtml(school?.name || 'Okul')}</h3><small>${subscriptionPeriodLabel(period.billing_period)} · ${subscriptionDateLabel(period.starts_on)} – ${subscriptionDateLabel(period.ends_on)}</small></div><span class="status ${pending ? 'blue' : report.status === 'APPROVED' ? '' : 'warning'}">${pending ? 'İncelemede' : report.status === 'APPROVED' ? 'Onaylandı' : 'Reddedildi'}</span></div><strong>${formatCurrency(report.amount)}</strong>${report.payer_note ? `<p class="muted">${escapeHtml(report.payer_note)}</p>` : ''}<small class="muted">Bildirim: ${formatDateTime(report.created_at)}</small>${pending ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="review-payment-report" data-approved="false" data-id="${report.id}">Reddet</button><button class="primary-button" type="button" data-action="review-payment-report" data-approved="true" data-id="${report.id}">Ödemeyi onayla</button></div>` : ''}</article>`;
   }).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Ödemeler ve abonelikler</h2><p>Havale bildirimi tek başına aboneliği aktifleştirmez; onay burada verilir.</p></div></div>${rows || '<div class="panel empty-state">İncelenecek ödeme bildirimi bulunmuyor.</div>'}</div>`;
 }
@@ -1290,20 +1272,19 @@ function onboardingView() {
   const onboarding = state.onboarding;
   const paymentPending = onboarding?.status === 'PAYMENT_PENDING';
   const trialStarted = onboarding?.status === 'TRIAL_STARTED';
-  if (trialStarted) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Premium özellikleriniz 14 gün boyunca açık.</h2><p>Deneme sonunda paket seçerek devam edebilirsiniz.</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
-  if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında seçtiğiniz paket etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
-  const plans = Object.entries(SUBSCRIPTION_PLANS).map(([code, plan]) => `<label class="subscription-choice"><input type="radio" name="onboardingPlan" value="${code}" ${code === 'standard' ? 'checked' : ''}><strong>${plan.name}</strong><small>${formatCurrency(plan.prices.monthly)} / ay başlangıç</small></label>`).join('');
+  if (trialStarted) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 14 gün boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+  if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
   const bankAccounts = state.schoolBankAccounts?.length
     ? `<div class="parent-bank-account-list">${state.schoolBankAccounts.map(account => `<article class="parent-bank-account"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
     : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için Süper Admin ile iletişime geçin.</p>';
-  return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>14 gün boyunca Premium özellikleri ücretsiz deneyebilir veya paketinizi seçip havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">14 gün ücretsiz dene</button></section><section class="panel onboarding-card"><h3>Paket seçerek devam et</h3><div class="subscription-choice-list">${plans}</div><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale açıklaması <small>(isteğe bağlı)</small><input id="onboardingPaymentNote" maxlength="300" placeholder="Ödeme yapan kişi / açıklama"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra Süper Admin onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
+  return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 14 gün ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">14 gün ücretsiz dene</button></section><section class="panel onboarding-card"><h3>Aboneliği başlat</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale açıklaması <small>(isteğe bağlı)</small><input id="onboardingPaymentNote" maxlength="300" placeholder="Ödeme yapan kişi / açıklama"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra Süper Admin onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
 }
 
 function settingsView() {
   const subscriptionSettingsMarkup = state.role === 'super_admin'
     ? `<button class="panel settings-link-card" type="button" data-page="subscriptions">
         <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.subscriptions}</span>
-        <span class="settings-link-copy"><strong>Paket ve Abonelik</strong><small>Okulların paket, ücret ve abonelik durumlarını yönetin.</small></span>
+        <span class="settings-link-copy"><strong>Abonelikler</strong><small>Okulların ücret ve abonelik durumlarını yönetin.</small></span>
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>`
     : '';
@@ -1941,13 +1922,6 @@ function render() {
     : state.schoolName || 'Futbol Okulu';
   document.querySelector('#appBannerSubtitle').textContent = bannerSubtitle;
   document.querySelector('#sidebarBannerSubtitle').textContent = bannerSubtitle;
-  const appBannerPlanBadge = document.querySelector('#appBannerPlanBadge');
-  const activeSchoolPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan];
-  if (appBannerPlanBadge) {
-    appBannerPlanBadge.textContent = activeSchoolPlan?.name || '';
-    appBannerPlanBadge.dataset.plan = activeSchoolPlan ? state.schoolSubscriptionPlan : '';
-    appBannerPlanBadge.classList.toggle('is-hidden', !activeSchoolPlan);
-  }
   const topbarSessionRole = document.querySelector('#topbarSessionRole');
   topbarSessionRole.textContent = roleNames[state.role];
   topbarSessionRole.classList.toggle('is-hidden', isActualSuperAdmin() || state.role === 'parent');
@@ -3426,12 +3400,6 @@ function openStudentDialog(student = null) {
     showToast('Bu işlem için yönetici yetkisi gereklidir.');
     return;
   }
-  const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
-  const studentLimit = effectiveStudentLimit(state.schoolSubscriptionPlan);
-  if (!student && studentLimit !== null && state.students.length >= studentLimit) {
-    showToast(`${currentPlan.name} paketi en fazla ${studentLimit} öğrenci kaydına izin verir. Yeni kayıt için paket yükseltilmelidir.`);
-    return;
-  }
   const form = document.querySelector('#studentForm');
   form.reset();
   releaseStudentPhotoPreview();
@@ -3875,16 +3843,15 @@ document.addEventListener('click', async event => {
     const saved = await runRemoteMutation(() => remoteDataStore.startSchoolTrial());
     if (!saved) return;
     state.onboarding = saved;
-    state.schoolSubscriptionPlan = 'pro';
+    state.schoolSubscriptionPlan = 'standard';
     state.schoolSubscriptionStatus = 'trial';
     render();
     showToast('14 günlük ücretsiz deneme başlatıldı.');
   }
   else if (action === 'report-subscription-payment' && state.role === 'admin') {
-    const plan = document.querySelector('input[name="onboardingPlan"]:checked')?.value || 'standard';
     const billingPeriod = document.querySelector('#onboardingBillingPeriod')?.value || 'monthly';
     const note = document.querySelector('#onboardingPaymentNote')?.value || '';
-    const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ plan, billingPeriod, note }));
+    const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ billingPeriod, note }));
     if (!saved) return;
     state.onboarding = { ...state.onboarding, status: 'PAYMENT_PENDING' };
     render();
@@ -4004,11 +3971,10 @@ document.addEventListener('click', async event => {
     const form = document.querySelector('#subscriptionForm');
     form.reset();
     form.elements.schoolId.value = school.id;
-    form.elements.plan.value = school.subscriptionPlan || 'standard';
     form.elements.status.value = school.subscriptionStatus || 'trial';
     if (form.elements.trialMode) form.elements.trialMode.value = 'time_limited';
     form.elements.billingPeriod.value = school.subscriptionBillingPeriod || 'monthly';
-    form.elements.periodPrice.value = school.subscriptionStatus === 'trial' ? 0 : subscriptionPrice(form.elements.plan.value, form.elements.billingPeriod.value);
+    form.elements.periodPrice.value = school.subscriptionStatus === 'trial' ? 0 : subscriptionPrice('standard', form.elements.billingPeriod.value);
     form.elements.startsOn.value = school.subscriptionStartsOn || '';
     form.elements.endsOn.value = school.subscriptionEndsOn || '';
     syncTrialSubscriptionFields();
@@ -4024,7 +3990,6 @@ document.addEventListener('click', async event => {
     const baseDate = currentEnd >= today ? currentEnd : today;
     form.reset();
     form.elements.schoolId.value = school.id;
-    form.elements.plan.value = SUBSCRIPTION_PLANS[school.subscriptionPlan]?.name || 'Standart';
     form.elements.billingPeriod.value = school.subscriptionBillingPeriod || 'yearly';
     form.elements.currentEndsOn.value = currentEnd;
     form.elements.startsOn.value = baseDate;
@@ -4596,13 +4561,12 @@ function syncTrialSubscriptionFields() {
   const startsOn = form.elements.startsOn.value || localDateValue();
   form.elements.startsOn.value = startsOn;
   form.elements.endsOn.value = localDateAfterMonths(startsOn, periodMonths);
-  form.elements.periodPrice.value = subscriptionPrice(form.elements.plan.value, billingPeriod);
+  form.elements.periodPrice.value = subscriptionPrice('standard', billingPeriod);
   const formHint = document.querySelector('#subscriptionFormHint');
-  if (formHint) formHint.textContent = 'Dönem ücreti seçilen paket ve ödeme dönemine göre otomatik belirlenir.';
+  if (formHint) formHint.textContent = 'Dönem ücreti ödeme dönemine göre otomatik belirlenir.';
 }
 const subscriptionForm = document.querySelector('#subscriptionForm');
 if (subscriptionForm) {
-  subscriptionForm.elements.plan.addEventListener('change', syncTrialSubscriptionFields);
   subscriptionForm.elements.status.addEventListener('change', syncTrialSubscriptionFields);
   subscriptionForm.elements.trialMode?.addEventListener('change', syncTrialSubscriptionFields);
   subscriptionForm.elements.billingPeriod.addEventListener('change', syncTrialSubscriptionFields);
@@ -4618,13 +4582,13 @@ function syncSubscriptionExtensionFields() {
   const startsOn = form.elements.startsOn.value || localDateValue();
   form.elements.startsOn.value = startsOn;
   form.elements.endsOn.value = localDateAfterMonths(startsOn, months);
-  form.elements.periodPrice.value = subscriptionPrice(state.schools.find(item => item.id === form.elements.schoolId.value)?.subscriptionPlan || 'standard', period);
+  form.elements.periodPrice.value = subscriptionPrice('standard', period);
 }
 
 function ensureSubscriptionExtensionDialog() {
   let form = document.querySelector('#subscriptionExtensionForm');
   if (form) return form;
-  document.body.insertAdjacentHTML('beforeend', `<dialog id="subscriptionExtensionDialog"><form method="dialog" class="dialog-form" id="subscriptionExtensionForm"><div class="dialog-heading"><div><span class="eyebrow">ABONELİK YENİLEME</span><h2 id="subscriptionExtensionSchoolName">Aboneliği uzat</h2><p>Mevcut bitiş tarihinin üzerine yeni dönem eklenir.</p></div><button class="icon-button" type="button" data-dialog-close="subscriptionExtensionDialog">×</button></div><input name="schoolId" type="hidden"><div class="form-grid"><label>Paket<input name="plan" readonly></label><label>Mevcut bitiş tarihi<input name="currentEndsOn" type="date" readonly></label><label>Yeni ödeme dönemi<select name="billingPeriod" required><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><label>Yeni dönemin başlangıcı<input name="startsOn" type="date" readonly></label><label>Yeni bitiş / yenileme tarihi<input name="endsOn" type="date" readonly></label><label>Dönem ücreti (₺)<input name="periodPrice" type="number" readonly></label></div><small class="form-hint">Uzunluk, mevcut bitiş tarihinden itibaren hesaplanır.</small><div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="subscriptionExtensionDialog">Vazgeç</button><button class="primary-button" type="submit">Süreyi uzat</button></div></form></dialog>`);
+  document.body.insertAdjacentHTML('beforeend', `<dialog id="subscriptionExtensionDialog"><form method="dialog" class="dialog-form" id="subscriptionExtensionForm"><div class="dialog-heading"><div><span class="eyebrow">ABONELİK YENİLEME</span><h2 id="subscriptionExtensionSchoolName">Aboneliği uzat</h2><p>Mevcut bitiş tarihinin üzerine yeni dönem eklenir.</p></div><button class="icon-button" type="button" data-dialog-close="subscriptionExtensionDialog">×</button></div><input name="schoolId" type="hidden"><div class="form-grid"><label>Mevcut bitiş tarihi<input name="currentEndsOn" type="date" readonly></label><label>Yeni ödeme dönemi<select name="billingPeriod" required><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><label>Yeni dönemin başlangıcı<input name="startsOn" type="date" readonly></label><label>Yeni bitiş / yenileme tarihi<input name="endsOn" type="date" readonly></label><label>Dönem ücreti (₺)<input name="periodPrice" type="number" readonly></label></div><small class="form-hint">Uzunluk, mevcut bitiş tarihinden itibaren hesaplanır.</small><div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="subscriptionExtensionDialog">Vazgeç</button><button class="primary-button" type="submit">Süreyi uzat</button></div></form></dialog>`);
   form = document.querySelector('#subscriptionExtensionForm');
   bindSubscriptionExtensionForm(form);
   return form;
@@ -4648,7 +4612,6 @@ function bindSubscriptionExtensionForm(form) {
   }
   const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({
     schoolId: school.id,
-    plan: school.subscriptionPlan || 'standard',
     status: 'active',
     trialMode: null,
     billingPeriod,
@@ -4673,26 +4636,25 @@ subscriptionForm?.addEventListener('submit', async event => {
   const form = event.currentTarget;
   const data = new FormData(form);
   const schoolId = String(data.get('schoolId') || '');
-  const plan = String(data.get('plan') || '');
   const status = String(data.get('status') || '');
   const trialMode = status === 'trial' ? String(data.get('trialMode') || '') : null;
   const billingPeriod = String(data.get('billingPeriod') || '');
-  const periodPrice = status === 'trial' ? 0 : subscriptionPrice(plan, billingPeriod);
+  const periodPrice = status === 'trial' ? 0 : subscriptionPrice('standard', billingPeriod);
   const startsOn = String(data.get('startsOn') || '');
   const endsOn = String(data.get('endsOn') || '');
-  if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_PLANS[plan] || !SUBSCRIPTION_STATUSES[status] || (status === 'trial' && !TRIAL_MODES[trialMode]) || (status !== 'trial' && !SUBSCRIPTION_PERIODS[billingPeriod]) || !Number.isFinite(periodPrice) || periodPrice < 0) {
-    showToast('Paket ve abonelik bilgilerini kontrol edin.');
+  if (!state.schools.some(school => school.id === schoolId) || !SUBSCRIPTION_STATUSES[status] || (status === 'trial' && !TRIAL_MODES[trialMode]) || (status !== 'trial' && !SUBSCRIPTION_PERIODS[billingPeriod]) || !Number.isFinite(periodPrice) || periodPrice < 0) {
+    showToast('Abonelik bilgilerini kontrol edin.');
     return;
   }
   if (startsOn && endsOn && endsOn < startsOn) {
     showToast('Bitiş tarihi başlangıç tarihinden önce olamaz.');
     return;
   }
-  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, plan, status, trialMode, billingPeriod: status === 'trial' ? 'monthly' : billingPeriod, startsOn: startsOn || null, endsOn: endsOn || null }));
+  const saved = await runRemoteMutation(() => remoteDataStore.updateSchoolSubscription({ schoolId, status, trialMode, billingPeriod: status === 'trial' ? 'monthly' : billingPeriod, startsOn: startsOn || null, endsOn: endsOn || null }));
   if (!saved) return;
   await refreshSchools();
   if (schoolId === state.schoolId) {
-    state.schoolSubscriptionPlan = plan;
+    state.schoolSubscriptionPlan = 'standard';
     state.schoolSubscriptionStatus = status;
     state.schoolSubscriptionTrialMode = trialMode;
   }
@@ -4700,7 +4662,7 @@ subscriptionForm?.addEventListener('submit', async event => {
   document.querySelector('#subscriptionDialog').close();
   form.reset();
   render();
-  showToast('Paket ve abonelik bilgileri güncellendi.');
+  showToast('Abonelik bilgileri güncellendi.');
 });
 document.querySelector('#playerCardForm').addEventListener('input', event => {
   const form = event.currentTarget;
@@ -4769,12 +4731,6 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     }
   }
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim(), monthlyFeeAmount: studentMonthlyFeeAmount, active: data.get('studentActiveStatus') !== 'inactive' };
-  const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
-  const studentLimit = effectiveStudentLimit(state.schoolSubscriptionPlan);
-  if (!wasEditing && studentLimit !== null && state.students.length >= studentLimit) {
-    showToast(`${currentPlan.name} paketinin ${studentLimit} öğrenci sınırına ulaşıldı.`);
-    return;
-  }
   const prepaymentMonths = wasEditing
     ? []
     : [...new Set(data.getAll('prepaymentMonth').map(String).filter(month => /^\d{4}-\d{2}$/.test(month)))];
