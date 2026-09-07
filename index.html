@@ -208,11 +208,11 @@
         <label>Doğum tarihi<input name="birthDate" type="date" required></label>
         <label>Grup<select name="group" required><option value="">Seçiniz</option><option>Saat 09:00</option><option>Saat 10:00</option><option>Saat 11:00</option><option>Saat 12:00</option><option>U11</option><option>U12</option><option>U13</option><option>U14</option></select></label>
         <label>Oynadığı mevki<select name="position" required><option value="">Seçiniz</option><option>Kaleci</option><option>Defans</option><option>Orta saha</option><option>Forvet</option></select></label>
-        <label>Veli adı soyadı<input name="parentName" required></label>
-        <label>İrtibat telefonu<input name="phone" type="tel" placeholder="05xx xxx xx xx" required></label>
-        <label>İrtibat e-posta adresi<input name="email" type="email" required><small class="form-hint" id="guardianInviteHint">Veli hesabı için güvenli şifre belirleme bağlantısı bu adrese gönderilir.</small></label>
-        <label class="full-field">Kısa ev adresi<textarea name="address" rows="3" required></textarea></label>
-        <label>Aylık aidat tutarı (₺)<input name="studentMonthlyFeeAmount" type="number" min="1" step="1" inputmode="numeric" required><small class="form-hint">Bu öğrenci için uygulanacak aylık aidat tutarı.</small></label>
+        <label class="student-private-field">Veli adı soyadı<input name="parentName" required></label>
+        <label class="student-private-field">İrtibat telefonu<input name="phone" type="tel" placeholder="05xx xxx xx xx" required></label>
+        <label class="student-private-field">İrtibat e-posta adresi<input name="email" type="email" required><small class="form-hint" id="guardianInviteHint">Veli hesabı için güvenli şifre belirleme bağlantısı bu adrese gönderilir.</small></label>
+        <label class="full-field student-private-field">Kısa ev adresi<textarea name="address" rows="3" required></textarea></label>
+        <label class="student-private-field">Aylık aidat tutarı (₺)<input name="studentMonthlyFeeAmount" type="number" min="1" step="1" inputmode="numeric" required><small class="form-hint">Bu öğrenci için uygulanacak aylık aidat tutarı.</small></label>
         <details class="student-prepayment-disclosure full-field" id="studentPrepaymentSection">
           <summary><span>Ön ödeme al</span><small id="studentPrepaymentSummary">İsteğe bağlı · 0 ay seçili</small><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary>
           <div class="student-prepayment-content">
@@ -409,7 +409,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.09.07.368"></script>
-  <script src="app.js?v=2026.09.07.368"></script>
+  <script src="supabase-data.js?v=2026.09.07.369"></script>
+  <script src="app.js?v=2026.09.07.369"></script>
 </body>
 </html>
