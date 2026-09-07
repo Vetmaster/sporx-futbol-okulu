@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.08.371';
+const APP_VERSION = '2026.09.08.372';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -57,7 +57,9 @@ try {
 }
 const NATIVE_FCM_TOKEN = bridgedNativeFcmToken || rememberedNativeFcmToken;
 const NATIVE_NOTIFICATION_PERMISSION = bridgedNativeNotificationPermission || rememberedNativeNotificationPermission;
-const authCallbackType = initialFragmentParameters.get('type');
+// Supabase may deliver recovery callbacks in the URL fragment (implicit flow)
+// or in the query string (PKCE flow). Handle both before auth state events.
+const authCallbackType = runtimeQueryParameters.get('type') || initialFragmentParameters.get('type');
 let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
 let pendingAdminMfa = null;
@@ -95,6 +97,7 @@ const state = {
   schoolSubscriptionStatus: 'trial',
   schoolSubscriptionTrialMode: null,
   schools: [],
+  schoolSearchQuery: '',
   userId: null,
   userFullName: '',
   userEmail: '',
@@ -1137,26 +1140,30 @@ function schoolsView() {
   const activeSchools = state.schools.filter(school => school.active).length;
   const totalStudents = state.schools.reduce((total, school) => total + school.studentCount, 0);
   const totalDebt = state.schools.reduce((total, school) => total + school.unpaidTotal, 0);
-  const schoolCards = state.schools.map(school => `
-    <article class="panel school-management-card ${school.id === state.schoolId ? 'is-selected' : ''}">
-      <div class="school-management-heading">
+  const normalizedSearch = state.schoolSearchQuery.trim().toLocaleLowerCase('tr');
+  const filteredSchools = state.schools.filter(school => !normalizedSearch || `${school.name} ${school.slug}`.toLocaleLowerCase('tr').includes(normalizedSearch));
+  const schoolCards = filteredSchools.map(school => `
+    <details class="panel school-management-card ${school.id === state.schoolId ? 'is-selected' : ''}">
+      <summary class="school-management-heading">
         <div><span class="eyebrow">${escapeHtml(school.slug)}</span><h3>${escapeHtml(school.name)}</h3></div>
         <span class="status ${school.active ? '' : 'warning'}">${school.active ? 'Aktif' : 'Pasif'}</span>
-      </div>
-      <div class="school-management-stats">
+      </summary>
+      <div class="school-management-content">
+        <div class="school-management-stats">
         <span><small>Öğrenci</small><strong>${school.studentCount}</strong></span>
         <span><small>Bu ay aktif</small><strong>${school.activeStudentCount}</strong></span>
         <span><small>Admin</small><strong>${school.adminCount}</strong></span>
         <span><small>Bekleyen aidat</small><strong>${formatCurrency(school.unpaidTotal)}</strong></span>
-      </div>
-      <div class="school-management-actions">
+        </div>
+        <div class="school-management-actions">
         <button class="primary-button" type="button" data-action="select-school" data-id="${school.id}" ${school.id === state.schoolId ? 'disabled' : ''}>${school.id === state.schoolId ? 'Açık okul' : 'Okulu aç'}</button>
         <button class="secondary-button" type="button" data-action="invite-school-admin" data-id="${school.id}" ${school.active ? '' : 'disabled'}>Kullanıcı davet et</button>
         <button class="secondary-button" type="button" data-action="rename-school" data-id="${school.id}">Adını düzenle</button>
         <button class="secondary-button" type="button" data-action="toggle-school-status" data-id="${school.id}">${school.active ? 'Pasife al' : 'Aktifleştir'}</button>
         <button class="danger-button" type="button" data-action="delete-school" data-id="${school.id}">Sil</button>
+        </div>
       </div>
-    </article>`).join('');
+    </details>`).join('');
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Futbol okulları</h2><p>Süper Admin yönetim merkezi</p></div></div>
     <section class="stats-grid school-platform-summary">
@@ -1164,16 +1171,17 @@ function schoolsView() {
       <article class="stat-card"><span class="label">Toplam öğrenci</span><strong>${totalStudents}</strong><small>Tüm okullar</small></article>
       <article class="stat-card"><span class="label">Toplam bekleyen aidat</span><strong>${formatCurrency(totalDebt)}</strong><small>Tüm okullar</small></article>
     </section>
-    <section class="panel school-create-panel">
-      <div class="panel-heading"><div><h3>Yeni okul ekle</h3><small class="muted">Okul kendi öğrencileri, grupları, aidatları ve muhasebesiyle ayrı oluşturulur.</small></div></div>
+    <details class="panel school-create-panel">
+      <summary class="panel-heading school-create-heading"><div><h3>Yeni okul ekle</h3><small class="muted">Okul kendi öğrencileri, grupları, aidatları ve muhasebesiyle ayrı oluşturulur.</small></div></summary>
       <form id="schoolCreateForm" class="school-create-form">
         <label>Okul adı<input name="schoolName" maxlength="120" placeholder="Örn. Çekmeköy Futbol Okulu" required></label>
         <label>Okul kodu<input name="schoolSlug" maxlength="80" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="cekmekoy-futbol" required><small>Küçük harf, rakam ve tire kullanın.</small></label>
         <label>Aylık aidat<input name="monthlyFeeAmount" type="number" min="1" step="1" value="${state.monthlyFeeAmount}" required></label>
         <button class="primary-button" type="submit">Okulu oluştur</button>
       </form>
-    </section>
-    <section class="school-management-grid">${schoolCards || '<div class="panel empty-state">Henüz okul bulunmuyor.</div>'}</section>
+    </details>
+    <label class="school-search-control"><span class="sr-only">Okul ara</span><input id="schoolSearch" type="search" value="${escapeHtml(state.schoolSearchQuery)}" placeholder="Okul adı veya kodu ara" autocomplete="off"></label>
+    <section class="school-management-grid">${schoolCards || `<div class="panel empty-state">${state.schools.length ? 'Aramanızla eşleşen okul bulunamadı.' : 'Henüz okul bulunmuyor.'}</div>`}</section>
   </div>`;
 }
 
@@ -1553,7 +1561,8 @@ function studentProfileView() {
   const feeSummaryCard = `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${formatCurrency(feeDebtBalance)}</strong><small class="${feeDebtBalance ? 'fee-debt-present' : 'fee-debt-clear'}">${feeDebtBalance ? 'Borç bakiye mevcut' : 'Borç bulunmuyor'}</small></button>`;
   const profileActions = state.role === 'parent'
     ? parentStudentSwitcherMarkup()
-    : (isAdminRole() || isCoachRole()) ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : '';
+    : isAdminRole() ? `<div class="profile-actions"><button class="secondary-button" data-action="send-student-notification" data-id="${student.id}">Bildirim gönder</button><button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button></div>`
+    : isCoachRole() ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : '';
   const positionSummaryCard = `<button class="stat-card player-card-launch" type="button" data-action="player-card" data-id="${student.id}" aria-label="${escapeHtml(student.name)} oyuncu kartını aç"><span class="label">Mevki</span><strong>${escapeHtml(student.position || 'Belirtilmedi')}</strong><small>Oyuncu kartını görüntüle</small></button>`;
   const trainingGroupSummaryCard = `<button class="stat-card profile-training-group-card" type="button" data-page="trainings" aria-label="${escapeHtml(student.group)} grubu antrenman takvimine git"><span class="label">Antrenman Grubu</span><strong>${escapeHtml(student.group)}</strong><small>Antrenman takvimini görüntüle</small></button>`;
   const profileStats = isCoachRole()
@@ -2861,7 +2870,7 @@ async function invokePushFunction(body) {
   return { data: result, error: null };
 }
 
-async function saveAndSendNotification({ audience, title, body }) {
+async function saveAndSendNotification({ audience, title, body, studentId = null }) {
   const normalizedAudience = String(audience || '').trim();
   const normalizedTitle = String(title || '').trim();
   const normalizedBody = String(body || '').trim();
@@ -2882,6 +2891,7 @@ async function saveAndSendNotification({ audience, title, body }) {
       audience: normalizedAudience,
       title: normalizedTitle,
       message: normalizedBody,
+      studentId,
       notification: {
         audience: normalizedAudience,
         title: normalizedTitle,
@@ -4007,6 +4017,16 @@ document.addEventListener('click', async event => {
     form.elements.studentSearch.setAttribute('aria-expanded', 'false');
   }
   else if (action === 'add-student' && ['super_admin', 'admin'].includes(state.role)) openStudentDialog();
+  else if (action === 'send-student-notification' && isAdminRole()) {
+    const student = state.students.find(item => item.id === Number(actionButton.dataset.id));
+    if (!student) return;
+    const form = document.querySelector('#studentNotificationForm');
+    form.reset();
+    form.elements.studentId.value = student.id;
+    document.querySelector('#studentNotificationTitle').textContent = `${student.name} için bildirim gönder`;
+    document.querySelector('#studentNotificationDescription').textContent = student.parent ? `${student.parent} adlı veliye bildirim gönderilir.` : 'Veli hesabı tanımlıysa bildirim gönderilir.';
+    document.querySelector('#studentNotificationDialog').showModal();
+  }
   else if (action === 'edit-profile' && ['super_admin', 'admin', 'coach'].includes(state.role)) { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
   else if (action === 'player-card') {
     const student = accessiblePlayerCardStudent(actionButton.dataset.id);
@@ -4309,6 +4329,15 @@ appContent.addEventListener('input', event => {
     const feeSearch = document.querySelector('#feeSearch');
     feeSearch?.focus();
     feeSearch?.setSelectionRange(cursorPosition, cursorPosition);
+    return;
+  }
+  if (event.target.id === 'schoolSearch') {
+    state.schoolSearchQuery = event.target.value;
+    const cursorPosition = event.target.selectionStart ?? state.schoolSearchQuery.length;
+    render();
+    const schoolSearch = document.querySelector('#schoolSearch');
+    schoolSearch?.focus();
+    schoolSearch?.setSelectionRange(cursorPosition, cursorPosition);
     return;
   }
   if (!['studentSearch', 'groupFilter', 'activeStudentsOnlyFilter', 'debtStudentsOnlyFilter'].includes(event.target.id)) return;
@@ -5041,6 +5070,26 @@ document.querySelector('#accountingDateRangeForm').addEventListener('submit', ev
   render();
   loadPageData(state.page, { force: true }).then(render).catch(error => console.error('Muhasebe aralığı yüklenemedi:', error));
 });
+document.querySelector('#studentNotificationForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!isAdminRole()) return;
+  const form = event.currentTarget;
+  const studentId = Number(form.elements.studentId.value);
+  const student = state.students.find(item => item.id === studentId);
+  const title = String(form.elements.title.value || '').trim();
+  const body = String(form.elements.message.value || '').trim();
+  if (!student || !title || !body) return;
+  try {
+    const result = await saveAndSendNotification({ audience: `${student.name} velisi`, title, body, studentId });
+    document.querySelector('#studentNotificationDialog').close();
+    form.reset();
+    render();
+    showRecordCreated(result.sent > 0 ? 'Bildirim veliye gönderildi.' : 'Bildirim kaydedildi ancak velinin açık bildirim izni olan cihazı bulunamadı.');
+  } catch (error) {
+    showToast(`Bildirim gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
+  }
+});
+
 appContent.addEventListener('toggle', event => {
   const details = event.target;
   if (!details.matches?.('.group-settings-panel')) return;

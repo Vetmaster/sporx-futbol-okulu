@@ -20,7 +20,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Anta&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
   <script src="custom-domain.js?v=2026.09.07.365"></script>
   <script src="firebase-web-config.js?v=2026.08.30.363"></script>
-  <link rel="stylesheet" href="styles.css?v=2026.09.07.370">
+  <link rel="stylesheet" href="styles.css?v=2026.09.08.372">
 </head>
 <body>
   <main class="domain-maintenance" id="domainMaintenance" aria-labelledby="maintenanceTitle">
@@ -361,11 +361,21 @@
   </dialog>
 
   <dialog id="schoolEditDialog">
-    <form method="dialog" id="schoolEditForm">
+    <form method="dialog" class="dialog-form" id="schoolEditForm">
       <div class="dialog-heading"><div><span class="eyebrow">OKUL AYARLARI</span><h2>Okul adını düzenle</h2><p>Okulun görünen adı güncellenir; okul kodu ve kayıtlar değişmez.</p></div><button class="icon-button" type="button" data-dialog-close="schoolEditDialog">×</button></div>
       <input name="schoolId" type="hidden">
       <label>Okul adı<input name="schoolName" maxlength="120" required></label>
       <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="schoolEditDialog">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="studentNotificationDialog">
+    <form method="dialog" class="dialog-form" id="studentNotificationForm">
+      <div class="dialog-heading"><div><span class="eyebrow">ÖĞRENCİ BİLDİRİMİ</span><h2 id="studentNotificationTitle">Bildirim gönder</h2><p id="studentNotificationDescription">Öğrencinin velisine bildirim gönderilir.</p></div><button class="icon-button" type="button" data-dialog-close="studentNotificationDialog">×</button></div>
+      <input name="studentId" type="hidden">
+      <label>Başlık<input name="title" maxlength="120" required placeholder="Bildirim başlığı"></label>
+      <label>Mesaj<textarea name="message" rows="4" maxlength="500" required placeholder="Bildirim metni"></textarea></label>
+      <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="studentNotificationDialog">Vazgeç</button><button class="primary-button" type="submit">Bildirimi gönder</button></div>
     </form>
   </dialog>
 
@@ -407,7 +417,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.09.08.371"></script>
-  <script src="app.js?v=2026.09.08.371"></script>
+  <script src="supabase-data.js?v=2026.09.08.372"></script>
+  <script src="app.js?v=2026.09.08.372"></script>
 </body>
 </html>

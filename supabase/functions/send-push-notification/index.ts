@@ -84,6 +84,7 @@ Deno.serve(async request => {
   const requestedRecipientIds = Array.isArray(body.recipientUserIds)
     ? [...new Set(body.recipientUserIds.map((value: unknown) => String(value || '').trim()).filter(Boolean))].slice(0, 50)
     : [];
+  const requestedStudentId = Number(body.studentId || 0);
   if (requestedRecipientIds.length && !isPlatformSuperAdmin) {
     return json({ error: 'Direct recipients require Super Admin permission' }, 403);
   }
@@ -203,7 +204,16 @@ Deno.serve(async request => {
   await admin.from('notifications').update({ status: 'queued' }).eq('id', notification.id);
 
   let recipientIds: string[] = [];
-  if (requestedRecipientIds.length) {
+  if (requestedStudentId) {
+    const { data: student, error: studentError } = await admin
+      .from('students')
+      .select('guardian_user_id')
+      .eq('id', requestedStudentId)
+      .eq('school_id', notification.school_id)
+      .maybeSingle();
+    if (studentError || !student) return json({ error: 'Student not found' }, 404);
+    recipientIds = student.guardian_user_id ? [student.guardian_user_id] : [];
+  } else if (requestedRecipientIds.length) {
     const { data: memberships, error: membershipsError } = await admin
       .from('school_user_memberships')
       .select('user_id')
