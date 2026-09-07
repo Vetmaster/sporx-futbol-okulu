@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.07.367';
+const APP_VERSION = '2026.09.07.368';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1572,7 +1572,7 @@ function studentProfileView() {
   const feeSummaryCard = `<button class="stat-card profile-fee-summary-card" type="button" data-action="scroll-profile-fees" aria-label="Aylık aidat takibine git"><span class="label">Aidat durumu</span><strong>${formatCurrency(feeDebtBalance)}</strong><small class="${feeDebtBalance ? 'fee-debt-present' : 'fee-debt-clear'}">${feeDebtBalance ? 'Borç bakiye mevcut' : 'Borç bulunmuyor'}</small></button>`;
   const profileActions = state.role === 'parent'
     ? parentStudentSwitcherMarkup()
-    : isAdminRole() ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : '';
+    : (isAdminRole() || isCoachRole()) ? '<button class="secondary-button" data-action="edit-profile">Bilgileri düzenle</button>' : '';
   const positionSummaryCard = `<button class="stat-card player-card-launch" type="button" data-action="player-card" data-id="${student.id}" aria-label="${escapeHtml(student.name)} oyuncu kartını aç"><span class="label">Mevki</span><strong>${escapeHtml(student.position || 'Belirtilmedi')}</strong><small>Oyuncu kartını görüntüle</small></button>`;
   const trainingGroupSummaryCard = `<button class="stat-card profile-training-group-card" type="button" data-page="trainings" aria-label="${escapeHtml(student.group)} grubu antrenman takvimine git"><span class="label">Antrenman Grubu</span><strong>${escapeHtml(student.group)}</strong><small>Antrenman takvimini görüntüle</small></button>`;
   const profileStats = isCoachRole()
@@ -3421,8 +3421,9 @@ function playerCardFromForm(form) {
 }
 
 function openStudentDialog(student = null) {
-  if (!['super_admin', 'admin'].includes(state.role)) {
-    showToast('Öğrenci fotoğrafını yalnızca yöneticiler ekleyebilir veya değiştirebilir.');
+  const coachStatusOnly = isCoachRole();
+  if ((!isAdminRole() && !coachStatusOnly) || (coachStatusOnly && !student)) {
+    showToast('Bu işlem için yönetici yetkisi gereklidir.');
     return;
   }
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
@@ -3446,14 +3447,18 @@ function openStudentDialog(student = null) {
   form.elements.address.value = student?.address || '';
   form.elements.studentMonthlyFeeAmount.value = String(monthlyFeeAmount(student, feeMonthKey()));
   form.elements.studentActiveStatus.value = student?.active === false ? 'inactive' : 'active';
+  form.querySelectorAll('input, select, textarea').forEach(control => {
+    control.disabled = coachStatusOnly && control.name !== 'studentActiveStatus';
+  });
+  document.querySelector('.student-photo-field').classList.toggle('is-hidden', coachStatusOnly);
   showStudentPhotoPreview(student?.photoUrl || '');
-  document.querySelector('#studentEyebrow').textContent = student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
-  document.querySelector('#studentDialogTitle').textContent = student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
-  document.querySelector('#studentSubmitButton').textContent = student ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet';
+  document.querySelector('#studentEyebrow').textContent = coachStatusOnly ? 'OYUNCU DURUMU' : student ? 'PROFİLİ DÜZENLE' : 'YENİ KAYIT';
+  document.querySelector('#studentDialogTitle').textContent = coachStatusOnly ? 'Aktiflik durumunu güncelle' : student ? 'Öğrenci ve veli bilgilerini güncelle' : 'Öğrenci bilgileri';
+  document.querySelector('#studentSubmitButton').textContent = coachStatusOnly ? 'Durumu kaydet' : student ? 'Değişiklikleri kaydet' : 'Öğrenciyi kaydet';
   document.querySelector('#guardianInviteHint').classList.toggle('is-hidden', Boolean(student));
   document.querySelector('#studentActiveStatusField').classList.toggle('is-hidden', !student);
   const prepaymentSection = document.querySelector('#studentPrepaymentSection');
-  prepaymentSection.classList.toggle('is-hidden', Boolean(student));
+  prepaymentSection.classList.toggle('is-hidden', Boolean(student) || coachStatusOnly);
   prepaymentSection.open = false;
   setSafeHtml(document.querySelector('#studentPrepaymentMonths'), upcomingFeeMonths().map(month => `<label class="student-prepayment-month"><input type="checkbox" name="prepaymentMonth" value="${month}"><span>${formatFeeMonth(month)}</span><small>${formatCurrency(monthlyFeeAmount(student, month))}</small></label>`).join(''));
   form.elements.prepaymentMethod.value = 'cash';
@@ -4036,7 +4041,7 @@ document.addEventListener('click', async event => {
     form.elements.studentSearch.setAttribute('aria-expanded', 'false');
   }
   else if (action === 'add-student' && ['super_admin', 'admin'].includes(state.role)) openStudentDialog();
-  else if (action === 'edit-profile' && ['super_admin', 'admin'].includes(state.role)) { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
+  else if (action === 'edit-profile' && ['super_admin', 'admin', 'coach'].includes(state.role)) { const student = state.students.find(item => item.id === Number(state.selectedStudentId)); if (student) openStudentDialog(student); }
   else if (action === 'player-card') {
     const student = accessiblePlayerCardStudent(actionButton.dataset.id);
     if (student) openPlayerCardDialog(student);
@@ -4729,6 +4734,22 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
   if (!['super_admin', 'admin', 'coach'].includes(state.role)) return;
   const form = event.currentTarget;
   const data = new FormData(form);
+  const wasEditing = Boolean(state.editingStudentId);
+  const existingStudent = wasEditing ? state.students.find(item => item.id === Number(state.editingStudentId)) : null;
+  if (isCoachRole()) {
+    if (!wasEditing || !existingStudent) return;
+    const active = data.get('studentActiveStatus') !== 'inactive';
+    const saved = await runRemoteMutation(() => remoteDataStore.setStudentActiveStatus(existingStudent.id, active));
+    if (!saved) return;
+    existingStudent.active = active;
+    state.editingStudentId = null;
+    form.reset();
+    document.querySelector('#studentDialog').close();
+    persistLocalData();
+    render();
+    showRecordCreated(active ? 'Oyuncu aktif duruma alındı.' : 'Oyuncu pasif duruma alındı.');
+    return;
+  }
   const cameraPhoto = data.get('studentCameraPhoto');
   const galleryPhoto = data.get('studentGalleryPhoto');
   const selectedPhoto = cameraPhoto instanceof File && cameraPhoto.size ? cameraPhoto : galleryPhoto;
@@ -4747,7 +4768,6 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     }
   }
   const studentData = { name: data.get('studentName').trim(), birth: formatStudentBirthDate(data.get('birthDate')), group: data.get('group'), position: data.get('position'), parent: data.get('parentName').trim(), phone: data.get('phone').trim(), email: data.get('email').trim(), address: data.get('address').trim(), monthlyFeeAmount: studentMonthlyFeeAmount, active: data.get('studentActiveStatus') !== 'inactive' };
-  const wasEditing = Boolean(state.editingStudentId);
   const currentPlan = SUBSCRIPTION_PLANS[state.schoolSubscriptionPlan] || SUBSCRIPTION_PLANS.standard;
   const studentLimit = effectiveStudentLimit(state.schoolSubscriptionPlan);
   if (!wasEditing && studentLimit !== null && state.students.length >= studentLimit) {
@@ -4762,7 +4782,6 @@ document.querySelector('#studentForm').addEventListener('submit', async event =>
     showToast('Ön ödeme yöntemini kontrol edin.');
     return;
   }
-  const existingStudent = wasEditing ? state.students.find(item => item.id === Number(state.editingStudentId)) : null;
   const previousStudentEmail = existingStudent?.email || '';
   const studentEmailChanged = wasEditing && previousStudentEmail.toLocaleLowerCase('tr') !== studentData.email.toLocaleLowerCase('tr');
   const enrollmentDate = existingStudent?.enrollmentDate || localDateValue();
