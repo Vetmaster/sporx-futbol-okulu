@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.07.366';
+const APP_VERSION = '2026.09.07.367';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1627,9 +1627,10 @@ function trainingsView() {
   const emptyMessage = parentStudent
     ? `${parentStudent.group} grubu için planlanmış antrenman bulunmuyor.`
     : 'Henüz planlanmış antrenman bulunmuyor.';
-  const canCreateTraining = ['super_admin', 'admin'].includes(state.role);
-  const settingsButton = canCreateTraining ? `<button class="heading-icon-button" type="button" data-page="trainingSettings" aria-label="Antrenman ayarlarına git" title="Antrenman ayarları">${MENU_ICONS.settings}</button>` : '';
-  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Antrenman takvimi</h2>${settingsButton}</div><p>${listDescription}</p></div>${canCreateTraining ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="students-active-filter"><input id="showPastTrainingsFilter" type="checkbox" ${state.showPastTrainings ? 'checked' : ''}><span>Tarihi geçenleri de göster</span></label><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card ${t.date < localDateValue() ? 'is-past' : ''}"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)}${state.role === 'parent' ? '' : ` · ${t.time}`}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div>${state.role !== 'parent' ? `<div class="training-actions"><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>${isAdminRole() ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div>` : ''}</article>`).join('') || `<div class="panel empty-state">${emptyMessage}</div>`}</section></div></div>`;
+  const canManageTrainings = ['super_admin', 'admin', 'coach'].includes(state.role);
+  const canManageTrainingSettings = isAdminRole();
+  const settingsButton = canManageTrainingSettings ? `<button class="heading-icon-button" type="button" data-page="trainingSettings" aria-label="Antrenman ayarlarına git" title="Antrenman ayarları">${MENU_ICONS.settings}</button>` : '';
+  return `<div class="page-stack"><div class="section-heading"><div><div class="section-title-with-action"><h2>Antrenman takvimi</h2>${settingsButton}</div><p>${listDescription}</p></div>${canManageTrainings ? '<button class="primary-button" data-action="new-training">+ Antrenman ekle</button>' : ''}</div><div class="training-list-block"><div class="training-list-toolbar"><label class="students-active-filter"><input id="showPastTrainingsFilter" type="checkbox" ${state.showPastTrainings ? 'checked' : ''}><span>Tarihi geçenleri de göster</span></label><label class="training-sort-control"><span>Sırala</span><select id="trainingSortSelect" aria-label="Antrenmanları sırala"><option value="desc" ${state.trainingSortDirection === 'desc' ? 'selected' : ''}>Yeniden eskiye</option><option value="asc" ${state.trainingSortDirection === 'asc' ? 'selected' : ''}>Eskiden yeniye</option></select></label></div><section class="card-grid">${orderedTrainings.map(t => `<article class="panel training-card ${t.date < localDateValue() ? 'is-past' : ''}"><header><div><span class="eyebrow">${t.group}</span><h3>${t.title}</h3></div><span class="training-schedule">${formatTrainingDate(t.date)}${state.role === 'parent' ? '' : ` · ${t.time}`}</span></header><div class="training-duration"><span aria-hidden="true">⏱️</span><span>${t.duration || 90} dakika</span></div><div class="training-meta"><span>⚑ ${t.field}</span><span>● ${t.coach}</span>${latestAttendanceForTraining(t) ? `<span>◎ ${trainingAttendanceLabel(t)}</span>` : ''}</div>${state.role !== 'parent' ? `<div class="training-actions"><button class="primary-button" data-action="attendance" data-id="${t.id}">Yoklama al</button>${canManageTrainings ? `<button class="secondary-button" type="button" data-action="edit-training" data-id="${t.id}">Düzenle</button>` : ''}</div>` : ''}</article>`).join('') || `<div class="panel empty-state">${emptyMessage}</div>`}</section></div></div>`;
 }
 
 function trainingSettingsView() {
@@ -4056,8 +4057,8 @@ document.addEventListener('click', async event => {
     form.classList.add('is-hidden');
     document.querySelector('#playerCardEditToggle').classList.remove('is-hidden');
   }
-  else if (action === 'new-training' && ['super_admin', 'admin'].includes(state.role)) openTrainingDialog();
-  else if (action === 'edit-training' && isAdminRole()) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
+  else if (action === 'new-training' && ['super_admin', 'admin', 'coach'].includes(state.role)) openTrainingDialog();
+  else if (action === 'edit-training' && ['super_admin', 'admin', 'coach'].includes(state.role)) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
   else if (action === 'delete-training' && isAdminRole()) {
     const training = state.trainings.find(item => item.id === Number(state.editingTrainingId));
     if (training && window.confirm(`“${training.title}” antrenmanı silinsin mi? Bu antrenmana ait yoklama kayıtları da silinecektir.`)) {
@@ -4725,7 +4726,7 @@ document.querySelector('#playerCardForm').addEventListener('submit', async event
 });
 document.querySelector('#studentForm').addEventListener('submit', async event => {
   event.preventDefault();
-  if (!['super_admin', 'admin'].includes(state.role)) return;
+  if (!['super_admin', 'admin', 'coach'].includes(state.role)) return;
   const form = event.currentTarget;
   const data = new FormData(form);
   const cameraPhoto = data.get('studentCameraPhoto');
