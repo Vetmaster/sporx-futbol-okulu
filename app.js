@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.08.374';
+const APP_VERSION = '2026.09.08.373';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -60,14 +60,11 @@ const NATIVE_NOTIFICATION_PERMISSION = bridgedNativeNotificationPermission || re
 // Supabase may deliver recovery callbacks in the URL fragment (implicit flow)
 // or in the query string (PKCE flow). Handle both before auth state events.
 const authCallbackType = runtimeQueryParameters.get('type') || initialFragmentParameters.get('type');
-const recoveryTokenHash = runtimeQueryParameters.get('recovery_token') || '';
 const authCallbackErrorCode = runtimeQueryParameters.get('error_code') || initialFragmentParameters.get('error_code') || '';
 const authCallbackError = runtimeQueryParameters.get('error') || initialFragmentParameters.get('error') || '';
 const hasExpiredAuthLink = authCallbackErrorCode === 'otp_expired'
   || (authCallbackType === 'recovery' && Boolean(authCallbackError));
-let authMode = recoveryTokenHash
-  ? 'confirm-recovery'
-  : ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
+let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
 let pendingAdminMfa = null;
 let signedOutMessage = '';
@@ -2018,35 +2015,27 @@ function showAuthMessage(message = '', isError = false) {
 function setAuthPending(pending) {
   authRequestPending = pending;
   loginSubmitButton.disabled = pending;
-  loginSubmitButton.textContent = pending
-    ? 'Lütfen bekleyin…'
-    : authMode === 'set-password' ? 'Şifremi kaydet'
-      : authMode === 'reset-password' ? 'Bağlantı gönder'
-        : authMode === 'confirm-recovery' ? 'Şifre yenilemeye devam et'
-          : 'Giriş yap';
+  loginSubmitButton.textContent = pending ? 'Lütfen bekleyin…' : authMode === 'set-password' ? 'Şifremi kaydet' : authMode === 'reset-password' ? 'Bağlantı gönder' : 'Giriş yap';
 }
 
 function configureAuthForm(mode = 'login') {
-  authMode = ['login', 'set-password', 'reset-password', 'confirm-recovery'].includes(mode) ? mode : 'login';
+  authMode = ['login', 'set-password', 'reset-password'].includes(mode) ? mode : 'login';
   const settingPassword = mode === 'set-password';
   const resettingPassword = mode === 'reset-password';
-  const confirmingRecovery = mode === 'confirm-recovery';
-  document.querySelector('#authEyebrow').textContent = settingPassword || confirmingRecovery || resettingPassword ? 'ŞİFRE YENİLEME' : 'HOŞ GELDİNİZ';
-  document.querySelector('#authTitle').textContent = settingPassword ? 'Yeni şifrenizi belirleyin' : confirmingRecovery ? 'Şifre yenilemeye devam edin' : resettingPassword ? 'E-posta adresinizi yazın' : 'Kulübünüz tek ekranda';
+  document.querySelector('#authEyebrow').textContent = settingPassword ? 'HESABINIZI ETKİNLEŞTİRİN' : resettingPassword ? 'ŞİFRE YENİLEME' : 'HOŞ GELDİNİZ';
+  document.querySelector('#authTitle').textContent = settingPassword ? 'Şifrenizi belirleyin' : resettingPassword ? 'E-posta adresinizi yazın' : 'Kulübünüz tek ekranda';
   document.querySelector('#authDescription').textContent = settingPassword
     ? 'SASA-F hesabınız için en az 8 karakterli yeni bir şifre oluşturun.'
-    : confirmingRecovery
-      ? 'Bu ekrandan ayrılırsanız e-posta bağlantınız 1 saat boyunca kullanılabilir kalır. Şimdi devam ederseniz bağlantı tek kullanımlık olarak doğrulanır.'
-      : resettingPassword
+    : resettingPassword
       ? 'Şifre yenileme bağlantısını gönderebilmemiz için kayıtlı e-posta adresinizi girin.'
       : 'Öğrenci, antrenman, aidat ve kulüp yönetimine güvenli erişim.';
-  document.querySelector('#authEmailField').classList.toggle('is-hidden', settingPassword || confirmingRecovery);
-  document.querySelector('#authPasswordField').classList.toggle('is-hidden', resettingPassword || confirmingRecovery);
+  document.querySelector('#authEmailField').classList.toggle('is-hidden', settingPassword);
+  document.querySelector('#authPasswordField').classList.toggle('is-hidden', resettingPassword);
   document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword);
-  document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || resettingPassword || confirmingRecovery);
-  document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !resettingPassword && !confirmingRecovery);
-  loginEmail.required = !settingPassword && !confirmingRecovery;
-  loginPassword.required = !resettingPassword && !confirmingRecovery;
+  document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || resettingPassword);
+  document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !resettingPassword);
+  loginEmail.required = !settingPassword;
+  loginPassword.required = !resettingPassword;
   loginPasswordConfirm.required = settingPassword;
   loginPassword.autocomplete = settingPassword ? 'new-password' : 'current-password';
   loginPassword.value = '';
@@ -2099,22 +2088,6 @@ function showPasswordSetupScreen() {
   authScreen.classList.remove('is-hidden');
   configureAuthForm('set-password');
   window.setTimeout(() => loginPassword.focus(), 0);
-}
-
-function clearRecoveryCallbackFromUrl() {
-  const url = new URL(window.location.href);
-  ['recovery_token', 'type', 'code', 'error', 'error_code', 'error_description'].forEach(parameter => url.searchParams.delete(parameter));
-  url.hash = '';
-  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
-}
-
-function showRecoveryConfirmationScreen() {
-  appShell.classList.add('is-hidden');
-  authScreen.classList.remove('is-hidden');
-  adminMfaForm.classList.add('is-hidden');
-  loginForm.classList.remove('is-hidden');
-  configureAuthForm('confirm-recovery');
-  configurePersistentAndroidDownloads();
 }
 
 function showExpiredPasswordLinkScreen() {
@@ -3625,21 +3598,6 @@ loginForm.addEventListener('submit', async event => {
     return;
   }
 
-  if (authMode === 'confirm-recovery') {
-    const { error } = await supabaseClient.auth.verifyOtp({
-      token_hash: recoveryTokenHash,
-      type: 'recovery'
-    });
-    if (error) {
-      configureAuthForm('reset-password');
-      showAuthMessage('Bu şifre yenileme bağlantısı kullanılmış veya süresi dolmuş. Lütfen yeni bir bağlantı isteyin.', true);
-      return;
-    }
-    clearRecoveryCallbackFromUrl();
-    showPasswordSetupScreen();
-    return;
-  }
-
   if (authMode === 'set-password') {
     if (loginPassword.value !== loginPasswordConfirm.value) {
       setAuthPending(false);
@@ -3659,7 +3617,7 @@ loginForm.addEventListener('submit', async event => {
       showAuthMessage(friendlyAuthError(error), true);
       return;
     }
-    clearRecoveryCallbackFromUrl();
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
     await showAuthenticatedApp(data.user);
     showToast('Şifreniz kaydedildi. Hesabınız kullanıma hazır.');
     return;
@@ -3680,10 +3638,7 @@ loginForm.addEventListener('submit', async event => {
 });
 
 document.querySelector('#forgotPasswordButton').addEventListener('click', () => configureAuthForm('reset-password'));
-document.querySelector('#backToLoginButton').addEventListener('click', () => {
-  if (authMode === 'confirm-recovery') clearRecoveryCallbackFromUrl();
-  configureAuthForm('login');
-});
+document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
 document.querySelector('#schoolApplicationButton')?.addEventListener('click', () => {
   const form = document.querySelector('#schoolApplicationForm');
   form?.reset();
@@ -5490,11 +5445,6 @@ async function handleAuthStateChange(event, session) {
       await supabaseClient?.auth.signOut({ scope: 'local' }).catch(() => undefined);
     }
     showExpiredPasswordLinkScreen();
-    return;
-  }
-
-  if (authMode === 'confirm-recovery' && recoveryTokenHash) {
-    showRecoveryConfirmationScreen();
     return;
   }
 
