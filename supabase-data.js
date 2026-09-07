@@ -199,7 +199,7 @@
         fetchTrainingFields(client, schoolId),
         isCoach
           ? client.rpc('coach_student_directory', { target_school_id: schoolId }).then(({ data, error }) => { if (error) throw error; return data || []; })
-          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, monthly_fee_amount, attendance_rate, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId }),
+          : fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, monthly_fee_amount, attendance_rate, is_active, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId }),
         isCoach
           ? Promise.resolve([])
           : client.from('fee_periods').select('id, student_id, fee_month, status, amount, due_date, paid_at, payment_method, note, source, created_at').eq('school_id', schoolId).eq('fee_month', `${currentMonth}-01`),
@@ -263,7 +263,8 @@
           feePayments,
           feeHistory,
           fee: feePayments[currentMonth] || 'none',
-          attendance: Number(row.attendance_rate || 0)
+          attendance: Number(row.attendance_rate || 0),
+          active: row.is_active !== false
         };
       });
 
@@ -455,7 +456,7 @@
         if (error) throw error;
         return data || [];
       }
-      return fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, monthly_fee_amount, attendance_rate, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId });
+      return fetchAll(client, 'students', 'id, full_name, birth_date, birth_year, position, guardian_name, phone, email, address, notes, enrollment_date, fee_tracking_start_date, monthly_fee_amount, attendance_rate, is_active, profile_photo_path, player_card, training_groups(name)', 'id', { school_id: schoolId });
     }
 
     async function loadStudentPhotoUrls(paths) {
@@ -930,7 +931,8 @@
         enrollment_date: student.enrollmentDate,
         fee_tracking_start_date: student.feeTrackingStartDate,
         monthly_fee_amount: Number(student.monthlyFeeAmount) || null,
-        attendance_rate: Number(student.attendance || 0)
+        attendance_rate: Number(student.attendance || 0),
+        is_active: student.active !== false
       };
       const query = isNew
         ? client.from('students').insert(payload)
