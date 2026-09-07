@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.08.372';
+const APP_VERSION = '2026.09.08.373';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -60,11 +60,16 @@ const NATIVE_NOTIFICATION_PERMISSION = bridgedNativeNotificationPermission || re
 // Supabase may deliver recovery callbacks in the URL fragment (implicit flow)
 // or in the query string (PKCE flow). Handle both before auth state events.
 const authCallbackType = runtimeQueryParameters.get('type') || initialFragmentParameters.get('type');
+const authCallbackErrorCode = runtimeQueryParameters.get('error_code') || initialFragmentParameters.get('error_code') || '';
+const authCallbackError = runtimeQueryParameters.get('error') || initialFragmentParameters.get('error') || '';
+const hasExpiredAuthLink = authCallbackErrorCode === 'otp_expired'
+  || (authCallbackType === 'recovery' && Boolean(authCallbackError));
 let authMode = ['invite', 'recovery'].includes(authCallbackType) ? 'set-password' : 'login';
 let authRequestPending = false;
 let pendingAdminMfa = null;
 let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
+let expiredAuthLinkSessionCleared = false;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
 const SUBSCRIPTION_PERIODS = {
   monthly: { name: '1 aylık', months: 1 },
@@ -2083,6 +2088,17 @@ function showPasswordSetupScreen() {
   authScreen.classList.remove('is-hidden');
   configureAuthForm('set-password');
   window.setTimeout(() => loginPassword.focus(), 0);
+}
+
+function showExpiredPasswordLinkScreen() {
+  appShell.classList.add('is-hidden');
+  authScreen.classList.remove('is-hidden');
+  adminMfaForm.classList.add('is-hidden');
+  loginForm.classList.remove('is-hidden');
+  configureAuthForm('reset-password');
+  configurePersistentAndroidDownloads();
+  showAuthMessage('Bu şifre yenileme bağlantısı kullanılmış veya süresi dolmuş. Lütfen yeni bir bağlantı isteyin.', true);
+  window.setTimeout(() => loginEmail.focus(), 0);
 }
 
 function applyRemoteData(remoteData) {
@@ -5422,6 +5438,15 @@ appContent.addEventListener('toggle', event => {
 
 async function handleAuthStateChange(event, session) {
   if (event === 'PASSWORD_RECOVERY') authMode = 'set-password';
+
+  if (hasExpiredAuthLink) {
+    if (!expiredAuthLinkSessionCleared) {
+      expiredAuthLinkSessionCleared = true;
+      await supabaseClient?.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    }
+    showExpiredPasswordLinkScreen();
+    return;
+  }
 
   if (!session?.user) {
     stopRealtimeSync();
