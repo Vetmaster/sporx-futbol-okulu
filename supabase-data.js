@@ -942,6 +942,15 @@
       return Number(data.id);
     }
 
+    async function setStudentActiveStatus(studentId, isActive) {
+      requireContext();
+      const { error } = await client.rpc('set_student_active_status', {
+        target_student_id: Number(studentId),
+        next_is_active: Boolean(isActive)
+      });
+      if (error) throw error;
+    }
+
     async function saveStudentPhoto(studentId, photoFile, previousPath = '') {
       requireContext();
       const safeStudentId = Number(studentId);
@@ -1261,6 +1270,7 @@
       updateTrainingField,
       deleteTrainingField,
       saveStudent,
+      setStudentActiveStatus,
       saveStudentPlayerCard,
       saveStudentPhoto,
       deleteStudentPhoto,
