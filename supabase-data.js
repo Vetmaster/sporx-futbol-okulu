@@ -685,7 +685,7 @@
     async function listSubscriptionPaymentReports() {
       const { data, error } = await client
         .from('subscription_payment_reports')
-        .select('*, schools(name), school_subscription_periods(plan_code, billing_period, starts_on, ends_on)')
+        .select('*, schools(name), school_subscription_periods!subscription_payment_reports_period_id_fkey(plan_code, billing_period, starts_on, ends_on)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
