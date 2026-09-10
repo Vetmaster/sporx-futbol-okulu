@@ -3719,6 +3719,22 @@ function updateSchoolApplicationDistrictOptions() {
 
 document.querySelector('#schoolApplicationCountry')?.addEventListener('change', () => { void updateSchoolApplicationLocationFields(); });
 document.querySelector('#schoolApplicationCity')?.addEventListener('change', updateSchoolApplicationDistrictOptions);
+document.querySelector('#schoolApplicationPhone')?.addEventListener('input', event => {
+  const input = event.currentTarget;
+  const digits = input.value.replace(/\D/g, '').slice(0, 11);
+  const parts = [];
+  if (digits) parts.push(digits.slice(0, 1));
+  if (digits.length > 1) parts.push(` (${digits.slice(1, 4)}`);
+  if (digits.length >= 4) parts.push(')');
+  if (digits.length > 4) parts.push(` ${digits.slice(4, 7)}`);
+  if (digits.length > 7) parts.push(` ${digits.slice(7, 9)}`);
+  if (digits.length > 9) parts.push(` ${digits.slice(9, 11)}`);
+  input.value = parts.join('');
+});
+document.querySelector('#schoolApplicationEmail')?.addEventListener('input', event => {
+  const input = event.currentTarget;
+  input.value = input.value.replace(/\s/g, '');
+});
 document.querySelector('#schoolApplicationButton')?.addEventListener('click', () => {
   const form = document.querySelector('#schoolApplicationForm');
   form?.reset();

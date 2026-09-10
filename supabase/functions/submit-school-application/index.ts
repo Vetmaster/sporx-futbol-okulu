@@ -14,6 +14,12 @@ function clean(value: unknown, maxLength: number) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, maxLength);
 }
 
+function formatNationalPhone(value: unknown) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!/^0\d{10}$/.test(digits)) return '';
+  return `0 (${digits.slice(1, 4)}) ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9, 11)}`;
+}
+
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return response({ error: 'Method not allowed' }, 405);
@@ -27,7 +33,7 @@ Deno.serve(async request => {
   const city = clean(body.city, 80);
   const district = clean(body.district, 80);
   const applicantName = clean(body.applicantName, 120);
-  const phone = clean(body.phone, 30);
+  const phone = formatNationalPhone(body.phone);
   const email = clean(body.email, 254).toLocaleLowerCase('en-US');
   const note = clean(body.note, 1200) || null;
   if (!['Türkiye', 'KKTC'].includes(country) || !schoolName || !city || (country === 'Türkiye' && !district) || !applicantName || !phone || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

@@ -90,8 +90,8 @@
         <label>İl<select name="city" id="schoolApplicationCity" required disabled><option value="">Önce ülke seçin</option></select></label>
         <label id="schoolApplicationDistrictField">İlçe<select name="district" id="schoolApplicationDistrict" required disabled><option value="">Önce il seçin</option></select></label>
         <label>Yetkili adı soyadı<input name="applicantName" maxlength="120" required></label>
-        <label>Telefon<input name="phone" maxlength="30" inputmode="tel" required></label>
-        <label>E-posta<input name="email" maxlength="254" type="email" autocomplete="email" required></label>
+        <label>Telefon<input id="schoolApplicationPhone" name="phone" maxlength="17" inputmode="tel" autocomplete="tel-national" placeholder="0 (5XX) XXX XX XX" pattern="0 \([0-9]{3}\) [0-9]{3} [0-9]{2} [0-9]{2}" required><small class="form-hint">0 (XXX) XXX XX XX biçiminde girin.</small></label>
+        <label>E-posta<input id="schoolApplicationEmail" name="email" maxlength="254" type="email" inputmode="email" autocomplete="email" pattern="[^\s@]+@[^\s@]+\.[^\s@]+" required><small class="form-hint">Örn. adiniz@ornek.com</small></label>
       </div>
       <p class="auth-message is-hidden" id="schoolApplicationMessage" role="status"></p>
       <div class="dialog-actions"><button class="secondary-button" type="button" data-dialog-close="schoolApplicationDialog">Vazgeç</button><button class="primary-button" type="submit">Başvuruyu gönder</button></div>
