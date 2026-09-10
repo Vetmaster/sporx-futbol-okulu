@@ -87,8 +87,8 @@
       <div class="form-grid">
         <label>Futbol okulu adı<input name="schoolName" maxlength="120" required></label>
         <label>Ülke<select name="country" id="schoolApplicationCountry" required><option value="Türkiye" selected>Türkiye</option><option value="KKTC">KKTC</option></select></label>
-        <label>İl<input name="city" maxlength="80" required></label>
-        <label id="schoolApplicationDistrictField">İlçe<input name="district" maxlength="80" required></label>
+        <label>İl<select name="city" id="schoolApplicationCity" required disabled><option value="">Önce ülke seçin</option></select></label>
+        <label id="schoolApplicationDistrictField">İlçe<select name="district" id="schoolApplicationDistrict" required disabled><option value="">Önce il seçin</option></select></label>
         <label>Yetkili adı soyadı<input name="applicantName" maxlength="120" required></label>
         <label>Telefon<input name="phone" maxlength="30" inputmode="tel" required></label>
         <label>E-posta<input name="email" maxlength="254" type="email" autocomplete="email" required></label>

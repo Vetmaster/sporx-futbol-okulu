@@ -10,6 +10,8 @@ const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
 const AUTH_REDIRECT_URL = 'https://sasa-f.com/';
+const SCHOOL_APPLICATION_LOCATION_DATA_URL = 'https://cdn.jsdelivr.net/gh/talhaekrem/TurkiyeSehirVeIlcelerJSON@main/Turkey%20Cities%20and%20Districts.json';
+const KKTC_PROVINCES = ['Gazimağusa', 'Girne', 'Güzelyurt', 'İskele', 'Lefke', 'Lefkoşa'];
 const NATIVE_FCM_TOKEN_STORAGE_KEY = 'sasa_native_fcm_token';
 const NATIVE_NOTIFICATION_PERMISSION_STORAGE_KEY = 'sasa_native_notification_permission';
 const runtimeQueryParameters = new URLSearchParams(window.location.search);
@@ -70,6 +72,8 @@ let pendingAdminMfa = null;
 let signedOutMessage = '';
 let openDashboardAfterPasswordLogin = false;
 let expiredAuthLinkSessionCleared = false;
+let schoolApplicationLocations = null;
+let schoolApplicationLocationsLoading = null;
 const PAYMENT_METHODS = { cash: 'Nakit', transfer: 'Havale', card: 'Kredi kartı' };
 const SUBSCRIPTION_PERIODS = {
   monthly: { name: '1 aylık', months: 1 },
@@ -3641,24 +3645,84 @@ loginForm.addEventListener('submit', async event => {
 document.querySelector('#forgotPasswordButton').addEventListener('click', () => configureAuthForm('reset-password'));
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
 
-function updateSchoolApplicationLocationFields() {
+function setSelectOptions(select, placeholder, values) {
+  if (!select) return;
+  select.replaceChildren(new Option(placeholder, ''), ...values.map(value => new Option(value, value)));
+}
+
+async function loadSchoolApplicationLocations() {
+  if (schoolApplicationLocations) return schoolApplicationLocations;
+  if (!schoolApplicationLocationsLoading) {
+    schoolApplicationLocationsLoading = fetch(SCHOOL_APPLICATION_LOCATION_DATA_URL)
+      .then(response => {
+        if (!response.ok) throw new Error('Konum listesi yüklenemedi.');
+        return response.json();
+      })
+      .then(data => {
+        const districtsByCity = new Map((data.cities || []).map(city => [city.Id, []]));
+        (data.districts || []).forEach(district => districtsByCity.get(district.cityId)?.push(district.name));
+        schoolApplicationLocations = (data.cities || [])
+          .map(city => ({ name: city.name, districts: (districtsByCity.get(city.Id) || []).sort((a, b) => a.localeCompare(b, 'tr-TR')) }))
+          .sort((left, right) => left.name.localeCompare(right.name, 'tr-TR'));
+        return schoolApplicationLocations;
+      })
+      .finally(() => { schoolApplicationLocationsLoading = null; });
+  }
+  return schoolApplicationLocationsLoading;
+}
+
+async function updateSchoolApplicationLocationFields() {
   const form = document.querySelector('#schoolApplicationForm');
   if (!form) return;
-  const isKktc = form.elements.country?.value === 'KKTC';
+  const country = form.elements.country?.value || 'Türkiye';
+  const citySelect = form.elements.city;
   const districtField = document.querySelector('#schoolApplicationDistrictField');
-  const districtInput = form.elements.district;
+  const districtSelect = form.elements.district;
+  const isKktc = country === 'KKTC';
   districtField?.classList.toggle('is-hidden', isKktc);
-  if (districtInput) {
-    districtInput.required = !isKktc;
-    if (isKktc) districtInput.value = '';
+  districtSelect.required = !isKktc;
+  districtSelect.value = '';
+
+  if (isKktc) {
+    setSelectOptions(citySelect, 'İl seçin', KKTC_PROVINCES);
+    citySelect.disabled = false;
+    districtSelect.disabled = true;
+    return;
+  }
+
+  citySelect.disabled = true;
+  districtSelect.disabled = true;
+  setSelectOptions(citySelect, 'İller yükleniyor…', []);
+  setSelectOptions(districtSelect, 'Önce il seçin', []);
+  try {
+    const locations = await loadSchoolApplicationLocations();
+    if ((form.elements.country?.value || 'Türkiye') !== 'Türkiye') return;
+    setSelectOptions(citySelect, 'İl seçin', locations.map(location => location.name));
+    citySelect.disabled = false;
+  } catch (error) {
+    setSelectOptions(citySelect, 'İller yüklenemedi', []);
+    const message = document.querySelector('#schoolApplicationMessage');
+    message.textContent = 'İl ve ilçe listesi yüklenemedi. Lütfen bağlantınızı kontrol edip tekrar deneyin.';
+    message.classList.remove('is-hidden');
   }
 }
 
-document.querySelector('#schoolApplicationCountry')?.addEventListener('change', updateSchoolApplicationLocationFields);
+function updateSchoolApplicationDistrictOptions() {
+  const form = document.querySelector('#schoolApplicationForm');
+  if (!form || form.elements.country?.value !== 'Türkiye') return;
+  const city = form.elements.city?.value || '';
+  const districtSelect = form.elements.district;
+  const location = schoolApplicationLocations?.find(item => item.name === city);
+  setSelectOptions(districtSelect, city ? 'İlçe seçin' : 'Önce il seçin', location?.districts || []);
+  districtSelect.disabled = !location;
+}
+
+document.querySelector('#schoolApplicationCountry')?.addEventListener('change', () => { void updateSchoolApplicationLocationFields(); });
+document.querySelector('#schoolApplicationCity')?.addEventListener('change', updateSchoolApplicationDistrictOptions);
 document.querySelector('#schoolApplicationButton')?.addEventListener('click', () => {
   const form = document.querySelector('#schoolApplicationForm');
   form?.reset();
-  updateSchoolApplicationLocationFields();
+  void updateSchoolApplicationLocationFields();
   const message = document.querySelector('#schoolApplicationMessage');
   message?.classList.add('is-hidden');
   document.querySelector('#schoolApplicationDialog')?.showModal();
