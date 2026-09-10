@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10.377';
+const APP_VERSION = '2026.09.10.378';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3999,6 +3999,7 @@ document.addEventListener('click', async event => {
     state.page = 'dashboard';
     state.pageHistory = [];
     render();
+    return;
   }
   if (action === 'add-bank-account' && isAdminRole()) {
     const form = actionButton.closest('#schoolBankSettingsForm');
@@ -5502,6 +5503,10 @@ appContent.addEventListener('submit', async event => {
         iban
       };
     }).filter(account => account.bankName || account.accountHolder || account.iban);
+    if (!accounts.length) {
+      showToast('Kaydetmek için banka adı, hesap sahibi ve geçerli bir TR IBAN bilgisi girin.');
+      return;
+    }
     if (accounts.some(account => !account.bankName || !account.accountHolder || !isValidTurkishIban(account.iban))) {
       showToast('Her hesap için banka adı, hesap sahibi ve doğrulanabilir bir TR IBAN bilgisini birlikte girin.');
       return;

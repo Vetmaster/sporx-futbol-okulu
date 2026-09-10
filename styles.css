@@ -207,7 +207,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .settings-link-copy strong { font-size: 16px; }
 .settings-link-copy small { color: var(--muted); line-height: 1.45; }
 .settings-link-arrow { color: var(--brand); font-size: 28px; font-weight: 700; line-height: 1; }
-.bank-settings-panel { display: grid; gap: 18px; max-width: 1080px; }
+.bank-settings-panel { display: grid; gap: 18px; max-width: 1080px; padding: 0 20px 20px; }
+.bank-settings-panel .panel-heading { margin-inline: -20px; }
 .bank-settings-form { display: grid; gap: 16px; }
 .bank-account-settings-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
 .bank-account-settings-card { min-width: 0; display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft); }
@@ -226,6 +227,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .iban-prefix[hidden] { display: none !important; }
 .bank-settings-iban .iban-prefix-control input { min-width: 0; border: 0; border-radius: 0; box-shadow: none; padding-left: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 800; letter-spacing: .025em; }
 .parent-bank-account-list { display: grid; gap: 14px; }
+.parent-bank-panel > .parent-bank-account-list, .parent-bank-panel > .parent-bank-placeholder, .parent-bank-panel > .secondary-button { margin-inline: 20px; }
+.parent-bank-panel > :last-child { margin-bottom: 20px; }
 .parent-bank-account { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft); }
 .parent-bank-account.bank-theme-akbank { border-color: rgba(211, 25, 35, .28); background: rgba(211, 25, 35, .10); }
 .parent-bank-account.bank-theme-garanti { border-color: rgba(0, 135, 81, .28); background: rgba(0, 135, 81, .10); }
@@ -739,7 +742,8 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .school-platform-summary, .school-create-form, .subscription-summary-grid { grid-template-columns: 1fr; }
   .school-management-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-hub-grid { grid-template-columns: 1fr; }
-  .bank-settings-panel { padding: 18px; }
+  .bank-settings-panel { padding: 0 18px 18px; }
+  .bank-settings-panel .panel-heading { margin-inline: -18px; }
   .bank-account-settings-list { grid-template-columns: 1fr; }
   .bank-settings-actions { align-items: stretch; }
   .bank-settings-actions .primary-button, .bank-settings-actions .secondary-button { width: 100%; margin-left: 0; }
