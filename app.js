@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10.376';
+const APP_VERSION = '2026.09.10.377';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -105,6 +105,7 @@ const state = {
   schoolSubscriptionPlan: 'standard',
   schoolSubscriptionStatus: 'trial',
   schoolSubscriptionTrialMode: null,
+  schoolSubscriptionEndsOn: '',
   schools: [],
   schoolSearchQuery: '',
   userId: null,
@@ -1199,6 +1200,14 @@ function subscriptionDateLabel(value) {
   return new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
 }
 
+function trialRemainingLabel(endsOn) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(endsOn || ''))) return '';
+  const today = new Date(`${localDateValue()}T12:00:00`);
+  const endDate = new Date(`${endsOn}T12:00:00`);
+  const daysRemaining = Math.max(0, Math.round((endDate - today) / 86400000));
+  return daysRemaining === 0 ? 'Bugün son gününüz.' : `${daysRemaining} gün kaldı.`;
+}
+
 function formatDateTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
@@ -1290,7 +1299,11 @@ function onboardingView() {
   const onboarding = state.onboarding;
   const paymentPending = onboarding?.status === 'PAYMENT_PENDING';
   const trialStarted = onboarding?.status === 'TRIAL_STARTED';
-  if (trialStarted) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 2 ay boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+  if (trialStarted) {
+    const trialEndsOn = state.schoolSubscriptionEndsOn;
+    const remaining = trialRemainingLabel(trialEndsOn);
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 2 ay boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p>${remaining ? `<p class="onboarding-trial-remaining"><strong>Deneme bitişi:</strong> ${subscriptionDateLabel(trialEndsOn)} · ${remaining}</p>` : ''}<button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+  }
   if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
   const bankAccounts = state.schoolBankAccounts?.length
     ? `<div class="parent-bank-account-list">${state.schoolBankAccounts.map(account => `<article class="parent-bank-account"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
@@ -2117,6 +2130,7 @@ function applyRemoteData(remoteData) {
   state.schoolSubscriptionPlan = remoteData.subscriptionPlan || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionPlan || 'standard';
   state.schoolSubscriptionStatus = remoteData.subscriptionStatus || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionStatus || 'trial';
   state.schoolSubscriptionTrialMode = remoteData.subscriptionTrialMode || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionTrialMode || null;
+  state.schoolSubscriptionEndsOn = remoteData.subscriptionEndsOn || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionEndsOn || '';
   state.students = remoteData.students;
   state.trainings = remoteData.trainings;
   state.accountingEntries = remoteData.accountingEntries;
@@ -3968,6 +3982,7 @@ document.addEventListener('click', async event => {
     state.onboarding = saved;
     state.schoolSubscriptionPlan = 'standard';
     state.schoolSubscriptionStatus = 'trial';
+    state.schoolSubscriptionEndsOn = localDateAfterMonths(localDateValue(), 2);
     render();
     showToast('2 aylık ücretsiz deneme başlatıldı.');
   }

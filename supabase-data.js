@@ -140,10 +140,10 @@
   }
 
   async function fetchSchoolSettings(client, schoolId, role) {
-    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status, subscription_trial_mode' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, bank_accounts, is_active, subscription_plan, subscription_status, subscription_trial_mode';
+    const columns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status, subscription_trial_mode, subscription_ends_on' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, bank_accounts, is_active, subscription_plan, subscription_status, subscription_trial_mode, subscription_ends_on';
     let result = await client.from('schools').select(columns).eq('id', schoolId).single();
     if (result.error && /bank_name|bank_account_holder|bank_iban|bank_accounts|subscription_trial_mode/i.test(String(result.error.message || ''))) {
-      const compatibilityColumns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, is_active, subscription_plan, subscription_status';
+      const compatibilityColumns = role === 'coach' ? 'name, slug, is_active, subscription_plan, subscription_status, subscription_ends_on' : 'name, slug, monthly_fee_amount, bank_name, bank_account_holder, bank_iban, is_active, subscription_plan, subscription_status, subscription_ends_on';
       result = await client.from('schools').select(compatibilityColumns).eq('id', schoolId).single();
     }
     if (result.error && String(result.error.message || '').includes('is_active')) {
@@ -349,6 +349,7 @@
         subscriptionPlan: normalizeSubscriptionPlan(schoolSettingsResult.data?.subscription_plan),
         subscriptionStatus: normalizeSubscriptionStatus(schoolSettingsResult.data?.subscription_status),
         subscriptionTrialMode: normalizeSubscriptionTrialMode(schoolSettingsResult.data?.subscription_trial_mode),
+        subscriptionEndsOn: schoolSettingsResult.data?.subscription_ends_on || '',
         monthlyFeeAmount: Number(schoolSettingsResult.data?.monthly_fee_amount) || 1500,
         bankAccounts: Array.isArray(schoolSettingsResult.data?.bank_accounts) && schoolSettingsResult.data.bank_accounts.length
           ? schoolSettingsResult.data.bank_accounts.slice(0, 4)

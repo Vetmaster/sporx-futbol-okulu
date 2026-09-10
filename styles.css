@@ -359,6 +359,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .onboarding-card h2, .onboarding-card h3, .onboarding-card p { margin: 0; }
 .onboarding-card .primary-button { justify-self: start; }
 .onboarding-card .muted { display: block; line-height: 1.45; }
+.onboarding-trial-remaining { padding: 12px 14px; border-radius: 10px; color: var(--brand-dark); background: var(--brand-soft); font-size: 14px; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
 .panel-heading h3 { margin: 0; font-size: 16px; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: 16px; }
