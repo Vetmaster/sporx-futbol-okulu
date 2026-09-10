@@ -259,7 +259,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .group-settings-panel[open] .group-settings-summary { border-bottom: 1px solid var(--line); }
 .group-settings-panel[open] .group-settings-summary .disclosure-chevron { transform: rotate(180deg); }
 .group-settings-content { padding-bottom: 18px; }
-.group-settings-form { display: grid; grid-template-columns: minmax(120px, .55fr) minmax(220px, 1fr) auto; align-items: center; gap: 12px; padding: 0 20px 18px; border-bottom: 1px solid var(--line); }
+.group-settings-form { display: grid; grid-template-columns: minmax(120px, .55fr) minmax(220px, 1fr) auto; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
 .group-settings-form > label { margin: 0; }
 .group-settings-list { display: grid; padding: 6px 20px 0; }
 .group-settings-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 62px; border-bottom: 1px solid var(--line); }
