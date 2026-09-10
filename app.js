@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10.378';
+const APP_VERSION = '2026.09.10.379';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1319,10 +1319,18 @@ function settingsView() {
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>`
     : '';
+  const adminSubscriptionMarkup = state.role === 'admin'
+    ? `<button class="panel settings-link-card" type="button" data-page="onboarding">
+        <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.subscriptions}</span>
+        <span class="settings-link-copy"><strong>Abonelik</strong><small>Deneme sürenizi ve abonelik seçeneklerinizi görüntüleyin.</small></span>
+        <span class="settings-link-arrow" aria-hidden="true">›</span>
+      </button>`
+    : '';
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Ayarlar</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} ayarlarını yönetin</p></div></div>
     <section class="settings-hub-grid" aria-label="Ayarlar seçenekleri">
       ${subscriptionSettingsMarkup}
+      ${adminSubscriptionMarkup}
       <button class="panel settings-link-card" type="button" data-page="bankSettings">
         <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.bank}</span>
         <span class="settings-link-copy"><strong>Havale Bilgileri</strong><small>Velilerin aidat ödemesinde göreceği banka ve IBAN bilgilerini yönetin.</small></span>
@@ -2729,7 +2737,7 @@ function hideDataSaveLoading() {
 }
 
 document.addEventListener('submit', event => {
-  if (!(event.target instanceof HTMLFormElement) || ['loginForm', 'adminMfaForm', 'schoolApplicationForm'].includes(event.target.id)) return;
+  if (!(event.target instanceof HTMLFormElement) || ['loginForm', 'adminMfaForm', 'schoolApplicationForm', 'schoolBankSettingsForm'].includes(event.target.id)) return;
   showDataSaveLoading();
 }, true);
 
@@ -5515,6 +5523,7 @@ appContent.addEventListener('submit', async event => {
       showToast('Aynı IBAN birden fazla kez eklenemez.');
       return;
     }
+    showDataSaveLoading();
     const savedAccounts = await runRemoteMutation(() => remoteDataStore.saveSchoolBankDetails(accounts));
     if (!savedAccounts) return;
     state.schoolBankAccounts = savedAccounts;
