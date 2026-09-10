@@ -1259,8 +1259,9 @@ function applicationStatusLabel(status) {
 function applicationsView() {
   const rows = state.schoolApplications.map(application => {
     const canReview = ['PENDING', 'INFO_REQUESTED'].includes(application.status);
+    const location = [application.country || 'Türkiye', application.city, application.district].filter(Boolean).join(' · ');
     return `<article class="panel application-card">
-      <div class="panel-heading"><div><span class="eyebrow">${escapeHtml(application.city)} · ${escapeHtml(application.district)}</span><h3>${escapeHtml(application.school_name)}</h3><small>${escapeHtml(application.applicant_name)} · ${escapeHtml(application.email)} · ${escapeHtml(application.phone)}</small></div><span class="status ${application.status === 'APPROVED' ? '' : application.status === 'REJECTED' ? 'warning' : 'blue'}">${applicationStatusLabel(application.status)}</span></div>
+      <div class="panel-heading"><div><span class="eyebrow">${escapeHtml(location)}</span><h3>${escapeHtml(application.school_name)}</h3><small>${escapeHtml(application.applicant_name)} · ${escapeHtml(application.email)} · ${escapeHtml(application.phone)}</small></div><span class="status ${application.status === 'APPROVED' ? '' : application.status === 'REJECTED' ? 'warning' : 'blue'}">${applicationStatusLabel(application.status)}</span></div>
       ${application.note ? `<p>${escapeHtml(application.note)}</p>` : ''}
       ${application.customer_message ? `<p class="muted"><strong>Müşteriye not:</strong> ${escapeHtml(application.customer_message)}</p>` : ''}
       ${application.internal_note ? `<p class="muted"><strong>İç not:</strong> ${escapeHtml(application.internal_note)}</p>` : ''}
@@ -3639,9 +3640,25 @@ loginForm.addEventListener('submit', async event => {
 
 document.querySelector('#forgotPasswordButton').addEventListener('click', () => configureAuthForm('reset-password'));
 document.querySelector('#backToLoginButton').addEventListener('click', () => configureAuthForm('login'));
+
+function updateSchoolApplicationLocationFields() {
+  const form = document.querySelector('#schoolApplicationForm');
+  if (!form) return;
+  const isKktc = form.elements.country?.value === 'KKTC';
+  const districtField = document.querySelector('#schoolApplicationDistrictField');
+  const districtInput = form.elements.district;
+  districtField?.classList.toggle('is-hidden', isKktc);
+  if (districtInput) {
+    districtInput.required = !isKktc;
+    if (isKktc) districtInput.value = '';
+  }
+}
+
+document.querySelector('#schoolApplicationCountry')?.addEventListener('change', updateSchoolApplicationLocationFields);
 document.querySelector('#schoolApplicationButton')?.addEventListener('click', () => {
   const form = document.querySelector('#schoolApplicationForm');
   form?.reset();
+  updateSchoolApplicationLocationFields();
   const message = document.querySelector('#schoolApplicationMessage');
   message?.classList.add('is-hidden');
   document.querySelector('#schoolApplicationDialog')?.showModal();
