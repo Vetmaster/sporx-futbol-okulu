@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10.375';
+const APP_VERSION = '2026.09.10.376';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1290,12 +1290,12 @@ function onboardingView() {
   const onboarding = state.onboarding;
   const paymentPending = onboarding?.status === 'PAYMENT_PENDING';
   const trialStarted = onboarding?.status === 'TRIAL_STARTED';
-  if (trialStarted) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 14 gün boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+  if (trialStarted) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 2 ay boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
   if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
   const bankAccounts = state.schoolBankAccounts?.length
     ? `<div class="parent-bank-account-list">${state.schoolBankAccounts.map(account => `<article class="parent-bank-account"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
     : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için Süper Admin ile iletişime geçin.</p>';
-  return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 14 gün ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">14 gün ücretsiz dene</button></section><section class="panel onboarding-card"><h3>Aboneliği başlat</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale açıklaması <small>(isteğe bağlı)</small><input id="onboardingPaymentNote" maxlength="300" placeholder="Ödeme yapan kişi / açıklama"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra Süper Admin onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
+  return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section><section class="panel onboarding-card"><h3>Aboneliği başlat</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale açıklaması <small>(isteğe bağlı)</small><input id="onboardingPaymentNote" maxlength="300" placeholder="Ödeme yapan kişi / açıklama"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra Süper Admin onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
 }
 
 function settingsView() {
@@ -3969,7 +3969,7 @@ document.addEventListener('click', async event => {
     state.schoolSubscriptionPlan = 'standard';
     state.schoolSubscriptionStatus = 'trial';
     render();
-    showToast('14 günlük ücretsiz deneme başlatıldı.');
+    showToast('2 aylık ücretsiz deneme başlatıldı.');
   }
   else if (action === 'report-subscription-payment' && state.role === 'admin') {
     const billingPeriod = document.querySelector('#onboardingBillingPeriod')?.value || 'monthly';
