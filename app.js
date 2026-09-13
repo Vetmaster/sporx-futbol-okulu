@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.389';
+const APP_VERSION = '2026.09.13.390';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -44,6 +44,15 @@ const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBL
 });
 const remoteDataStore = supabaseClient && window.SasaSupabaseData?.create(supabaseClient);
 const initialFragmentParameters = new URLSearchParams(window.location.hash.slice(1));
+const PENDING_OPEN_PAGE_STORAGE_KEY = 'sasa_pending_open_page';
+const initialRequestedOpenPage = runtimeQueryParameters.get('open') || initialFragmentParameters.get('open') || '';
+if (['notifications', 'onboarding'].includes(initialRequestedOpenPage)) {
+  try {
+    window.sessionStorage.setItem(PENDING_OPEN_PAGE_STORAGE_KEY, initialRequestedOpenPage);
+  } catch {
+    // Gizli mod/depolama kısıtı varsa açılış URL'sindeki hedef kullanılmaya devam eder.
+  }
+}
 const bridgedNativeFcmToken = initialFragmentParameters.get('nativeFcmToken') || '';
 const bridgedNativeNotificationPermission = initialFragmentParameters.get('nativeNotificationPermission') || '';
 let rememberedNativeFcmToken = '';
@@ -2706,10 +2715,16 @@ async function showAuthenticatedApp(user) {
     state.page = 'onboarding';
     state.pageHistory = [];
   }
-  const requestedPage = new URLSearchParams(window.location.search).get('open');
+  let requestedPage = initialRequestedOpenPage;
+  try {
+    requestedPage = requestedPage || window.sessionStorage.getItem(PENDING_OPEN_PAGE_STORAGE_KEY) || '';
+  } catch {
+    requestedPage = requestedPage || '';
+  }
   if (requestedPage === 'notifications' && navItems.notifications.roles.includes(state.role)) {
     state.page = 'notifications';
     state.pageHistory = [];
+    try { window.sessionStorage.removeItem(PENDING_OPEN_PAGE_STORAGE_KEY); } catch {}
     const notificationUrl = new URL(window.location.href);
     notificationUrl.searchParams.delete('open');
     window.history.replaceState(
@@ -2721,6 +2736,7 @@ async function showAuthenticatedApp(user) {
     state.page = 'onboarding';
     state.onboardingPurchaseOpen = false;
     state.pageHistory = [];
+    try { window.sessionStorage.removeItem(PENDING_OPEN_PAGE_STORAGE_KEY); } catch {}
     const onboardingUrl = new URL(window.location.href);
     onboardingUrl.searchParams.delete('open');
     window.history.replaceState(

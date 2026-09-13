@@ -212,6 +212,7 @@ async function sendPushes(
                 data: {
                   title,
                   body,
+                  message: body,
                   notificationId: String(notificationId),
                   url: NOTIFICATION_URL,
                   icon: `${SITE_URL}sasa-f-icon-v3.svg`,
@@ -220,7 +221,7 @@ async function sendPushes(
                 },
                 ...(device.platform === 'web'
                   ? { webpush: { headers: { TTL: '3600', Urgency: 'high' }, fcm_options: { link: NOTIFICATION_URL } } }
-                  : { android: { priority: 'HIGH', notification: { channel_id: 'sasa_f_notifications', icon: 'ic_notification_status', color: '#E31B15', sound: 'default' } } })
+                  : { android: { priority: 'HIGH', notification: { title, body, channel_id: 'sasa_f_notifications', icon: 'ic_notification_status', color: '#E31B15', sound: 'default' } } })
               }
             })
           }),

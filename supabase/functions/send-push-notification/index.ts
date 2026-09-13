@@ -344,6 +344,7 @@ Deno.serve(async request => {
                 data: {
                   title: notification.title,
                   body: notification.body,
+                  message: notification.body,
                   notificationId: String(notification.id),
                   url: 'https://sasa-f.com/?open=notifications',
                   icon: 'https://sasa-f.com/sasa-f-icon-v3.svg',
@@ -361,6 +362,8 @@ Deno.serve(async request => {
                     android: {
                       priority: 'HIGH',
                       notification: {
+                        title: notification.title,
+                        body: notification.body,
                         channel_id: 'sasa_f_notifications',
                         icon: 'ic_notification_status',
                         color: '#E31B15',
