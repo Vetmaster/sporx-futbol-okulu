@@ -669,6 +669,21 @@
       return data || null;
     }
 
+    async function getMyApprovedSubscriptionPeriod() {
+      requireContext();
+      const { data, error } = await client
+        .from('subscription_payment_reports')
+        .select('school_subscription_periods!subscription_payment_reports_period_id_fkey(billing_period, starts_on, ends_on, status)')
+        .eq('school_id', schoolId)
+        .eq('status', 'APPROVED')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      const period = data?.school_subscription_periods;
+      return period && typeof period === 'object' ? period : null;
+    }
+
     async function getSubscriptionBankAccounts() {
       const { data, error } = await client.rpc('get_subscription_bank_accounts');
       if (error) throw error;
@@ -1266,6 +1281,7 @@
       reviewSchoolApplication,
       approveSchoolApplication,
       getMySchoolOnboarding,
+      getMyApprovedSubscriptionPeriod,
       getSubscriptionBankAccounts,
       saveSubscriptionBankAccounts,
       startSchoolTrial,

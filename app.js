@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.385';
+const APP_VERSION = '2026.09.13.386';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -124,6 +124,7 @@ const state = {
   schoolApplications: [],
   subscriptionPaymentReports: [],
   onboarding: null,
+  approvedSubscriptionPeriod: null,
   onboardingPurchaseOpen: false,
   activeTrainingId: null,
   selectedStudentId: null,
@@ -1326,10 +1327,16 @@ function onboardingView() {
   const paymentPending = onboarding?.status === 'PAYMENT_PENDING';
   const trialStarted = onboarding?.status === 'TRIAL_STARTED';
   const subscriptionActive = state.schoolSubscriptionStatus === 'active';
+  const approvedPeriod = state.approvedSubscriptionPeriod;
   if (subscriptionActive && !state.onboardingPurchaseOpen) {
     const subscriptionEndsOn = state.schoolSubscriptionEndsOn;
     const remaining = trialRemainingLabel(subscriptionEndsOn);
     return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ABONELİĞİNİZ AKTİF</span><h2>Standart üyeliğiniz devam ediyor.</h2><p>Abonelik sürenizi ve yenileme bilgilerinizi buradan takip edebilirsiniz.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(state.schoolSubscriptionBillingPeriod)}<br><strong>Abonelik bitişi:</strong> ${subscriptionDateLabel(subscriptionEndsOn)}${remaining ? ` · ${remaining}` : ''}</p><div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Süre uzat</button></div></section></div>`;
+  }
+  if (approvedPeriod && !state.onboardingPurchaseOpen) {
+    const scheduledStart = subscriptionDateLabel(approvedPeriod.starts_on);
+    const scheduledEnd = subscriptionDateLabel(approvedPeriod.ends_on);
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEMENİZ ONAYLANDI</span><h2>Aboneliğiniz planlandı.</h2><p>Mevcut deneme süreniz bittiğinde Standart üyeliğiniz otomatik olarak başlayacak.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(approvedPeriod.billing_period)}<br><strong>Başlangıç:</strong> ${scheduledStart}<br><strong>Bitiş / yenileme:</strong> ${scheduledEnd}</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
   }
   if (trialStarted && !state.onboardingPurchaseOpen) {
     const trialEndsOn = state.schoolSubscriptionEndsOn;
@@ -2672,6 +2679,12 @@ async function showAuthenticatedApp(user) {
   } catch (onboardingError) {
     console.warn('Okul başlangıç durumu yüklenemedi:', onboardingError);
     state.onboarding = null;
+  }
+  try {
+    state.approvedSubscriptionPeriod = profile.role === 'admin' ? await remoteDataStore.getMyApprovedSubscriptionPeriod() : null;
+  } catch (subscriptionPeriodError) {
+    console.warn('Onaylı abonelik dönemi yüklenemedi:', subscriptionPeriodError);
+    state.approvedSubscriptionPeriod = null;
   }
   try {
     state.subscriptionBankAccounts = ['super_admin', 'admin'].includes(profile.role)
