@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.383';
+const APP_VERSION = '2026.09.13.384';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1330,11 +1330,11 @@ function onboardingView() {
   }
   if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
   const bankAccounts = state.subscriptionBankAccounts?.length
-    ? `<div class="parent-bank-account-list">${state.subscriptionBankAccounts.map(account => `<article class="parent-bank-account ${parentBankThemeClass(account.bankName)}"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
+    ? `<div class="parent-bank-account-list">${state.subscriptionBankAccounts.map((account, index) => `<article class="parent-bank-account ${parentBankThemeClass(account.bankName)}"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(formatIban(account.iban))}</code><button class="secondary-button" type="button" data-action="copy-subscription-iban" data-account-index="${index}">IBAN'ı kopyala</button></article>`).join('')}</div>`
     : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için yetkili ile iletişime geçin.</p>';
   const trialChoice = trialStarted ? '' : `<section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section>`;
   const purchaseTitle = trialStarted ? 'Aboneliğinizi başlatın' : 'Aboneliği başlat';
-  return `<div class="page-stack">${trialChoice}<section class="panel onboarding-card"><h3>${purchaseTitle}</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><p class="onboarding-payment-amount" id="onboardingPaymentAmount" aria-live="polite">${onboardingPaymentAmountMarkup()}</p><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra sasa-f.com tarafından onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
+  return `<div class="page-stack">${trialChoice}<section class="panel onboarding-card"><h3>${purchaseTitle}</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><p class="onboarding-payment-amount" id="onboardingPaymentAmount" aria-live="polite">${onboardingPaymentAmountMarkup()}</p><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale gönderen ad soyad<input id="onboardingPayerName" maxlength="120" autocomplete="name" placeholder="Ödemeyi gönderen kişinin adı soyadı"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra sasa-f.com tarafından onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
 }
 
 function settingsView() {
@@ -4058,7 +4058,12 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'report-subscription-payment' && state.role === 'admin') {
     const billingPeriod = document.querySelector('#onboardingBillingPeriod')?.value || 'monthly';
-    const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ billingPeriod, note: '' }));
+    const note = String(document.querySelector('#onboardingPayerName')?.value || '').trim().replace(/\s+/g, ' ');
+    if (note.length < 2) {
+      showToast('Lütfen havaleyi gönderen kişinin adını ve soyadını yazın.');
+      return;
+    }
+    const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ billingPeriod, note }));
     if (!saved) return;
     state.onboarding = { ...state.onboarding, status: 'PAYMENT_PENDING' };
     render();
@@ -4102,6 +4107,20 @@ document.addEventListener('click', async event => {
     const iban = normalizeIban(state.schoolBankAccounts?.[accountIndex]?.iban);
     if (!iban) {
       showToast('Kulübün doğrulanmış IBAN bilgisi henüz tanımlanmadı.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(iban);
+      showToast('IBAN kopyalandı.');
+    } catch (error) {
+      showToast('IBAN kopyalanamadı. Lütfen tekrar deneyin.');
+    }
+  }
+  else if (action === 'copy-subscription-iban' && state.role === 'admin') {
+    const accountIndex = Number(actionButton.dataset.accountIndex || 0);
+    const iban = normalizeIban(state.subscriptionBankAccounts?.[accountIndex]?.iban);
+    if (!iban) {
+      showToast('Abonelik için doğrulanmış IBAN bilgisi henüz tanımlanmadı.');
       return;
     }
     try {
