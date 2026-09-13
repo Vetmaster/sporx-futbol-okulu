@@ -667,6 +667,18 @@
       return data || null;
     }
 
+    async function getSubscriptionBankAccounts() {
+      const { data, error } = await client.rpc('get_subscription_bank_accounts');
+      if (error) throw error;
+      return Array.isArray(data) ? data.slice(0, 4) : [];
+    }
+
+    async function saveSubscriptionBankAccounts(accounts) {
+      const { data, error } = await client.rpc('save_subscription_bank_accounts', { accounts });
+      if (error) throw error;
+      return Array.isArray(data) ? data.slice(0, 4) : [];
+    }
+
     async function startSchoolTrial() {
       const { data, error } = await client.rpc('start_school_trial');
       if (error) throw error;
@@ -1252,6 +1264,8 @@
       reviewSchoolApplication,
       approveSchoolApplication,
       getMySchoolOnboarding,
+      getSubscriptionBankAccounts,
+      saveSubscriptionBankAccounts,
       startSchoolTrial,
       createSubscriptionPaymentReport,
       listSubscriptionPaymentReports,

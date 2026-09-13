@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.10.380';
+const APP_VERSION = '2026.09.13.381';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -81,7 +81,7 @@ const SUBSCRIPTION_PERIODS = {
   yearly: { name: 'Yıllık', months: 12 }
 };
 const TRIAL_MODES = { time_limited: 'Süreli deneme' };
-const STANDARD_SUBSCRIPTION_PRICES = { monthly: 799, quarterly: 2199, yearly: 7990 };
+const STANDARD_SUBSCRIPTION_PRICES = { monthly: 2500, quarterly: 7000, yearly: 25000 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', stopped: 'Durduruldu' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün' }
@@ -122,6 +122,7 @@ const state = {
   schoolApplications: [],
   subscriptionPaymentReports: [],
   onboarding: null,
+  onboardingPurchaseOpen: false,
   activeTrainingId: null,
   selectedStudentId: null,
   selectedParentStudentId: null,
@@ -151,6 +152,7 @@ const state = {
   accountingDateRangeEnd: '',
   monthlyFeeAmount: 1500,
   schoolBankAccounts: [],
+  subscriptionBankAccounts: [],
   trainingTypes: ['Teknik Antrenman', 'Taktik Çalışma', 'Kondisyon', 'Kaleci Çalışması', 'Maç Hazırlığı'],
   trainingCoaches: [],
   trainingFields: [...new Set(localData.trainings.map(training => training.field).filter(Boolean))],
@@ -217,6 +219,8 @@ function clearSensitiveState() {
   state.attendanceRecords = [];
   state.accessRequests = [];
   state.schoolBankAccounts = [];
+  state.subscriptionBankAccounts = [];
+  state.onboardingPurchaseOpen = false;
   state.schools = [];
   state.schoolId = null;
   state.schoolName = '';
@@ -268,6 +272,7 @@ const navItems = {
   subscriptionPayments: { label: 'Ödemeler', icon: MENU_ICONS.subscriptions, roles: ['super_admin'] },
   onboarding: { label: 'Aboneliği başlat', icon: MENU_ICONS.subscriptions, roles: ['admin'], hidden: true },
   bankSettings: { label: 'Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin', 'admin'], hidden: true },
+  subscriptionBankSettings: { label: 'Abonelik Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin'], hidden: true },
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'coach'] },
   studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   studentProfile: { label: 'Öğrenci Profili', icon: '◎', roles: ['super_admin', 'admin', 'coach', 'parent'], hidden: true },
@@ -289,7 +294,7 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Abonelikler', 'Okulların abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Abonelikler', 'Okulların abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], subscriptionBankSettings: ['Abonelik Havale Bilgileri', 'Okul yöneticilerinin abonelik ödemesinde göreceği hesaplar'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini ve antrenörleri yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
@@ -1226,6 +1231,16 @@ function subscriptionPrice(_planCode, billingPeriod = 'monthly') {
   return STANDARD_SUBSCRIPTION_PRICES[billingPeriod] ?? STANDARD_SUBSCRIPTION_PRICES.monthly;
 }
 
+function onboardingPaymentAmountMarkup(billingPeriod = 'monthly') {
+  const amount = subscriptionPrice('standard', billingPeriod);
+  const months = SUBSCRIPTION_PERIODS[billingPeriod]?.months || 1;
+  const regularAmount = subscriptionPrice('standard', 'monthly') * months;
+  const discountRate = months > 1 && regularAmount > amount
+    ? Math.round((1 - amount / regularAmount) * 100)
+    : 0;
+  return `Ödenecek tutar: <strong>${formatCurrency(amount)}</strong>${discountRate ? `<small>${subscriptionPeriodLabel(billingPeriod)} ödemede %${discountRate} indirim</small>` : ''}`;
+}
+
 function subscriptionPeriodLabel(billingPeriod) {
   return SUBSCRIPTION_PERIODS[billingPeriod]?.name || SUBSCRIPTION_PERIODS.monthly.name;
 }
@@ -1299,16 +1314,18 @@ function onboardingView() {
   const onboarding = state.onboarding;
   const paymentPending = onboarding?.status === 'PAYMENT_PENDING';
   const trialStarted = onboarding?.status === 'TRIAL_STARTED';
-  if (trialStarted) {
+  if (trialStarted && !state.onboardingPurchaseOpen) {
     const trialEndsOn = state.schoolSubscriptionEndsOn;
     const remaining = trialRemainingLabel(trialEndsOn);
-    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 2 ay boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p>${remaining ? `<p class="onboarding-trial-remaining"><strong>Deneme bitişi:</strong> ${subscriptionDateLabel(trialEndsOn)} · ${remaining}</p>` : ''}<button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 2 ay boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p>${remaining ? `<p class="onboarding-trial-remaining"><strong>Deneme bitişi:</strong> ${subscriptionDateLabel(trialEndsOn)} · ${remaining}</p>` : ''}<div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Satın al</button></div></section></div>`;
   }
   if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
-  const bankAccounts = state.schoolBankAccounts?.length
-    ? `<div class="parent-bank-account-list">${state.schoolBankAccounts.map(account => `<article class="parent-bank-account"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
-    : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için Süper Admin ile iletişime geçin.</p>';
-  return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section><section class="panel onboarding-card"><h3>Aboneliği başlat</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale açıklaması <small>(isteğe bağlı)</small><input id="onboardingPaymentNote" maxlength="300" placeholder="Ödeme yapan kişi / açıklama"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra Süper Admin onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
+  const bankAccounts = state.subscriptionBankAccounts?.length
+    ? `<div class="parent-bank-account-list">${state.subscriptionBankAccounts.map(account => `<article class="parent-bank-account"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
+    : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için yetkili ile iletişime geçin.</p>';
+  const trialChoice = trialStarted ? '' : `<section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section>`;
+  const purchaseTitle = trialStarted ? 'Aboneliğinizi başlatın' : 'Aboneliği başlat';
+  return `<div class="page-stack">${trialChoice}<section class="panel onboarding-card"><h3>${purchaseTitle}</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><p class="onboarding-payment-amount" id="onboardingPaymentAmount" aria-live="polite">${onboardingPaymentAmountMarkup()}</p><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra sasa-f.com tarafından onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
 }
 
 function settingsView() {
@@ -1330,6 +1347,11 @@ function settingsView() {
     <div class="section-heading"><div><h2>Ayarlar</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} ayarlarını yönetin</p></div></div>
     <section class="settings-hub-grid" aria-label="Ayarlar seçenekleri">
       ${subscriptionSettingsMarkup}
+      ${state.role === 'super_admin' ? `<button class="panel settings-link-card" type="button" data-page="subscriptionBankSettings">
+        <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.bank}</span>
+        <span class="settings-link-copy"><strong>Abonelik Havale Bilgileri</strong><small>Okul yöneticilerinin abonelik ödemesinde göreceği hesapları yönetin.</small></span>
+        <span class="settings-link-arrow" aria-hidden="true">›</span>
+      </button>` : ''}
       ${adminSubscriptionMarkup}
       <button class="panel settings-link-card" type="button" data-page="bankSettings">
         <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.bank}</span>
@@ -1375,6 +1397,23 @@ function bankSettingsView() {
         <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${!hasSavedAccount || bankAccounts.length >= 4 ? 'hidden' : ''}>+ Hesap Ekle</button><button class="primary-button" type="submit">Kaydet</button></div>
       </form>
       <small class="form-hint settings-form-hint">Her hesapta üç alan birlikte kaydedilir. Tamamen boş bırakılan hesaplar gösterilmez. Kaydetmeden önce IBAN ve hesap sahibini bankanızdan doğrulayın.</small>
+    </section>
+  </div>`;
+}
+
+function subscriptionBankSettingsView() {
+  const hasSavedAccount = state.subscriptionBankAccounts.length > 0;
+  const bankAccounts = hasSavedAccount ? state.subscriptionBankAccounts.slice(0, 4) : [{}];
+  const accountFields = bankAccounts.map((account, index) => bankAccountSettingsCardMarkup(account, index, bankAccounts.length, !hasSavedAccount)).join('');
+  return `<div class="page-stack">
+    <div class="section-heading"><div><h2>Abonelik havale bilgileri</h2><p>Okul yöneticilerinin abonelik ödemesinde göreceği hesaplar</p></div></div>
+    <section class="panel bank-settings-panel">
+      <div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">Yeni okul başvurusu yapan yöneticilere gösterilmek üzere en fazla 4 hesap ekleyebilirsiniz.</small></div></div>
+      <form id="subscriptionBankSettingsForm" class="bank-settings-form">
+        <div class="bank-account-settings-list">${accountFields}</div>
+        <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${!hasSavedAccount || bankAccounts.length >= 4 ? 'hidden' : ''}>+ Hesap Ekle</button><button class="primary-button" type="submit">Kaydet</button></div>
+      </form>
+      <small class="form-hint settings-form-hint">Bu bilgiler yalnızca abonelik ödemesi ekranında gösterilir; velilerin aidat hesaplarından bağımsızdır.</small>
     </section>
   </div>`;
 }
@@ -1942,7 +1981,7 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, applications: applicationsView, subscriptionPayments: subscriptionPaymentsView, onboarding: onboardingView, bankSettings: bankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, applications: applicationsView, subscriptionPayments: subscriptionPaymentsView, onboarding: onboardingView, bankSettings: bankSettingsView, subscriptionBankSettings: subscriptionBankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -1955,7 +1994,7 @@ function render() {
   const [title, subtitle] = pageMeta[state.page];
   document.querySelector('#pageTitle').textContent = title;
   document.querySelector('#pageSubtitle').textContent = state.schoolName ? `${subtitle} · ${state.schoolName}` : subtitle;
-  document.querySelector('#sidebarRole').textContent = roleNames[state.role];
+  document.querySelector('#sidebarRole').textContent = state.userEmail || roleNames[state.role];
   document.querySelector('#sidebarUser').textContent = state.userFullName || state.userEmail || 'SASA-F Kullanıcısı';
   const bannerSubtitle = state.role === 'super_admin'
     ? 'Futbol Okulu Yönetim Sistemi'
@@ -2615,6 +2654,14 @@ async function showAuthenticatedApp(user) {
     console.warn('Okul başlangıç durumu yüklenemedi:', onboardingError);
     state.onboarding = null;
   }
+  try {
+    state.subscriptionBankAccounts = ['super_admin', 'admin'].includes(profile.role)
+      ? await remoteDataStore.getSubscriptionBankAccounts()
+      : [];
+  } catch (subscriptionBankError) {
+    console.warn('Abonelik havale bilgileri yüklenemedi:', subscriptionBankError);
+    state.subscriptionBankAccounts = [];
+  }
   if (openDashboardAfterPasswordLogin) {
     window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
     openDashboardAfterPasswordLogin = false;
@@ -2737,7 +2784,7 @@ function hideDataSaveLoading() {
 }
 
 document.addEventListener('submit', event => {
-  if (!(event.target instanceof HTMLFormElement) || ['loginForm', 'adminMfaForm', 'schoolApplicationForm', 'schoolBankSettingsForm'].includes(event.target.id)) return;
+  if (!(event.target instanceof HTMLFormElement) || ['loginForm', 'adminMfaForm', 'schoolApplicationForm', 'schoolBankSettingsForm', 'subscriptionBankSettingsForm'].includes(event.target.id)) return;
   showDataSaveLoading();
 }, true);
 
@@ -3993,15 +4040,21 @@ document.addEventListener('click', async event => {
     state.schoolSubscriptionEndsOn = localDateAfterMonths(localDateValue(), 2);
     render();
     showToast('2 aylık ücretsiz deneme başlatıldı.');
+    return;
+  }
+  else if (action === 'open-subscription-purchase' && state.role === 'admin') {
+    state.onboardingPurchaseOpen = true;
+    render();
+    return;
   }
   else if (action === 'report-subscription-payment' && state.role === 'admin') {
     const billingPeriod = document.querySelector('#onboardingBillingPeriod')?.value || 'monthly';
-    const note = document.querySelector('#onboardingPaymentNote')?.value || '';
-    const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ billingPeriod, note }));
+    const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ billingPeriod, note: '' }));
     if (!saved) return;
     state.onboarding = { ...state.onboarding, status: 'PAYMENT_PENDING' };
     render();
     showToast('Ödeme bildiriminiz incelemeye gönderildi.');
+    return;
   }
   else if (action === 'complete-onboarding' && state.role === 'admin') {
     state.page = 'dashboard';
@@ -4010,7 +4063,7 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'add-bank-account' && isAdminRole()) {
-    const form = actionButton.closest('#schoolBankSettingsForm');
+    const form = actionButton.closest('#schoolBankSettingsForm, #subscriptionBankSettingsForm');
     const list = form?.querySelector('.bank-account-settings-list');
     const accountCount = list?.querySelectorAll('.bank-account-settings-card').length || 0;
     if (!form || !list || accountCount >= 4) return;
@@ -4019,7 +4072,7 @@ document.addEventListener('click', async event => {
     list.querySelector('.bank-account-settings-card:last-child input')?.focus();
   }
   else if (action === 'remove-bank-account' && isAdminRole()) {
-    const form = actionButton.closest('#schoolBankSettingsForm');
+    const form = actionButton.closest('#schoolBankSettingsForm, #subscriptionBankSettingsForm');
     const cards = form ? [...form.querySelectorAll('.bank-account-settings-card')] : [];
     if (!form || cards.length <= 1) return;
     actionButton.closest('.bank-account-settings-card')?.remove();
@@ -4484,6 +4537,11 @@ appContent.addEventListener('input', event => {
 });
 
 appContent.addEventListener('change', async event => {
+  if (event.target.id === 'onboardingBillingPeriod') {
+    const amount = document.querySelector('#onboardingPaymentAmount');
+    if (amount) amount.innerHTML = onboardingPaymentAmountMarkup(event.target.value);
+    return;
+  }
   if (event.target.id === 'accountingMonthFilter') {
     state.accountingMonth = event.target.value;
     state.accountingDateRangeStart = '';
@@ -5496,6 +5554,32 @@ appContent.addEventListener('submit', async event => {
     state.monthlyFeeAmount = Number(savedAmount);
     render();
     showToast('Aylık aidat tutarı kaydedildi.');
+    return;
+  }
+  if (event.target.id === 'subscriptionBankSettingsForm') {
+    event.preventDefault();
+    if (state.role !== 'super_admin') return;
+    const data = new FormData(event.target);
+    const accountCount = event.target.querySelectorAll('.bank-account-settings-card').length;
+    const accounts = Array.from({ length: accountCount }, (_, index) => ({
+      bankName: String(data.get(`bankName${index}`) || '').trim().replace(/\s+/g, ' '),
+      accountHolder: String(data.get(`accountHolder${index}`) || '').trim().replace(/\s+/g, ' '),
+      iban: normalizeTurkishIbanEntry(data.get(`iban${index}`))
+    })).filter(account => account.bankName || account.accountHolder || account.iban);
+    if (!accounts.length || accounts.some(account => !account.bankName || !account.accountHolder || !isValidTurkishIban(account.iban))) {
+      showToast('Her hesap için banka adı, hesap sahibi ve doğrulanabilir bir TR IBAN bilgisini birlikte girin.');
+      return;
+    }
+    if (new Set(accounts.map(account => account.iban)).size !== accounts.length) {
+      showToast('Aynı IBAN birden fazla kez eklenemez.');
+      return;
+    }
+    showDataSaveLoading();
+    const savedAccounts = await runRemoteMutation(() => remoteDataStore.saveSubscriptionBankAccounts(accounts));
+    if (!savedAccounts) return;
+    state.subscriptionBankAccounts = savedAccounts;
+    render();
+    showToast(`${accounts.length} abonelik havale hesabı kaydedildi.`);
     return;
   }
   if (event.target.id === 'schoolBankSettingsForm') {
