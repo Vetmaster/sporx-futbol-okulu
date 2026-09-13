@@ -360,15 +360,7 @@ Deno.serve(async request => {
                   }
                   : {
                     android: {
-                      priority: 'HIGH',
-                      notification: {
-                        title: notification.title,
-                        body: notification.body,
-                        channel_id: 'sasa_f_notifications',
-                        icon: 'ic_notification_status',
-                        color: '#E31B15',
-                        sound: 'default'
-                      }
+                      priority: 'HIGH'
                     }
                   })
               }

@@ -16,6 +16,7 @@
 package com.sasafutbol.yonetim;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -132,6 +133,12 @@ public class LauncherActivity
     }
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+    }
+
+    @Override
     protected void onDestroy() {
         splashHandler.removeCallbacks(launchTwaTask);
         splashHandler.removeCallbacks(fcmTokenTimeoutTask);
@@ -152,8 +159,12 @@ public class LauncherActivity
 
         builder.appendQueryParameter("nativeVersion", String.valueOf(getInstalledVersionCode()));
         builder.appendQueryParameter("androidShell", "1");
-        if (getIntent().getBooleanExtra("openNotifications", false)) {
-            builder.appendQueryParameter("open", "notifications");
+        String openPage = getIntent().getStringExtra("openPage");
+        if (openPage == null || openPage.isEmpty()) {
+            openPage = getIntent().getBooleanExtra("openNotifications", false) ? "notifications" : "";
+        }
+        if ("notifications".equals(openPage) || "onboarding".equals(openPage)) {
+            builder.appendQueryParameter("open", openPage);
         }
 
         String fcmToken = FcmTokenStore.get(this);

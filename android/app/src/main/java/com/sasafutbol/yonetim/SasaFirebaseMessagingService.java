@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 
 import androidx.core.app.ActivityCompat;
@@ -38,9 +39,11 @@ public class SasaFirebaseMessagingService extends FirebaseMessagingService {
         if (body == null) body = "Yeni bir bildiriminiz var.";
 
         createNotificationChannel();
+        String openPage = resolveOpenPage(message.getData().get("url"));
+
         Intent intent = new Intent(this, LauncherActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                .putExtra("openNotifications", true);
+                .putExtra("openPage", openPage);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this,
                 0,
@@ -76,5 +79,18 @@ public class SasaFirebaseMessagingService extends FirebaseMessagingService {
         channel.enableVibration(true);
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) manager.createNotificationChannel(channel);
+    }
+
+    private String resolveOpenPage(String url) {
+        if (url != null && !url.isEmpty()) {
+            try {
+                String requestedPage = Uri.parse(url).getQueryParameter("open");
+                if ("onboarding".equals(requestedPage)) return "onboarding";
+                if ("notifications".equals(requestedPage)) return "notifications";
+            } catch (Exception ignored) {
+                // Bildirim URL'si beklenen formatta değilse varsayılan bildirimler ekranı açılır.
+            }
+        }
+        return "notifications";
     }
 }
