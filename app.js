@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.382';
+const APP_VERSION = '2026.09.13.383';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -271,7 +271,7 @@ const navItems = {
   applications: { label: 'Başvurular', icon: '✦', roles: ['super_admin'] },
   subscriptionPayments: { label: 'Ödemeler', icon: MENU_ICONS.subscriptions, roles: ['super_admin'] },
   onboarding: { label: 'Aboneliği başlat', icon: MENU_ICONS.subscriptions, roles: ['admin'], hidden: true },
-  bankSettings: { label: 'Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin', 'admin'], hidden: true },
+  bankSettings: { label: 'Aidat Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin', 'admin'], hidden: true },
   subscriptionBankSettings: { label: 'Abonelik Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin'], hidden: true },
   students: { label: 'Öğrenciler', icon: MENU_ICONS.student, roles: ['super_admin', 'admin', 'coach'] },
   studentSettings: { label: 'Öğrenci Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
@@ -283,7 +283,7 @@ const navItems = {
   attendance: { label: 'Yoklama', icon: MENU_ICONS.attendance, roles: ['super_admin', 'admin', 'coach'] },
   fees: { label: 'Aidat', icon: '₺', roles: ['super_admin', 'admin', 'parent'] },
   parentPayment: { label: 'Ödeme Yap', icon: '₺', roles: ['parent'], hidden: true },
-  parentBankTransfer: { label: 'Havale Bilgileri', icon: '↗', roles: ['parent'], hidden: true },
+  parentBankTransfer: { label: 'Aidat Havale Bilgileri', icon: '↗', roles: ['parent'], hidden: true },
   parentCardPayment: { label: 'Kartla Ödeme', icon: '▣', roles: ['parent'], hidden: true },
   accounting: { label: 'Muhasebe', icon: MENU_ICONS.accounting, roles: ['super_admin', 'admin'] },
   accountingSettings: { label: 'Muhasebe Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
@@ -294,8 +294,8 @@ const navItems = {
 
 const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antrenör', parent: 'Veli' };
 const pageMeta = {
-  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Abonelikler', 'Okulların abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], subscriptionBankSettings: ['Abonelik Havale Bilgileri', 'Okul yöneticilerinin abonelik ödemesinde göreceği hesaplar'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
-  trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini ve antrenörleri yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
+  dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Abonelikler', 'Okulların abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Aidat Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], subscriptionBankSettings: ['Abonelik Havale Bilgileri', 'Okul yöneticilerinin abonelik ödemesinde göreceği hesaplar'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
+  trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini ve antrenörleri yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Aidat Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
   accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
 
@@ -1364,7 +1364,7 @@ function settingsView() {
       ${adminSubscriptionMarkup}
       <button class="panel settings-link-card" type="button" data-page="bankSettings">
         <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.bank}</span>
-        <span class="settings-link-copy"><strong>Havale Bilgileri</strong><small>Velilerin aidat ödemesinde göreceği banka ve IBAN bilgilerini yönetin.</small></span>
+        <span class="settings-link-copy"><strong>Aidat Havale Bilgileri</strong><small>Velilerin aidat ödemesinde göreceği banka ve IBAN bilgilerini yönetin.</small></span>
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>
     </section>
@@ -1372,7 +1372,7 @@ function settingsView() {
 }
 
 function bankAccountSettingsCardMarkup(account = {}, index = 0, accountCount = 1, isUnsaved = false) {
-  return `<fieldset class="bank-account-settings-card" ${isUnsaved ? 'data-bank-unsaved="true"' : ''}>
+  return `<fieldset class="bank-account-settings-card ${parentBankThemeClass(account.bankName)}" ${isUnsaved ? 'data-bank-unsaved="true"' : ''}>
     <div class="bank-account-settings-heading"><strong>Hesap ${index + 1}</strong><button class="text-button bank-account-remove-button" type="button" data-action="remove-bank-account" ${accountCount === 1 ? 'hidden' : ''}>Kaldır</button></div>
     <div class="bank-account-settings-fields">
       <label>Banka adı<input name="bankName${index}" data-bank-field="bankName" maxlength="80" value="${escapeHtml(account.bankName || '')}" placeholder="Banka adını yazın" autocomplete="off"></label>
@@ -1398,9 +1398,9 @@ function bankSettingsView() {
   const bankAccounts = hasSavedAccount ? state.schoolBankAccounts.slice(0, 4) : [{}];
   const accountFields = bankAccounts.map((account, index) => bankAccountSettingsCardMarkup(account, index, bankAccounts.length, !hasSavedAccount)).join('');
   return `<div class="page-stack">
-    <div class="section-heading"><div><h2>Havale bilgileri</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} için veli ödeme hesabı</p></div></div>
+    <div class="section-heading"><div><h2>Aidat havale bilgileri</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} için veli ödeme hesabı</p></div></div>
     <section class="panel bank-settings-panel">
-      <div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">Velilere gösterilmek üzere en fazla 4 doğrulanmış hesap ekleyebilirsiniz.</small></div></div>
+      <div class="panel-heading"><div><h3>Aidat havale bilgileri</h3><small class="muted">Velilere gösterilmek üzere en fazla 4 doğrulanmış hesap ekleyebilirsiniz.</small></div></div>
       <form id="schoolBankSettingsForm" class="bank-settings-form">
         <div class="bank-account-settings-list">${accountFields}</div>
         <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${!hasSavedAccount || bankAccounts.length >= 4 ? 'hidden' : ''}>+ Hesap Ekle</button><button class="primary-button" type="submit">Kaydet</button></div>
@@ -1815,7 +1815,7 @@ function parentBankTransferView() {
     : `<div class="parent-bank-placeholder"><span aria-hidden="true">i</span><div><strong>Banka bilgisi henüz tanımlanmadı</strong><p>IBAN ve hesap sahibi bilgileri kulüp yöneticisi tarafından doğrulanıp buraya eklenecek.</p></div></div><button class="secondary-button" type="button" disabled>IBAN'ı kopyala</button>`;
   return `<div class="page-stack parent-payment-page">
     ${parentPaymentSummaryMarkup(context)}
-    <section class="panel parent-bank-panel"><div class="panel-heading"><div><h3>Havale bilgileri</h3><small class="muted">${escapeHtml(state.schoolName || 'Futbol okulu')}</small></div></div>${bankDetailsMarkup}</section>
+    <section class="panel parent-bank-panel"><div class="panel-heading"><div><h3>Aidat havale bilgileri</h3><small class="muted">${escapeHtml(state.schoolName || 'Futbol okulu')}</small></div></div>${bankDetailsMarkup}</section>
     <section class="payment-safety-note warning"><strong>Havale yapmadan önce</strong><span>Yalnızca bu ekranda doğrulanmış IBAN göründüğünde işlem yapın ve alıcı adını kulüple teyit edin. Havale göndermek aidatı otomatik olarak ödendi yapmaz.</span></section>
   </div>`;
 }
