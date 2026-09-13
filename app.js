@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.387';
+const APP_VERSION = '2026.09.13.388';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1337,7 +1337,7 @@ function onboardingView() {
     const scheduledStart = subscriptionDateLabel(approvedPeriod.starts_on);
     const scheduledEnd = subscriptionDateLabel(approvedPeriod.ends_on);
     const trialEndsOn = subscriptionDateLabel(state.schoolSubscriptionEndsOn);
-    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEMENİZ ONAYLANDI</span><h2>Aboneliğiniz planlandı.</h2><p>Mevcut deneme süreniz ${trialEndsOn} tarihinde bittiğinde üyeliğiniz otomatik olarak başlayacaktır.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(approvedPeriod.billing_period)}<br><strong>Başlangıç:</strong> ${scheduledStart}<br><strong>Bitiş / yenileme:</strong> ${scheduledEnd}</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEMENİZ ONAYLANDI</span><h2>Aboneliğiniz planlandı.</h2><p>Mevcut deneme süreniz <strong>${trialEndsOn}</strong> tarihinde bittiğinde üyeliğiniz otomatik olarak başlayacaktır.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(approvedPeriod.billing_period)}<br><strong>Başlangıç:</strong> ${scheduledStart}<br><strong>Bitiş / yenileme:</strong> ${scheduledEnd}</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
   }
   if (trialStarted && !state.onboardingPurchaseOpen) {
     const trialEndsOn = state.schoolSubscriptionEndsOn;

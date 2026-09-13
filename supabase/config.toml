@@ -52,6 +52,9 @@ verify_enabled = true
 [functions.send-push-notification]
 verify_jwt = false
 
+[functions.send-subscription-renewal-reminders]
+verify_jwt = false
+
 [functions.invite-guardian]
 verify_jwt = false
 
