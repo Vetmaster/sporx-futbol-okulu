@@ -778,6 +778,15 @@ function parentBankThemeClass(bankName) {
   if (normalized.includes('garanti')) return 'bank-theme-garanti';
   if (normalized.includes('yapikredi')) return 'bank-theme-yapi-kredi';
   if (normalized.includes('isbankasi') || normalized.includes('turkiyeisbankasi')) return 'bank-theme-is-bankasi';
+  if (normalized.includes('ziraat')) return 'bank-theme-ziraat';
+  if (normalized.includes('halkbank')) return 'bank-theme-halkbank';
+  if (normalized.includes('vakifbank')) return 'bank-theme-vakifbank';
+  if (normalized.includes('qnb') || normalized.includes('finansbank')) return 'bank-theme-qnb';
+  if (normalized.includes('denizbank')) return 'bank-theme-denizbank';
+  if (normalized.includes('teb')) return 'bank-theme-teb';
+  if (normalized.includes('ing')) return 'bank-theme-ing';
+  if (normalized.includes('kuveytturk')) return 'bank-theme-kuveyt-turk';
+  if (normalized.includes('albaraka')) return 'bank-theme-albaraka';
   return '';
 }
 function isValidTurkishIban(value) {
@@ -1321,7 +1330,7 @@ function onboardingView() {
   }
   if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>Süper Admin ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p><button class="secondary-button" type="button" data-action="complete-onboarding">Durumu daha sonra kontrol et</button></section></div>`;
   const bankAccounts = state.subscriptionBankAccounts?.length
-    ? `<div class="parent-bank-account-list">${state.subscriptionBankAccounts.map(account => `<article class="parent-bank-account"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
+    ? `<div class="parent-bank-account-list">${state.subscriptionBankAccounts.map(account => `<article class="parent-bank-account ${parentBankThemeClass(account.bankName)}"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(account.iban)}</code></article>`).join('')}</div>`
     : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için yetkili ile iletişime geçin.</p>';
   const trialChoice = trialStarted ? '' : `<section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section>`;
   const purchaseTitle = trialStarted ? 'Aboneliğinizi başlatın' : 'Aboneliği başlat';
