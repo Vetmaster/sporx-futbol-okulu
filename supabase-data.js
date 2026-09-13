@@ -696,6 +696,15 @@
       return Array.isArray(data) ? data.slice(0, 4) : [];
     }
 
+    async function sendSubscriptionReminderTestEmail(testEmail = '00vetmaster00+iskelefb@gmail.com') {
+      const { data, error } = await client.functions.invoke('send-subscription-renewal-reminders', {
+        body: { action: 'send-test-email', testEmail }
+      });
+      if (error) throw new Error(await edgeFunctionErrorMessage(error, data, 'Deneme e-postası gönderilemedi.'));
+      if (data?.error) throw new Error(data.error);
+      return data;
+    }
+
     async function startSchoolTrial() {
       const { data, error } = await client.rpc('start_school_trial');
       if (error) throw error;
@@ -1284,6 +1293,7 @@
       getMyApprovedSubscriptionPeriod,
       getSubscriptionBankAccounts,
       saveSubscriptionBankAccounts,
+      sendSubscriptionReminderTestEmail,
       startSchoolTrial,
       createSubscriptionPaymentReport,
       listSubscriptionPaymentReports,

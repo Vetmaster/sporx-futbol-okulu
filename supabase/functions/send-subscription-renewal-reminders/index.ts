@@ -113,6 +113,18 @@ async function getUserEmails(admin: ReturnType<typeof createClient>, userIds: st
   return { emails, names };
 }
 
+async function findUserByEmail(admin: ReturnType<typeof createClient>, targetEmail: string) {
+  const perPage = 1000;
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const match = (data.users as AuthUser[]).find(user => cleanEmail(user.email) === targetEmail);
+    if (match) return match;
+    if (data.users.length < perPage) break;
+  }
+  return null;
+}
+
 async function sendEmails(messages: Array<{ email: string; name: string; subject: string; text: string; html: string }>) {
   const smtpHost = Deno.env.get('SMTP_HOST') || 'smtp.gmail.com';
   const smtpPort = Number(Deno.env.get('SMTP_PORT') || 587);
@@ -284,6 +296,8 @@ Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
+  const body = await request.json().catch(() => ({}));
+
   const expectedSecret = Deno.env.get('SUBSCRIPTION_REMINDER_SECRET');
   if (expectedSecret && request.headers.get('x-cron-secret') !== expectedSecret) {
     return json({ error: 'Unauthorized' }, 401);
@@ -296,6 +310,93 @@ Deno.serve(async request => {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
+
+  if (body.action === 'send-test-email') {
+    const authorization = request.headers.get('Authorization') || '';
+    const accessToken = authorization.replace(/^Bearer\s+/i, '');
+    if (!accessToken) return json({ error: 'Unauthorized' }, 401);
+
+    const { data: userResult, error: userError } = await admin.auth.getUser(accessToken);
+    if (userError || !userResult.user) return json({ error: 'Unauthorized' }, 401);
+
+    const { data: callerProfile, error: profileError } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', userResult.user.id)
+      .maybeSingle();
+    if (profileError || callerProfile?.role !== 'super_admin') {
+      return json({ error: 'Süper Admin yetkisi gereklidir.' }, 403);
+    }
+
+    const testEmail = cleanEmail(body.testEmail || '00vetmaster00+iskelefb@gmail.com');
+    if (!testEmail) return json({ error: 'Test e-posta adresi geçersiz.' }, 400);
+
+    const testEndDate = new Date(dateFromIso(todayInIstanbul()).getTime() + 7 * 86400000).toISOString().slice(0, 10);
+    const title = 'Abonelik yenileme hatırlatması';
+    const message = `İskele FB Futbol Okulu okulunun 1 aylık aboneliği ${formatDate(testEndDate)} tarihinde sona erecek. Kesinti olmaması için aboneliğinizi yenileyebilirsiniz.`;
+    const sent = await sendEmails([{
+      email: testEmail,
+      name: 'İskele FB Futbol Okulu',
+      subject: `[Test] ${title}`,
+      text: `Merhaba,\n\n${message}\n\nAbonelik ekranı: ${NOTIFICATION_URL}\n\nSASA-F`,
+      html: `<p>Merhaba,</p><p>${message}</p><p><a href="${NOTIFICATION_URL}">Abonelik ekranını aç</a></p><p>SASA-F</p>`
+    }]);
+
+    let pushCount = 0;
+    let notificationId: number | null = null;
+    const testUser = await findUserByEmail(admin, testEmail);
+    if (testUser) {
+      const { data: membership } = await admin
+        .from('school_user_memberships')
+        .select('school_id')
+        .eq('user_id', testUser.id)
+        .limit(1)
+        .maybeSingle();
+      const { data: fallbackSchool } = membership?.school_id
+        ? { data: null }
+        : await admin.from('schools').select('id').limit(1).maybeSingle();
+      const notificationSchoolId = membership?.school_id || fallbackSchool?.id;
+      if (notificationSchoolId) {
+        const { data: notification } = await admin
+          .from('notifications')
+          .insert({
+            school_id: notificationSchoolId,
+            audience: 'Kişisel test bildirimi',
+            title: `[Test] ${title}`,
+            body: message,
+            status: 'queued',
+            sent_by: userResult.user.id,
+            recipient_count: 1,
+            delivered_count: 0,
+            read_count: 0
+          })
+          .select('id')
+          .single();
+        if (notification?.id) {
+          notificationId = Number(notification.id);
+          await admin.from('notification_recipients').upsert({
+            notification_id: notificationId,
+            user_id: testUser.id
+          }, { onConflict: 'notification_id,user_id' });
+          pushCount = await sendPushes(admin, [testUser.id], notificationId, `[Test] ${title}`, message);
+          await admin.from('notifications').update({
+            status: pushCount > 0 ? 'sent' : 'queued',
+            sent_at: pushCount > 0 ? new Date().toISOString() : null,
+            delivered_count: pushCount
+          }).eq('id', notificationId);
+        }
+      }
+    }
+
+    return json({
+      status: sent || pushCount ? 'sent' : 'failed',
+      email: testEmail,
+      emailCount: sent,
+      pushCount,
+      notificationId,
+      notificationRecipientFound: Boolean(testUser)
+    });
+  }
 
   const today = todayInIstanbul();
   const maxWindowDays = 60;

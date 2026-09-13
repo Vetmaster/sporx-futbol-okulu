@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.388';
+const APP_VERSION = '2026.09.13.389';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1439,6 +1439,7 @@ function subscriptionBankSettingsView() {
         <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${!hasSavedAccount || bankAccounts.length >= 4 ? 'hidden' : ''}>+ Hesap Ekle</button><button class="primary-button" type="submit">Kaydet</button></div>
       </form>
       <small class="form-hint settings-form-hint">Bu bilgiler yalnızca abonelik ödemesi ekranında gösterilir; velilerin aidat hesaplarından bağımsızdır.</small>
+      <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="send-subscription-reminder-test-email">00vetmaster00+iskelefb@gmail.com adresine deneme maili gönder</button></div>
     </section>
   </div>`;
 }
@@ -2715,6 +2716,17 @@ async function showAuthenticatedApp(user) {
       null,
       '',
       `${notificationUrl.pathname}${notificationUrl.search}${notificationUrl.hash}`
+    );
+  } else if (requestedPage === 'onboarding' && state.role === 'admin') {
+    state.page = 'onboarding';
+    state.onboardingPurchaseOpen = false;
+    state.pageHistory = [];
+    const onboardingUrl = new URL(window.location.href);
+    onboardingUrl.searchParams.delete('open');
+    window.history.replaceState(
+      null,
+      '',
+      `${onboardingUrl.pathname}${onboardingUrl.search}${onboardingUrl.hash}`
     );
   }
   if (state.role === 'super_admin' && state.page === 'applications') {
@@ -4152,6 +4164,17 @@ document.addEventListener('click', async event => {
       showToast('IBAN kopyalandı.');
     } catch (error) {
       showToast('IBAN kopyalanamadı. Lütfen tekrar deneyin.');
+    }
+  }
+  else if (action === 'send-subscription-reminder-test-email' && state.role === 'super_admin') {
+    actionButton.disabled = true;
+    try {
+      const result = await remoteDataStore.sendSubscriptionReminderTestEmail('00vetmaster00+iskelefb@gmail.com');
+      showToast(result?.emailCount ? 'Deneme maili gönderildi.' : 'Deneme maili gönderilemedi.');
+    } catch (error) {
+      showToast(`Deneme maili gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
+    } finally {
+      actionButton.disabled = false;
     }
   }
   else if (action === 'select-school' && state.role === 'super_admin') {
