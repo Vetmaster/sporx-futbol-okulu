@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.384';
+const APP_VERSION = '2026.09.13.385';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.25-beta/SASA-F-v1.0.25-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -105,6 +105,8 @@ const state = {
   schoolSubscriptionPlan: 'standard',
   schoolSubscriptionStatus: 'trial',
   schoolSubscriptionTrialMode: null,
+  schoolSubscriptionBillingPeriod: 'monthly',
+  schoolSubscriptionStartsOn: '',
   schoolSubscriptionEndsOn: '',
   schools: [],
   schoolSearchQuery: '',
@@ -1323,6 +1325,12 @@ function onboardingView() {
   const onboarding = state.onboarding;
   const paymentPending = onboarding?.status === 'PAYMENT_PENDING';
   const trialStarted = onboarding?.status === 'TRIAL_STARTED';
+  const subscriptionActive = state.schoolSubscriptionStatus === 'active';
+  if (subscriptionActive && !state.onboardingPurchaseOpen) {
+    const subscriptionEndsOn = state.schoolSubscriptionEndsOn;
+    const remaining = trialRemainingLabel(subscriptionEndsOn);
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ABONELİĞİNİZ AKTİF</span><h2>Standart üyeliğiniz devam ediyor.</h2><p>Abonelik sürenizi ve yenileme bilgilerinizi buradan takip edebilirsiniz.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(state.schoolSubscriptionBillingPeriod)}<br><strong>Abonelik bitişi:</strong> ${subscriptionDateLabel(subscriptionEndsOn)}${remaining ? ` · ${remaining}` : ''}</p><div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Süre uzat</button></div></section></div>`;
+  }
   if (trialStarted && !state.onboardingPurchaseOpen) {
     const trialEndsOn = state.schoolSubscriptionEndsOn;
     const remaining = trialRemainingLabel(trialEndsOn);
@@ -1332,8 +1340,8 @@ function onboardingView() {
   const bankAccounts = state.subscriptionBankAccounts?.length
     ? `<div class="parent-bank-account-list">${state.subscriptionBankAccounts.map((account, index) => `<article class="parent-bank-account ${parentBankThemeClass(account.bankName)}"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(formatIban(account.iban))}</code><button class="secondary-button" type="button" data-action="copy-subscription-iban" data-account-index="${index}">IBAN'ı kopyala</button></article>`).join('')}</div>`
     : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için yetkili ile iletişime geçin.</p>';
-  const trialChoice = trialStarted ? '' : `<section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section>`;
-  const purchaseTitle = trialStarted ? 'Aboneliğinizi başlatın' : 'Aboneliği başlat';
+  const trialChoice = (trialStarted || subscriptionActive) ? '' : `<section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section>`;
+  const purchaseTitle = subscriptionActive ? 'Aboneliğinizi uzatın' : trialStarted ? 'Aboneliğinizi başlatın' : 'Aboneliği başlat';
   return `<div class="page-stack">${trialChoice}<section class="panel onboarding-card"><h3>${purchaseTitle}</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><p class="onboarding-payment-amount" id="onboardingPaymentAmount" aria-live="polite">${onboardingPaymentAmountMarkup()}</p><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale gönderen ad soyad<input id="onboardingPayerName" maxlength="120" autocomplete="name" placeholder="Ödemeyi gönderen kişinin adı soyadı"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra sasa-f.com tarafından onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
 }
 
@@ -2186,6 +2194,8 @@ function applyRemoteData(remoteData) {
   state.schoolSubscriptionPlan = remoteData.subscriptionPlan || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionPlan || 'standard';
   state.schoolSubscriptionStatus = remoteData.subscriptionStatus || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionStatus || 'trial';
   state.schoolSubscriptionTrialMode = remoteData.subscriptionTrialMode || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionTrialMode || null;
+  state.schoolSubscriptionBillingPeriod = remoteData.subscriptionBillingPeriod || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionBillingPeriod || 'monthly';
+  state.schoolSubscriptionStartsOn = remoteData.subscriptionStartsOn || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionStartsOn || '';
   state.schoolSubscriptionEndsOn = remoteData.subscriptionEndsOn || state.schools.find(school => school.id === remoteData.schoolId)?.subscriptionEndsOn || '';
   state.students = remoteData.students;
   state.trainings = remoteData.trainings;
