@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.13.391';
+const APP_VERSION = '2026.09.14.392';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1309,13 +1309,17 @@ function applicationsView() {
   const rows = state.schoolApplications.map(application => {
     const canReview = ['PENDING', 'INFO_REQUESTED'].includes(application.status);
     const location = [application.country || 'Türkiye', application.city, application.district].filter(Boolean).join(' · ');
+    const approvedAt = application.status === 'APPROVED' && application.reviewed_at
+      ? `<small class="muted">Onay: ${formatDateTime(application.reviewed_at)}</small>`
+      : '';
     return `<article class="panel application-card">
       <div class="panel-heading"><div><span class="eyebrow">${escapeHtml(location)}</span><h3>${escapeHtml(application.school_name)}</h3><small>${escapeHtml(application.applicant_name)} · ${escapeHtml(application.email)} · ${escapeHtml(application.phone)}</small></div><span class="status ${application.status === 'APPROVED' ? '' : application.status === 'REJECTED' ? 'warning' : 'blue'}">${applicationStatusLabel(application.status)}</span></div>
       ${application.note ? `<p>${escapeHtml(application.note)}</p>` : ''}
       ${application.customer_message ? `<p class="muted"><strong>Müşteriye not:</strong> ${escapeHtml(application.customer_message)}</p>` : ''}
       ${application.internal_note ? `<p class="muted"><strong>İç not:</strong> ${escapeHtml(application.internal_note)}</p>` : ''}
       <small class="muted">Başvuru: ${formatDateTime(application.created_at)}</small>
-      ${canReview ? `<div class="subscription-row-actions"><button class="secondary-button" type="button" data-action="request-application-info" data-id="${application.id}">Bilgi iste</button><button class="danger-button" type="button" data-action="reject-application" data-id="${application.id}">Reddet</button><button class="primary-button" type="button" data-action="approve-application" data-id="${application.id}">Onayla ve davet et</button></div>` : ''}
+      ${approvedAt}
+      ${canReview ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="reject-application" data-id="${application.id}">Reddet</button><button class="primary-button" type="button" data-action="approve-application" data-id="${application.id}">Onayla ve davet et</button></div>` : ''}
     </article>`;
   }).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><section class="page-stack">${rows || '<div class="panel empty-state">İncelenecek başvuru bulunmuyor.</div>'}</section></div>`;
@@ -1448,7 +1452,7 @@ function subscriptionBankSettingsView() {
         <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="add-bank-account" ${!hasSavedAccount || bankAccounts.length >= 4 ? 'hidden' : ''}>+ Hesap Ekle</button><button class="primary-button" type="submit">Kaydet</button></div>
       </form>
       <small class="form-hint settings-form-hint">Bu bilgiler yalnızca abonelik ödemesi ekranında gösterilir; velilerin aidat hesaplarından bağımsızdır.</small>
-      <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="send-subscription-reminder-test-email">00vetmaster00+iskelefb@gmail.com adresine deneme maili gönder</button></div>
+      <div class="bank-settings-actions"><button class="secondary-button" type="button" data-action="send-subscription-reminder-test-email">00vetmaster00+iskelefb@gmail.com adresine deneme maili ve bildirimi gönder</button></div>
     </section>
   </div>`;
 }
@@ -4186,9 +4190,9 @@ document.addEventListener('click', async event => {
     actionButton.disabled = true;
     try {
       const result = await remoteDataStore.sendSubscriptionReminderTestEmail('00vetmaster00+iskelefb@gmail.com');
-      showToast(result?.emailCount ? 'Deneme maili gönderildi.' : 'Deneme maili gönderilemedi.');
+      showToast(result?.emailCount ? 'Deneme maili ve bildirimi gönderildi.' : 'Deneme maili ve bildirimi gönderilemedi.');
     } catch (error) {
-      showToast(`Deneme maili gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
+      showToast(`Deneme maili ve bildirimi gönderilemedi: ${error.message || 'Bağlantı hatası'}`);
     } finally {
       actionButton.disabled = false;
     }

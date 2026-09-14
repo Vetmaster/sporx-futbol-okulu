@@ -45,7 +45,7 @@ Deno.serve(async request => {
     school_name: schoolName, country, city, district: district || null, applicant_name: applicantName, phone, email, note
   }).select('id, created_at').single();
   if (error) {
-    if (error.code === '23505') return response({ error: 'Bu e-posta adresi için incelemede olan bir başvuru zaten bulunuyor.' }, 409);
+    if (error.code === '23505') return response({ error: 'Bu e-posta adresiyle daha önce okul başvurusu yapılmış.' }, 409);
     console.error('submit-school-application failed', error);
     return response({ error: 'Başvuru şu anda kaydedilemedi. Lütfen daha sonra tekrar deneyin.' }, 500);
   }
