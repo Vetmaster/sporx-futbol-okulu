@@ -4116,7 +4116,7 @@ document.addEventListener('click', async event => {
     state.subscriptionPaymentReports = await remoteDataStore.listSubscriptionPaymentReports();
     await refreshSchools();
     render();
-    showToast(approved ? 'Ödeme onaylandı ve abonelik dönemi işlendi.' : 'Ödeme bildirimi reddedildi.');
+    showToast(approved ? 'Ödeme onaylandı ve abonelik dönemi işlendi.' : 'Ödeme bildirimi iptal edildi.');
   }
   else if (action === 'start-school-trial' && state.role === 'admin') {
     const saved = await runRemoteMutation(() => remoteDataStore.startSchoolTrial());
