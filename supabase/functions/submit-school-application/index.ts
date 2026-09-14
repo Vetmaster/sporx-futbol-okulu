@@ -41,11 +41,24 @@ Deno.serve(async request => {
   }
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: existingApplication, error: existingError } = await admin
+    .from('school_applications')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+  if (existingError) {
+    console.error('submit-school-application duplicate check failed', existingError);
+    return response({ error: 'Başvuru şu anda kaydedilemedi. Lütfen daha sonra tekrar deneyin.' }, 500);
+  }
+  if (existingApplication) {
+    return response({ status: 'IGNORED', duplicate: true }, 202);
+  }
+
   const { data, error } = await admin.from('school_applications').insert({
     school_name: schoolName, country, city, district: district || null, applicant_name: applicantName, phone, email, note
   }).select('id, created_at').single();
   if (error) {
-    if (error.code === '23505') return response({ error: 'Bu e-posta adresiyle daha önce okul başvurusu yapılmış.' }, 409);
+    if (error.code === '23505') return response({ status: 'IGNORED', duplicate: true }, 202);
     console.error('submit-school-application failed', error);
     return response({ error: 'Başvuru şu anda kaydedilemedi. Lütfen daha sonra tekrar deneyin.' }, 500);
   }
