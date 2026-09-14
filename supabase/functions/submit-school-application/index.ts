@@ -43,7 +43,7 @@ Deno.serve(async request => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: existingApplication, error: existingError } = await admin
     .from('school_applications')
-    .select('id')
+    .select('id, status')
     .eq('email', email)
     .maybeSingle();
   if (existingError) {
@@ -51,6 +51,9 @@ Deno.serve(async request => {
     return response({ error: 'Başvuru şu anda kaydedilemedi. Lütfen daha sonra tekrar deneyin.' }, 500);
   }
   if (existingApplication) {
+    if (['PENDING', 'INFO_REQUESTED'].includes(existingApplication.status)) {
+      return response({ status: 'PENDING_REVIEW', duplicate: true, message: 'Başvurunuz henüz onay aşamasında. İnceleme tamamlandığında e-posta adresiniz üzerinden bilgilendirileceksiniz.' }, 202);
+    }
     return response({ status: 'IGNORED', duplicate: true }, 202);
   }
 
