@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.14.396';
+const APP_VERSION = '2026.09.14.397';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -131,6 +131,7 @@ const state = {
   attendanceRecords: localData.attendanceRecords,
   accessRequests: [],
   schoolApplications: [],
+  applicationSearchQuery: '',
   subscriptionPaymentReports: [],
   onboarding: null,
   approvedSubscriptionPeriod: null,
@@ -1306,7 +1307,12 @@ function applicationStatusLabel(status) {
 }
 
 function applicationsView() {
-  const rows = state.schoolApplications.map(application => {
+  const normalizedSearch = state.applicationSearchQuery.trim().toLocaleLowerCase('tr');
+  const filteredApplications = state.schoolApplications.filter(application => {
+    if (!normalizedSearch) return true;
+    return `${application.school_name || ''} ${application.applicant_name || ''}`.toLocaleLowerCase('tr').includes(normalizedSearch);
+  });
+  const rows = filteredApplications.map(application => {
     const canReview = ['PENDING', 'INFO_REQUESTED'].includes(application.status);
     const location = [application.country || 'Türkiye', application.city, application.district].filter(Boolean).join(' · ');
     const approvedAt = application.status === 'APPROVED' && application.reviewed_at
@@ -1322,7 +1328,7 @@ function applicationsView() {
       ${canReview ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="reject-application" data-id="${application.id}">Reddet</button><button class="primary-button" type="button" data-action="approve-application" data-id="${application.id}">Onayla ve davet et</button></div>` : ''}
     </article>`;
   }).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><section class="page-stack">${rows || '<div class="panel empty-state">İncelenecek başvuru bulunmuyor.</div>'}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><div class="toolbar"><input class="search-input" id="applicationSearch" type="search" value="${escapeHtml(state.applicationSearchQuery)}" placeholder="Futbol okulu veya yetkili kişi ara" aria-label="Başvurularda ara"><span class="muted" aria-live="polite">${filteredApplications.length} / ${state.schoolApplications.length} başvuru</span></div><section class="page-stack">${rows || `<div class="panel empty-state">${state.schoolApplications.length ? 'Aramanızla eşleşen başvuru bulunamadı.' : 'İncelenecek başvuru bulunmuyor.'}</div>`}</section></div>`;
 }
 
 function subscriptionPaymentsView() {
@@ -4639,6 +4645,15 @@ appContent.addEventListener('input', event => {
     const schoolSearch = document.querySelector('#schoolSearch');
     schoolSearch?.focus();
     schoolSearch?.setSelectionRange(cursorPosition, cursorPosition);
+    return;
+  }
+  if (event.target.id === 'applicationSearch') {
+    state.applicationSearchQuery = event.target.value;
+    const cursorPosition = event.target.selectionStart ?? state.applicationSearchQuery.length;
+    render();
+    const applicationSearch = document.querySelector('#applicationSearch');
+    applicationSearch?.focus();
+    applicationSearch?.setSelectionRange(cursorPosition, cursorPosition);
     return;
   }
   if (!['studentSearch', 'groupFilter', 'activeStudentsOnlyFilter', 'debtStudentsOnlyFilter'].includes(event.target.id)) return;
