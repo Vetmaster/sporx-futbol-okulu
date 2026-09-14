@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.14.394';
+const APP_VERSION = '2026.09.14.395';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -3891,6 +3891,11 @@ document.querySelector('#schoolApplicationForm')?.addEventListener('submit', asy
     const result = await remoteDataStore.submitSchoolApplication(values);
     if (result?.status === 'PENDING_REVIEW') {
       message.textContent = result.message || 'Başvurunuz henüz onay aşamasında.';
+      message.classList.remove('is-hidden');
+      return;
+    }
+    if (result?.status === 'REGISTERED_SCHOOL') {
+      message.textContent = result.message || 'Bu e-posta adresiyle kayıtlı bir futbol okulu vardır. Lütfen farklı bir e-posta adresiyle başvuru yapın.';
       message.classList.remove('is-hidden');
       return;
     }

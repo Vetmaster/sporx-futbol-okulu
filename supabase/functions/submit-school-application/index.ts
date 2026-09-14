@@ -54,6 +54,9 @@ Deno.serve(async request => {
     if (['PENDING', 'INFO_REQUESTED'].includes(existingApplication.status)) {
       return response({ status: 'PENDING_REVIEW', duplicate: true, message: 'Başvurunuz henüz onay aşamasında. İnceleme tamamlandığında e-posta adresiniz üzerinden bilgilendirileceksiniz.' }, 202);
     }
+    if (existingApplication.status === 'APPROVED') {
+      return response({ status: 'REGISTERED_SCHOOL', duplicate: true, message: 'Bu e-posta adresiyle kayıtlı bir futbol okulu vardır. Lütfen farklı bir e-posta adresiyle başvuru yapın.' }, 202);
+    }
     return response({ status: 'IGNORED', duplicate: true }, 202);
   }
 
