@@ -45,6 +45,10 @@ pass = "env(SASA_FUTBOL_SMTP_PASS)"
 admin_email = "00vetmaster00@gmail.com"
 sender_name = "Sasa Futbol"
 
+[auth.email.template.invite]
+subject = "SASA-F hesabınıza davet edildiniz"
+content_path = "./supabase/templates/invite.html"
+
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true
