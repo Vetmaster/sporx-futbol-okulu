@@ -20,6 +20,10 @@ function formatNationalPhone(value: unknown) {
   return `0 (${digits.slice(1, 4)}) ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9, 11)}`;
 }
 
+function normalizeSearchText(value: string) {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return response({ error: 'Method not allowed' }, 405);
@@ -58,6 +62,35 @@ Deno.serve(async request => {
       return response({ status: 'REGISTERED_SCHOOL', duplicate: true, message: 'Bu e-posta adresiyle kayıtlı bir futbol okulu vardır. Lütfen farklı bir e-posta adresiyle başvuru yapın.' }, 202);
     }
     return response({ status: 'IGNORED', duplicate: true }, 202);
+  }
+
+  const normalizedSchoolName = normalizeSearchText(schoolName);
+  const { data: existingNameApplication, error: existingNameApplicationError } = await admin
+    .from('school_applications')
+    .select('id, status')
+    .ilike('school_name', normalizedSchoolName)
+    .limit(1)
+    .maybeSingle();
+  if (existingNameApplicationError) {
+    console.error('submit-school-application school name duplicate check failed', existingNameApplicationError);
+    return response({ error: 'Başvuru şu anda kaydedilemedi. Lütfen daha sonra tekrar deneyin.' }, 500);
+  }
+  if (existingNameApplication) {
+    return response({ status: 'REGISTERED_SCHOOL_NAME', duplicate: true, message: 'Bu isimle kayıtlı bir futbol okulu bulunmaktadır. Lütfen okul adını kontrol edin veya farklı bir okul adıyla başvuru yapın.' }, 202);
+  }
+
+  const { data: existingSchool, error: existingSchoolError } = await admin
+    .from('schools')
+    .select('id')
+    .ilike('name', normalizedSchoolName)
+    .limit(1)
+    .maybeSingle();
+  if (existingSchoolError) {
+    console.error('submit-school-application school duplicate check failed', existingSchoolError);
+    return response({ error: 'Başvuru şu anda kaydedilemedi. Lütfen daha sonra tekrar deneyin.' }, 500);
+  }
+  if (existingSchool) {
+    return response({ status: 'REGISTERED_SCHOOL_NAME', duplicate: true, message: 'Bu isimle kayıtlı bir futbol okulu bulunmaktadır. Lütfen okul adını kontrol edin veya farklı bir okul adıyla başvuru yapın.' }, 202);
   }
 
   const { data, error } = await admin.from('school_applications').insert({
