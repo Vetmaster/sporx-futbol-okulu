@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.15.399';
+const APP_VERSION = '2026.09.15.400';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -301,7 +301,7 @@ const navItems = {
   accounting: { label: 'Muhasebe', icon: MENU_ICONS.accounting, roles: ['super_admin', 'admin'] },
   accountingSettings: { label: 'Muhasebe Ayarları', icon: MENU_ICONS.settings, roles: ['super_admin', 'admin'], hidden: true },
   accountingEntries: { label: 'Son İşlemler', icon: '↗', roles: ['super_admin', 'admin'], hidden: true },
-  userApprovals: { label: 'Kullanıcı Onayları', icon: MENU_ICONS.approvedToggle, roles: ['super_admin'] },
+  userApprovals: { label: 'Kullanıcı Onayları', icon: MENU_ICONS.approvedToggle, roles: ['super_admin', 'admin'] },
   notifications: { label: 'Bildirimler', icon: MENU_ICONS.notifications, roles: ['super_admin', 'admin', 'coach', 'parent'] }
 };
 
@@ -2007,10 +2007,20 @@ function notificationsView() {
 }
 
 function userApprovalsView() {
-  const pendingRequests = state.accessRequests.filter(request => request.status === 'pending');
-  const approvedRequests = state.accessRequests.filter(request => request.status === 'approved');
+  const visibleRequests = state.role === 'super_admin'
+    ? state.accessRequests
+    : state.accessRequests.filter(request => request.requestedRole === 'parent');
+  const pendingRequests = visibleRequests.filter(request => request.status === 'pending');
+  const approvedRequests = visibleRequests.filter(request => request.status === 'approved');
   const pendingRows = pendingRequests.map(request => {
     const emailVerified = Boolean(request.emailVerifiedAt);
+    const roleControl = state.role === 'super_admin'
+      ? `<select id="approval-role-${request.id}" aria-label="${escapeHtml(request.fullName)} için kullanıcı rolü" ${emailVerified ? '' : 'disabled'}>
+        <option value="admin" ${request.requestedRole === 'admin' ? 'selected' : ''}>Admin</option>
+        <option value="coach" ${request.requestedRole === 'coach' ? 'selected' : ''}>Antrenör</option>
+        <option value="parent" ${request.requestedRole === 'parent' ? 'selected' : ''}>Veli</option>
+      </select>`
+      : `<input type="hidden" id="approval-role-${request.id}" value="parent"><span class="status blue">Veli</span>`;
     return `
     <div class="approval-row">
       <div>
@@ -2018,11 +2028,7 @@ function userApprovalsView() {
         <small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small>
         <span class="status ${emailVerified ? '' : 'warning'}">${emailVerified ? 'E-posta doğrulandı' : 'E-posta doğrulaması bekleniyor'}</span>
       </div>
-      <select id="approval-role-${request.id}" aria-label="${escapeHtml(request.fullName)} için kullanıcı rolü" ${emailVerified ? '' : 'disabled'}>
-        <option value="admin" ${request.requestedRole === 'admin' ? 'selected' : ''}>Admin</option>
-        <option value="coach" ${request.requestedRole === 'coach' ? 'selected' : ''}>Antrenör</option>
-        <option value="parent" ${request.requestedRole === 'parent' ? 'selected' : ''}>Veli</option>
-      </select>
+      ${roleControl}
       <div class="approval-actions">
         <label class="approval-switch-control pending"><span>${emailVerified ? 'Onay bekliyor' : 'Doğrulama bekleniyor'}</span><input type="checkbox" role="switch" aria-label="${escapeHtml(request.fullName)} kullanıcısını onayla" data-action="approve-user" data-id="${request.id}" ${emailVerified ? '' : 'disabled'}><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>
       </div>
@@ -2032,7 +2038,7 @@ function userApprovalsView() {
     <div class="list-row">
       <span class="status">Onaylandı</span>
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
-      <label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>
+      ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
@@ -4559,11 +4565,16 @@ document.addEventListener('click', async event => {
     }
     render();
   }
-  else if (action === 'approve-user' && state.role === 'super_admin') {
+  else if (action === 'approve-user' && isAdminRole()) {
     const request = state.accessRequests.find(item => item.id === Number(actionButton.dataset.id));
     const roleControl = document.querySelector(`#approval-role-${actionButton.dataset.id}`);
     if (!request || !roleControl) return;
     if (!actionButton.checked) return;
+    if (state.role !== 'super_admin' && (request.requestedRole !== 'parent' || roleControl.value !== 'parent')) {
+      actionButton.checked = false;
+      showToast('Okul adminleri yalnızca veli kayıtlarını onaylayabilir.');
+      return;
+    }
     if (!request.emailVerifiedAt) {
       actionButton.checked = false;
       showToast('E-posta adresi doğrulanmadan kullanıcı onaylanamaz.');
