@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.15.401';
+const APP_VERSION = '2026.09.16.404';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -868,6 +868,9 @@ function upcomingFeeMonths(count = 6) {
     const month = new Date(cursor.getFullYear(), cursor.getMonth() + index, 1);
     return feeMonthKey(month);
   });
+}
+function upcomingFeeLoadEndMonth() {
+  return upcomingFeeMonths().at(-1) || feeMonthKey();
 }
 function formatFeeDueDate(key) {
   const [year, month] = String(key).split('-').map(Number);
@@ -1802,6 +1805,7 @@ function feesView() {
   const allStudents = isParent ? (selectedParentStudent ? [selectedParentStudent] : []) : state.students;
   const parentStudent = isParent ? allStudents[0] : null;
   const parentUnpaidMonths = parentStudent ? unpaidFeePeriods(parentStudent) : [];
+  const parentFeeMonths = parentStudent ? monthlyFeePeriods(parentStudent) : [];
   const parentDebtBalance = parentStudent
     ? parentUnpaidMonths.reduce((total, month) => total + monthlyFeeAmount(parentStudent, month), 0)
     : 0;
@@ -1823,7 +1827,7 @@ function feesView() {
     ? `<section class="stats-grid"><article class="stat-card parent-fee-card"><span class="label">Aidat durumu</span><strong>${parentDebtBalance ? `${formatCurrency(parentDebtBalance)} borç bakiyesi` : 'Aidat borcunuz yoktur.'}</strong><small>${parentDebtBalance ? `${parentUnpaidMonths.length} ödenmemiş dönem` : 'Ödenmemiş aidat bulunmuyor'}</small></article></section>`
     : `<section class="stats-grid"><article class="stat-card"><span class="label">Aylık tahakkuk</span><strong>${formatCurrency(total)}</strong><small>${currentMonthLabel}</small></article><article class="stat-card"><span class="label">Tahsil edilen</span><strong>${formatCurrency(collected)}</strong><small>${total ? `%${Math.round(collected / total * 100)} tahsilat` : '%0 tahsilat'}</small></article><article class="stat-card"><span class="label">Bekleyen</span><strong>${formatCurrency(pending)}</strong><small>${pendingStudents.length} öğrenci</small></article></section>`;
   const feeRows = isParent
-    ? parentUnpaidMonths.map(month => ({ student: parentStudent, month, status: 'late' }))
+    ? parentFeeMonths.map(month => ({ student: parentStudent, month, status: monthlyFeeStatus(parentStudent, month) })).filter(row => state.feeFilter !== 'pending' || row.status === 'late')
     : list.map(student => ({ student, month: currentMonth, status: currentFeeStatus(student) }));
   const sortedFeeRows = sortFeeListRows(feeRows);
   const tableRows = isParent
@@ -1835,8 +1839,11 @@ function feesView() {
           : `<label class="fee-paid-control"><input type="checkbox" data-monthly-fee data-id="${student.id}" data-month="${month}" aria-label="${formatFeeMonth(month)} aidatını ödendi işaretle" ${status === 'paid' ? 'checked' : ''}><span>${status === 'paid' ? 'Ödendi' : 'Ödendi seç'}</span></label>`;
         return `<tr><td>${studentNameLink(student)}</td><td>${formatFeeMonth(month)}</td><td>${status === 'none' ? '—' : formatCurrency(monthlyFeeAmount(student, month))}</td><td>${formatFeeDueDate(month)}</td><td>${feeStatusControl(student, month, status)}</td><td>${paymentControl}</td></tr>`;
       }).join('') || `<tr><td colspan="6"><div class="empty-state">${feeSearchQuery ? 'Aramanızla eşleşen aidat kaydı bulunamadı.' : 'Aidat kaydı bulunmuyor.'}</div></td></tr>`;
-  const subtitle = isParent ? `${parentUnpaidMonths.length} ödenmemiş dönem` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
-  const searchMarkup = isParent ? '' : `<div class="toolbar fee-list-toolbar"><input class="search-input" id="feeSearch" type="search" value="${escapeHtml(state.feeSearchQuery)}" placeholder="Öğrenci, veli veya grup ara" aria-label="Aidat kayıtlarında ara"><span class="muted" aria-live="polite">${list.length} / ${unfilteredList.length} öğrenci</span></div>`;
+  const subtitle = isParent ? `${parentFeeMonths.length} aidat dönemi · ${parentUnpaidMonths.length} ödenmemiş` : `${currentMonthLabel} ödeme dönemi · ${list.length} öğrenci`;
+  const unpaidOnlyFilterMarkup = `<label class="students-active-filter"><input id="feeUnpaidOnlyFilter" type="checkbox" ${state.feeFilter === 'pending' ? 'checked' : ''}><span>Sadece ödenmemiş aidatları göster</span></label>`;
+  const searchMarkup = isParent
+    ? `<div class="toolbar fee-list-toolbar">${unpaidOnlyFilterMarkup}</div>`
+    : `<div class="toolbar fee-list-toolbar"><input class="search-input" id="feeSearch" type="search" value="${escapeHtml(state.feeSearchQuery)}" placeholder="Öğrenci, veli veya grup ara" aria-label="Aidat kayıtlarında ara">${unpaidOnlyFilterMarkup}<span class="muted" aria-live="polite">${list.length} / ${unfilteredList.length} öğrenci</span></div>`;
   return `<div class="page-stack"><div class="section-heading"><div><h2>${title}</h2><p>${subtitle}</p></div>${headerAction}</div>${summaryMarkup}${searchMarkup}<section class="panel table-wrap"><table><thead><tr>${feeListSortHeader('name', 'Öğrenci')}${feeListSortHeader('period', 'Dönem')}${feeListSortHeader('amount', 'Tutar')}${feeListSortHeader('due', 'Son ödeme')}${feeListSortHeader('status', 'Durum')}${!isParent ? '<th></th>' : ''}</tr></thead><tbody>${tableRows}</tbody></table></section></div>`;
 }
 
@@ -2391,7 +2398,10 @@ async function loadPageData(page = state.page, { force = false } = {}) {
       const from = page === 'studentProfile' && selectedStudent?.enrollmentDate
         ? String(selectedStudent.enrollmentDate).slice(0, 7)
         : feeMonthKey();
-      applyFeeRows(await remoteDataStore.loadFeePeriods({ from, to: feeMonthKey(), studentId: page === 'fees' ? null : selectedStudent?.id }));
+      const shouldLoadUpcomingStudentFees = (page !== 'fees' || state.role === 'parent') && selectedStudent?.id;
+      const to = shouldLoadUpcomingStudentFees ? upcomingFeeLoadEndMonth() : feeMonthKey();
+      const studentId = page === 'fees' && state.role !== 'parent' ? null : selectedStudent?.id;
+      applyFeeRows(await remoteDataStore.loadFeePeriods({ from, to, studentId }));
     }
     if (['dashboard', 'accounting', 'accountingEntries'].includes(page) && !isCoachRole() && state.role !== 'parent') {
       const bounds = monthBounds(accountingMonth);
@@ -4729,6 +4739,12 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'monthlyFeeUnpaidOnlyFilter') {
     state.monthlyFeeUnpaidOnly = event.target.checked;
+    render();
+    return;
+  }
+  if (event.target.id === 'feeUnpaidOnlyFilter') {
+    state.feeFilter = event.target.checked ? 'pending' : 'all';
+    persistNavigationState();
     render();
     return;
   }
