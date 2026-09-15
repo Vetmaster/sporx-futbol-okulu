@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.14.398';
+const APP_VERSION = '2026.09.15.399';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -833,6 +833,17 @@ function formatStudentBirthDisplay(value) {
   const localMatch = birthValue.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
   if (localMatch) return `${localMatch[1].padStart(2, '0')}.${localMatch[2].padStart(2, '0')}.${localMatch[3]}`;
   return birthValue || '—';
+}
+function formatTurkishPhoneInput(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  const parts = [];
+  if (digits) parts.push(digits.slice(0, 1));
+  if (digits.length > 1) parts.push(` (${digits.slice(1, 4)}`);
+  if (digits.length >= 4) parts.push(')');
+  if (digits.length > 4) parts.push(` ${digits.slice(4, 7)}`);
+  if (digits.length > 7) parts.push(` ${digits.slice(7, 9)}`);
+  if (digits.length > 9) parts.push(` ${digits.slice(9, 11)}`);
+  return parts.join('');
 }
 function studentBirthYearLabel(student) {
   const year = String(student?.birth || '').match(/(?:19|20)\d{2}/)?.[0];
@@ -3581,8 +3592,8 @@ function openStudentDialog(student = null) {
   form.elements.group.value = student?.group || '';
   form.elements.position.value = student?.position || '';
   form.elements.parentName.value = student?.parent || '';
-  form.elements.phone.value = student?.phone || '';
-  form.elements.email.value = student?.email || '';
+  form.elements.phone.value = formatTurkishPhoneInput(student?.phone || '');
+  form.elements.email.value = String(student?.email || '').replace(/\s/g, '');
   form.elements.address.value = student?.address || '';
   form.elements.studentMonthlyFeeAmount.value = String(monthlyFeeAmount(student, feeMonthKey()));
   form.elements.studentActiveStatus.value = student?.active === false ? 'inactive' : 'active';
@@ -3861,17 +3872,17 @@ document.querySelector('#schoolApplicationCountry')?.addEventListener('change', 
 document.querySelector('#schoolApplicationCity')?.addEventListener('change', updateSchoolApplicationDistrictOptions);
 document.querySelector('#schoolApplicationPhone')?.addEventListener('input', event => {
   const input = event.currentTarget;
-  const digits = input.value.replace(/\D/g, '').slice(0, 11);
-  const parts = [];
-  if (digits) parts.push(digits.slice(0, 1));
-  if (digits.length > 1) parts.push(` (${digits.slice(1, 4)}`);
-  if (digits.length >= 4) parts.push(')');
-  if (digits.length > 4) parts.push(` ${digits.slice(4, 7)}`);
-  if (digits.length > 7) parts.push(` ${digits.slice(7, 9)}`);
-  if (digits.length > 9) parts.push(` ${digits.slice(9, 11)}`);
-  input.value = parts.join('');
+  input.value = formatTurkishPhoneInput(input.value);
 });
 document.querySelector('#schoolApplicationEmail')?.addEventListener('input', event => {
+  const input = event.currentTarget;
+  input.value = input.value.replace(/\s/g, '');
+});
+document.querySelector('#studentPhone')?.addEventListener('input', event => {
+  const input = event.currentTarget;
+  input.value = formatTurkishPhoneInput(input.value);
+});
+document.querySelector('#studentEmail')?.addEventListener('input', event => {
   const input = event.currentTarget;
   input.value = input.value.replace(/\s/g, '');
 });
