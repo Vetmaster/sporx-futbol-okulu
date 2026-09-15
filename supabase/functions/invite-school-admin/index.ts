@@ -54,7 +54,6 @@ Deno.serve(async request => {
     .select('role')
     .eq('id', callerResult.user.id)
     .maybeSingle();
-  if (callerProfile?.role !== 'super_admin') return json({ error: 'Süper Admin yetkisi gereklidir.' }, 403);
   const body = await request.json().catch(() => ({}));
   const schoolId = String(body.schoolId || '');
   const email = normalizedEmail(body.email);
@@ -64,6 +63,20 @@ Deno.serve(async request => {
   if (!schoolId || !fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'coach'].includes(role)) {
     return json({ error: 'Kullanıcı adı, e-posta adresi ve rolü kontrol edin.' }, 400);
   }
+
+  const callerIsSuperAdmin = callerProfile?.role === 'super_admin';
+  let callerCanInvite = callerIsSuperAdmin;
+  if (!callerCanInvite && role === 'coach') {
+    const { data: callerMembership, error: callerMembershipError } = await admin
+      .from('school_user_memberships')
+      .select('role')
+      .eq('user_id', callerResult.user.id)
+      .eq('school_id', schoolId)
+      .maybeSingle();
+    if (callerMembershipError) return json({ error: 'Kullanıcı yetkisi kontrol edilemedi.' }, 500);
+    callerCanInvite = callerMembership?.role === 'admin';
+  }
+  if (!callerCanInvite) return json({ error: role === 'coach' ? 'Antrenör daveti için okul Admin yetkisi gereklidir.' : 'Süper Admin yetkisi gereklidir.' }, 403);
 
   const { data: school } = await admin
     .from('schools')

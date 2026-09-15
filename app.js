@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.15.400';
+const APP_VERSION = '2026.09.15.401';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1398,6 +1398,13 @@ function settingsView() {
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>`
     : '';
+  const coachInviteMarkup = state.role === 'admin'
+    ? `<button class="panel settings-link-card" type="button" data-action="invite-school-admin" data-id="${escapeHtml(state.schoolId || '')}">
+        <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.coach || MENU_ICONS.student}</span>
+        <span class="settings-link-copy"><strong>Antrenör davet et</strong><small>Ad soyad ve e-posta ile okulunuza antrenör yetkisi gönderin.</small></span>
+        <span class="settings-link-arrow" aria-hidden="true">›</span>
+      </button>`
+    : '';
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Ayarlar</h2><p>${escapeHtml(state.schoolName || 'Futbol okulu')} ayarlarını yönetin</p></div></div>
     <section class="settings-hub-grid" aria-label="Ayarlar seçenekleri">
@@ -1408,6 +1415,7 @@ function settingsView() {
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>` : ''}
       ${adminSubscriptionMarkup}
+      ${coachInviteMarkup}
       <button class="panel settings-link-card" type="button" data-page="bankSettings">
         <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.bank}</span>
         <span class="settings-link-copy"><strong>Aidat Havale Bilgileri</strong><small>Velilerin aidat ödemesinde göreceği banka ve IBAN bilgilerini yönetin.</small></span>
@@ -4239,8 +4247,10 @@ document.addEventListener('click', async event => {
   else if (action === 'select-school' && state.role === 'super_admin') {
     await switchSchool(actionButton.dataset.id);
   }
-  else if (action === 'invite-school-admin' && state.role === 'super_admin') {
-    const school = state.schools.find(item => item.id === actionButton.dataset.id);
+  else if (action === 'invite-school-admin' && isAdminRole()) {
+    const school = state.role === 'super_admin'
+      ? state.schools.find(item => item.id === actionButton.dataset.id)
+      : state.schools.find(item => item.id === state.schoolId);
     if (!school?.active) return;
     state.invitingSchoolId = school.id;
     state.schoolInviteConfirmation = null;
@@ -4250,7 +4260,13 @@ document.addEventListener('click', async event => {
     formMessage.textContent = '';
     formMessage.classList.add('is-hidden');
     form.elements.schoolId.value = school.id;
-    document.querySelector('#schoolAdminDialogDescription').textContent = `${school.name} için Admin veya Antrenör yetkisi eklenir.`;
+    form.elements.role.value = state.role === 'super_admin' ? 'admin' : 'coach';
+    const roleField = document.querySelector('#schoolAdminRoleField');
+    roleField.classList.toggle('is-hidden', state.role !== 'super_admin');
+    form.elements.role.disabled = state.role !== 'super_admin';
+    document.querySelector('#schoolAdminDialogDescription').textContent = state.role === 'super_admin'
+      ? `${school.name} için Admin veya Antrenör yetkisi eklenir.`
+      : `${school.name} için Antrenör yetkisi gönderilir.`;
     document.querySelector('#schoolAdminDialog').showModal();
     window.setTimeout(() => form.elements.fullName.focus(), 0);
   }
@@ -4814,7 +4830,7 @@ document.querySelector('#studentPhotoRemoveButton').addEventListener('click', ()
 });
 document.querySelector('#schoolAdminForm').addEventListener('submit', async event => {
   event.preventDefault();
-  if (state.role !== 'super_admin') return;
+  if (!isAdminRole()) return;
   const form = event.currentTarget;
   const formMessage = document.querySelector('#schoolAdminFormMessage');
   const submitButton = form.querySelector('button[type="submit"]');
@@ -4822,8 +4838,8 @@ document.querySelector('#schoolAdminForm').addEventListener('submit', async even
   const schoolId = String(data.get('schoolId') || '');
   const fullName = String(data.get('fullName') || '').trim();
   const email = String(data.get('email') || '').trim().toLowerCase();
-  const role = String(data.get('role') || '');
-  if (!state.schools.some(school => school.id === schoolId && school.active) || !fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'coach'].includes(role)) {
+  const role = state.role === 'super_admin' ? String(data.get('role') || '') : 'coach';
+  if (!state.schools.some(school => school.id === schoolId && school.active) || !fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'coach'].includes(role) || (state.role !== 'super_admin' && (schoolId !== state.schoolId || role !== 'coach'))) {
     formMessage.textContent = 'Kullanıcı adı, e-posta adresi ve rolü kontrol edin.';
     formMessage.classList.remove('is-hidden');
     return;
