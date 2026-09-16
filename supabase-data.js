@@ -730,6 +730,16 @@
       return data || [];
     }
 
+    async function loadSystemEmailLogs() {
+      const { data, error } = await client
+        .from('system_email_logs')
+        .select('id, school_id, recipient_email, recipient_name, email_type, subject, status, provider, created_at, schools(name)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data || [];
+    }
+
     async function reviewSubscriptionPaymentReport({ reportId, approved, note }) {
       const { data, error } = await client.rpc('review_subscription_payment_report', {
         target_report_id: reportId,
@@ -1297,6 +1307,7 @@
       startSchoolTrial,
       createSubscriptionPaymentReport,
       listSubscriptionPaymentReports,
+      loadSystemEmailLogs,
       reviewSubscriptionPaymentReport,
       saveSchoolSettings,
       saveSchoolBankDetails,

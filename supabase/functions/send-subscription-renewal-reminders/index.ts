@@ -153,6 +153,14 @@ async function sendEmails(messages: Array<{ email: string; name: string; subject
   })));
   return results.filter(result => result.status === 'fulfilled').length;
 }
+async function logEmails(
+  admin: ReturnType<typeof createClient>,
+  entries: Array<Record<string, unknown>>
+) {
+  if (!entries.length) return;
+  const { error } = await admin.from('system_email_logs').insert(entries);
+  if (error) console.error('system email log failed', error);
+}
 
 async function sendPushes(
   admin: ReturnType<typeof createClient>,
@@ -512,6 +520,16 @@ Deno.serve(async request => {
       sendEmails(emailMessages),
       sendPushes(admin, recipientIds, Number(notification.id), title, body)
     ]);
+    await logEmails(admin, emailMessages.map(message => ({
+      school_id: school.id,
+      recipient_email: message.email,
+      recipient_name: message.name,
+      email_type: 'subscription_renewal_reminder',
+      subject: message.subject,
+      status: 'sent',
+      provider: 'custom_smtp',
+      metadata: { school_name: school.name, billing_period: period, ends_on: endsOn }
+    })));
 
     const status = emailCount + pushCount > 0 ? (emailCount < emailMessages.length || pushCount < recipientIds.length ? 'partial' : 'sent') : 'failed';
     await admin.from('notifications').update({

@@ -34,6 +34,10 @@ async function findUserByEmail(admin: ReturnType<typeof createClient>, email: st
   }
   throw new Error('Kullanıcı listesi güvenli biçimde taranamadı.');
 }
+async function logEmail(admin: ReturnType<typeof createClient>, entry: Record<string, unknown>) {
+  const { error } = await admin.from('system_email_logs').insert(entry);
+  if (error) console.error('system email log failed', error);
+}
 
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -125,6 +129,17 @@ Deno.serve(async request => {
     }
     guardianUser = inviteResult.user;
     invited = true;
+    await logEmail(admin, {
+      school_id: targetSchoolId,
+      recipient_email: email,
+      recipient_name: student.guardian_name || student.full_name,
+      email_type: 'guardian_invite',
+      subject: 'SASA-F hesabınıza davet edildiniz',
+      status: 'sent',
+      provider: 'supabase_auth',
+      sent_by: callerResult.user.id,
+      metadata: { student_id: student.id, student_name: student.full_name }
+    });
   }
 
   const { data: existingProfile, error: existingProfileError } = await admin

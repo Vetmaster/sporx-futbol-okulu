@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.16.404';
+const APP_VERSION = '2026.09.16.405';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -130,6 +130,7 @@ const state = {
   notifications: localData.notifications,
   attendanceRecords: localData.attendanceRecords,
   accessRequests: [],
+  emailLogs: [],
   schoolApplications: [],
   applicationSearchQuery: '',
   subscriptionPaymentReports: [],
@@ -283,6 +284,7 @@ const navItems = {
   subscriptions: { label: 'Abonelikler', icon: MENU_ICONS.subscriptions, roles: ['super_admin'], hidden: true },
   applications: { label: 'Başvurular', icon: '✦', roles: ['super_admin'] },
   subscriptionPayments: { label: 'Ödemeler', icon: MENU_ICONS.subscriptions, roles: ['super_admin'] },
+  emailLogs: { label: 'E-posta Kayıtları', icon: '✉', roles: ['super_admin'], hidden: true },
   onboarding: { label: 'Aboneliği başlat', icon: MENU_ICONS.subscriptions, roles: ['admin'], hidden: true },
   bankSettings: { label: 'Aidat Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin', 'admin'], hidden: true },
   subscriptionBankSettings: { label: 'Abonelik Havale Bilgileri', icon: MENU_ICONS.bank, roles: ['super_admin'], hidden: true },
@@ -309,7 +311,7 @@ const roleNames = { super_admin: 'Süper Admin', admin: 'Admin', coach: 'Antren�
 const pageMeta = {
   dashboard: ['Genel Bakış', 'Kulübün bugünkü durumu'], schools: ['Okullar', 'Tüm futbol okullarını tek ekrandan yönetin'], settings: ['Ayarlar', 'Okul ve abonelik ayarları'], subscriptions: ['Abonelikler', 'Okulların abonelik durumları'], applications: ['Başvurular', 'Yeni müşteri başvurularını inceleyin'], subscriptionPayments: ['Ödemeler', 'Abonelik ödeme bildirimlerini onaylayın'], onboarding: ['Aboneliğinizi başlatın', 'Deneme hesabı veya satın alma seçin'], bankSettings: ['Aidat Havale Bilgileri', 'Velilere gösterilecek banka hesabı'], subscriptionBankSettings: ['Abonelik Havale Bilgileri', 'Okul yöneticilerinin abonelik ödemesinde göreceği hesaplar'], students: ['Öğrenciler', 'Kayıtlar ve öğrenci profilleri'], studentSettings: ['Öğrenci Ayarları', 'Antrenman gruplarını yönetin'], studentProfile: ['Öğrenci Profili', 'Öğrenci bilgileri ve antrenman durumu'], studentAttendanceHistory: ['Öğrenci Yoklamaları', 'Geldiği ve gelmediği antrenmanlar'], child: ['Öğrenci', 'Öğrenci profili ve güncel durum'],
   trainings: ['Antrenman', 'Antrenman takvimi ve gruplar'], trainingSettings: ['Antrenman Ayarları', 'Antrenman isimlerini ve antrenörleri yönetin'], attendance: ['Yoklama', 'Antrenman katılım takibi'], fees: ['Aidat', 'Aylık ödeme ve tahsilat takibi'], parentPayment: ['Ödeme Yap', 'Aidat ödeme yöntemini seçin'], parentBankTransfer: ['Aidat Havale Bilgileri', 'Kulübün banka hesabı bilgileri'], parentCardPayment: ['Kartla Ödeme', 'Güvenli ödeme önizlemesi'],
-  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
+  accounting: ['Muhasebe', 'Temel gelir ve gider takibi'], accountingSettings: ['Muhasebe Ayarları', 'Aylık aidat tutarı ve tahakkuk ayarları'], accountingEntries: ['Son İşlemler', 'Tüm gelir ve gider kayıtları'], userApprovals: ['Kullanıcı Onayları', 'Yeni kullanıcıların erişim talepleri'], emailLogs: ['E-posta Kayıtları', 'Sistemden gönderilen mail işlemleri'], notifications: ['Bildirimler', 'Duyurular ve gönderim merkezi']
 };
 
 function persistNavigationState() {
@@ -1417,6 +1419,11 @@ function settingsView() {
         <span class="settings-link-copy"><strong>Abonelik Havale Bilgileri</strong><small>Okul yöneticilerinin abonelik ödemesinde göreceği hesapları yönetin.</small></span>
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>` : ''}
+      ${state.role === 'super_admin' ? `<button class="panel settings-link-card" type="button" data-page="emailLogs">
+        <span class="settings-link-icon" aria-hidden="true">✉</span>
+        <span class="settings-link-copy"><strong>E-posta Kayıtları</strong><small>Sistemden gönderilen davet ve hatırlatma maillerini görüntüleyin.</small></span>
+        <span class="settings-link-arrow" aria-hidden="true">›</span>
+      </button>` : ''}
       ${adminSubscriptionMarkup}
       ${coachInviteMarkup}
       <button class="panel settings-link-card" type="button" data-page="bankSettings">
@@ -2058,7 +2065,32 @@ function userApprovalsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
-const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, applications: applicationsView, subscriptionPayments: subscriptionPaymentsView, onboarding: onboardingView, bankSettings: bankSettingsView, subscriptionBankSettings: subscriptionBankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
+function emailTypeLabel(type) {
+  return ({
+    school_application_invite: 'Okul başvurusu daveti',
+    school_admin_invite: 'Okul admin daveti',
+    coach_invite: 'Antrenör daveti',
+    guardian_invite: 'Veli daveti',
+    subscription_renewal_reminder: 'Abonelik hatırlatma',
+    password_reset_request: 'Şifre yenileme talebi'
+  })[type] || 'Sistem maili';
+}
+
+function emailStatusLabel(status) {
+  return ({ sent: 'Gönderildi', queued: 'Sırada', failed: 'Hata', skipped: 'Atlandı' })[status] || status || 'Bilinmiyor';
+}
+
+function emailLogsView() {
+  const rows = state.emailLogs.map(log => {
+    const school = Array.isArray(log.schools) ? log.schools[0] : log.schools;
+    const schoolName = school?.name || 'Genel';
+    const statusClass = log.status === 'failed' ? 'danger' : log.status === 'sent' ? '' : 'blue';
+    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(formatDateTime(log.created_at))}</span><div class="notification-list-content"><strong>${escapeHtml(emailTypeLabel(log.email_type))}</strong><p>${escapeHtml(log.subject || '')}</p><small>${escapeHtml(log.recipient_name || '')}${log.recipient_name ? ' · ' : ''}${escapeHtml(log.recipient_email)} · ${escapeHtml(schoolName)}</small></div><span class="status ${statusClass}">${escapeHtml(emailStatusLabel(log.status))}</span></div>`;
+  }).join('');
+  return `<div class="page-stack"><div class="section-heading"><div><h2>E-posta kayıtları</h2><p>Sistemden gönderilen mail hareketleri</p></div></div><section class="panel"><div class="panel-heading"><h3>Son 100 kayıt</h3><span class="status blue">${state.emailLogs.length} kayıt</span></div>${rows || '<div class="empty-state">Henüz e-posta kaydı bulunmuyor.</div>'}</section></div>`;
+}
+
+const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, applications: applicationsView, subscriptionPayments: subscriptionPaymentsView, emailLogs: emailLogsView, onboarding: onboardingView, bankSettings: bankSettingsView, subscriptionBankSettings: subscriptionBankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
@@ -2426,6 +2458,9 @@ async function loadPageData(page = state.page, { force = false } = {}) {
     if (page === 'userApprovals') {
       const rows = await remoteDataStore.loadAccessRequests();
       state.accessRequests = rows.map(row => ({ id: Number(row.id), userId: row.user_id, email: row.email, fullName: row.full_name, requestedRole: row.requested_role, status: row.status, emailVerifiedAt: row.email_verified_at, reviewedAt: row.reviewed_at, createdAt: row.created_at }));
+    }
+    if (page === 'emailLogs') {
+      state.emailLogs = await remoteDataStore.loadSystemEmailLogs();
     }
     loadedPageData.set(key, true);
   })().finally(() => pendingPageDataLoads.delete(key));

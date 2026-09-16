@@ -21,6 +21,10 @@ async function findUserByEmail(admin: ReturnType<typeof createClient>, email: st
   }
   throw new Error('Kullanıcı listesi güvenli biçimde taranamadı.');
 }
+async function logEmail(admin: ReturnType<typeof createClient>, entry: Record<string, unknown>) {
+  const { error } = await admin.from('system_email_logs').insert(entry);
+  if (error) console.error('system email log failed', error);
+}
 
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -53,6 +57,16 @@ Deno.serve(async request => {
     if (error || !data.user) return response({ error: error?.message || 'Şifre oluşturma daveti gönderilemedi.' }, 502);
     user = data.user;
     invitationSent = true;
+    await logEmail(admin, {
+      recipient_email: application.email,
+      recipient_name: application.applicant_name,
+      email_type: 'school_application_invite',
+      subject: 'SASA-F hesabınıza davet edildiniz',
+      status: 'sent',
+      provider: 'supabase_auth',
+      sent_by: callerResult.user.id,
+      metadata: { application_id: application.id, school_name: application.school_name }
+    });
   }
   const { data: existingProfile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle();
   if (existingProfile?.role === 'super_admin') {
