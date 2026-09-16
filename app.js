@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.16.405';
+const APP_VERSION = '2026.09.16.406';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -1419,18 +1419,18 @@ function settingsView() {
         <span class="settings-link-copy"><strong>Abonelik Havale Bilgileri</strong><small>Okul yöneticilerinin abonelik ödemesinde göreceği hesapları yönetin.</small></span>
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>` : ''}
-      ${state.role === 'super_admin' ? `<button class="panel settings-link-card" type="button" data-page="emailLogs">
-        <span class="settings-link-icon" aria-hidden="true">✉</span>
-        <span class="settings-link-copy"><strong>E-posta Kayıtları</strong><small>Sistemden gönderilen davet ve hatırlatma maillerini görüntüleyin.</small></span>
-        <span class="settings-link-arrow" aria-hidden="true">›</span>
-      </button>` : ''}
       ${adminSubscriptionMarkup}
-      ${coachInviteMarkup}
       <button class="panel settings-link-card" type="button" data-page="bankSettings">
         <span class="settings-link-icon" aria-hidden="true">${MENU_ICONS.bank}</span>
         <span class="settings-link-copy"><strong>Aidat Havale Bilgileri</strong><small>Velilerin aidat ödemesinde göreceği banka ve IBAN bilgilerini yönetin.</small></span>
         <span class="settings-link-arrow" aria-hidden="true">›</span>
       </button>
+      ${coachInviteMarkup}
+      ${state.role === 'super_admin' ? `<button class="panel settings-link-card" type="button" data-page="emailLogs">
+        <span class="settings-link-icon" aria-hidden="true">✉</span>
+        <span class="settings-link-copy"><strong>E-posta Kayıtları</strong><small>Sistemden gönderilen davet ve hatırlatma maillerini görüntüleyin.</small></span>
+        <span class="settings-link-arrow" aria-hidden="true">›</span>
+      </button>` : ''}
     </section>
   </div>`;
 }
