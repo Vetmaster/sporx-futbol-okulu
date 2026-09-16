@@ -350,6 +350,16 @@ Deno.serve(async request => {
       text: `Merhaba,\n\n${message}\n\nAbonelik ekranı: ${NOTIFICATION_URL}\n\nSASA-F`,
       html: `<p>Merhaba,</p><p>${message}</p><p><a href="${NOTIFICATION_URL}">Abonelik ekranını aç</a></p><p>SASA-F</p>`
     }]);
+    await logEmails(admin, [{
+      recipient_email: testEmail,
+      recipient_name: 'İskele FB Futbol Okulu',
+      email_type: 'subscription_renewal_test',
+      subject: `[Test] ${title}`,
+      status: sent ? 'sent' : 'failed',
+      provider: 'smtp',
+      sent_by: userResult.user.id,
+      metadata: { test: true }
+    }]);
 
     let pushCount = 0;
     let notificationId: number | null = null;
