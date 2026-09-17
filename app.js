@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.17.409';
+const APP_VERSION = '2026.09.17.410';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1607,11 +1607,12 @@ function studentSettingsView() {
   const groupRows = displayedGroups.map(group => {
     const studentCount = state.students.filter(student => student.group === group).length;
     const trainingCount = state.trainings.filter(training => training.group === group).length;
+    const isLastGroup = GROUPS.length <= 1;
     const inUse = studentCount > 0 || trainingCount > 0;
     if (state.editingGroupName === group) {
       return `<form class="group-settings-row group-rename-form" data-group="${escapeHtml(group)}" data-original-group="${escapeHtml(group)}"><div><label for="editGroupName">Grup adını düzenle</label><input id="editGroupName" name="groupName" maxlength="60" value="${escapeHtml(group)}" required><small>${studentCount} öğrenci · ${trainingCount} antrenman</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-group">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
     }
-    return `<div class="group-settings-row" data-group="${escapeHtml(group)}"><div><strong>${escapeHtml(group)}</strong><small>${studentCount} öğrenci · ${trainingCount} antrenman</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-group" data-group="${escapeHtml(group)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-group" data-group="${escapeHtml(group)}" ${inUse ? 'disabled' : ''} title="${inUse ? 'Önce bu gruptaki öğrenci ve antrenman kayıtlarını başka gruba taşıyın' : 'Grubu sil'}">Sil</button></div></div>`;
+    return `<div class="group-settings-row" data-group="${escapeHtml(group)}"><div><strong>${escapeHtml(group)}</strong><small>${studentCount} öğrenci · ${trainingCount} antrenman</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-group" data-group="${escapeHtml(group)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-group" data-group="${escapeHtml(group)}" ${(inUse || isLastGroup) ? 'disabled' : ''} title="${isLastGroup ? 'Okuldaki son grup silinemez' : inUse ? 'Önce bu gruptaki öğrenci ve antrenman kayıtlarını başka gruba taşıyın' : 'Grubu sil'}">Sil</button></div></div>`;
   }).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Öğrenci ayarları</h2><p>Öğrenci kayıtlarında kullanılacak gruplar</p></div></div><details class="panel group-settings-panel"${state.groupSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Gruplar</h3><small class="muted">${GROUPS.length} kayıtlı grup</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="groupSettingsForm" class="group-settings-form"><label for="newGroupName">Yeni grup adı</label><input id="newGroupName" name="groupName" maxlength="60" placeholder="Örn. U15 veya Saat 14:00" required><button class="primary-button" type="submit">Grup ekle</button></form><div class="group-settings-list">${groupRows || '<div class="empty-state">Henüz grup eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Öğrenci veya antrenman kaydı bulunan gruplar silinemez. Önce ilgili kayıtları başka bir gruba taşıyın.</small></div></details></div>`;
 }
@@ -1771,7 +1772,7 @@ function trainingSettingsView() {
     if (state.editingTrainingCoachName === coach) {
       return `<form class="group-settings-row training-coach-rename-form" data-original-coach="${escapeHtml(coach)}"><div><label for="editTrainingCoachName">Antrenör adını düzenle</label><input id="editTrainingCoachName" name="trainingCoachName" maxlength="80" value="${escapeHtml(coach)}" required><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-training-coach">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
     }
-    return `<div class="group-settings-row"><div><strong>${escapeHtml(coach)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-coach" data-coach="${escapeHtml(coach)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-coach" data-coach="${escapeHtml(coach)}">Sil</button></div></div>`;
+    return `<div class="group-settings-row"><div><strong>${escapeHtml(coach)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-coach" data-coach="${escapeHtml(coach)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-coach" data-coach="${escapeHtml(coach)}" ${state.trainingCoaches.length <= 1 ? 'disabled title="Okuldaki son antrenör silinemez"' : ''}>Sil</button></div></div>`;
   }).join('');
   const sortedFields = [...state.trainingFields].sort((left, right) => left.localeCompare(right, 'tr-TR', { numeric: true, sensitivity: 'base' }));
   const fieldRows = sortedFields.map(field => {
@@ -1779,7 +1780,7 @@ function trainingSettingsView() {
     if (state.editingTrainingFieldName === field) {
       return `<form class="group-settings-row training-field-rename-form" data-original-field="${escapeHtml(field)}"><div><label for="editTrainingFieldName">Saha adını düzenle</label><input id="editTrainingFieldName" name="trainingFieldName" maxlength="80" value="${escapeHtml(field)}" required><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-training-field">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
     }
-    return `<div class="group-settings-row"><div><strong>${escapeHtml(field)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-field" data-field="${escapeHtml(field)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-field" data-field="${escapeHtml(field)}">Sil</button></div></div>`;
+    return `<div class="group-settings-row"><div><strong>${escapeHtml(field)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-field" data-field="${escapeHtml(field)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-field" data-field="${escapeHtml(field)}" ${state.trainingFields.length <= 1 ? 'disabled title="Okuldaki son saha silinemez"' : ''}>Sil</button></div></div>`;
   }).join('');
   const typePanel = `<details class="panel group-settings-panel training-type-settings-panel"${state.trainingTypeSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Antrenman isimleri</h3><small class="muted">${state.trainingTypes.length} kayıtlı isim</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingTypeSettingsForm" class="group-settings-form"><label for="newTrainingTypeName">Yeni antrenman adı</label><input id="newTrainingTypeName" name="trainingTypeName" maxlength="60" placeholder="Örn. Şut çalışması" required><button class="primary-button" type="submit">İsim ekle</button></form><div class="group-settings-list">${typeRows || '<div class="empty-state">Henüz antrenman ismi eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki isimler yeni antrenman formunda gösterilir. Geçmiş antrenman kayıtları silme işleminden etkilenmez.</small></div></details>`;
   const coachPanel = `<details class="panel group-settings-panel training-coach-settings-panel"${state.trainingCoachSettingsOpen ? ' open' : ''}><summary class="group-settings-summary"><div><h3>Antrenör isimleri</h3><small class="muted">${state.trainingCoaches.length} kayıtlı antrenör</small></div><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="group-settings-content"><form id="trainingCoachSettingsForm" class="group-settings-form"><label for="newTrainingCoachName">Yeni antrenör adı</label><input id="newTrainingCoachName" name="trainingCoachName" maxlength="80" placeholder="Adı soyadı" required><button class="primary-button" type="submit">Antrenör ekle</button></form><div class="group-settings-list">${coachRows || '<div class="empty-state">Henüz antrenör eklenmemiş.</div>'}</div><small class="form-hint group-settings-hint">Buradaki antrenörler yeni antrenman formundaki açılır menüde gösterilir. Geçmiş kayıtlar silme işleminden etkilenmez.</small></div></details>`;
@@ -2697,6 +2698,10 @@ async function showAuthenticatedApp(user) {
 
   let remoteData;
   try {
+    if (profile.role === 'coach') {
+      const { error: coachSyncError } = await supabaseClient.rpc('register_signed_in_training_coach');
+      if (coachSyncError) console.warn('Antrenör listesi eşitlenemedi:', coachSyncError);
+    }
     state.schools = profile.role === 'super_admin'
       ? await remoteDataStore.listSchools()
       : await remoteDataStore.listUserSchools();
@@ -4511,6 +4516,7 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'delete-group' && ['super_admin', 'admin'].includes(state.role)) {
     const groupName = String(actionButton.dataset.group || '');
+    if (GROUPS.length <= 1) { showToast('Okuldaki son grup silinemez.'); return; }
     const studentCount = state.students.filter(student => student.group === groupName).length;
     const trainingCount = state.trainings.filter(training => training.group === groupName).length;
     if (studentCount || trainingCount) {
@@ -4561,6 +4567,7 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'delete-training-coach' && ['super_admin', 'admin'].includes(state.role)) {
     const coachName = String(actionButton.dataset.coach || '');
+    if (state.trainingCoaches.length <= 1) { showToast('Okuldaki son antrenör silinemez.'); return; }
     if (!coachName || !window.confirm(`“${coachName}” antrenör listesinden kaldırılsın mı? Geçmiş antrenman kayıtları değişmeyecek.`)) return;
     const saved = await runRemoteMutation(() => remoteDataStore.deleteTrainingCoach(coachName));
     if (!saved) return;
@@ -4584,6 +4591,7 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'delete-training-field' && ['super_admin', 'admin'].includes(state.role)) {
     const fieldName = String(actionButton.dataset.field || '');
+    if (state.trainingFields.length <= 1) { showToast('Okuldaki son saha silinemez.'); return; }
     if (!fieldName || !window.confirm(`“${fieldName}” saha listesinden kaldırılsın mı? Geçmiş antrenman kayıtları değişmeyecek.`)) return;
     const saved = await runRemoteMutation(() => remoteDataStore.deleteTrainingField(fieldName));
     if (!saved) return;

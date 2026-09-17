@@ -813,6 +813,7 @@
 
     async function deleteGroup(groupName) {
       requireContext();
+      if (groupsByName.size <= 1) throw new Error('Okuldaki son grup silinemez.');
       const id = groupId(groupName);
       const [studentsResult, trainingsResult] = await Promise.all([
         client.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('group_id', id),
@@ -915,6 +916,7 @@
       requireContext();
       const { data: existing, error: existingError } = await client.from('training_coaches').select('id, name').eq('school_id', schoolId);
       if (existingError) throw existingError;
+      if ((existing || []).length <= 1) throw new Error('Okuldaki son antrenör silinemez.');
       const current = (existing || []).find(item => item.name === trainingCoachName);
       if (!current) throw new Error('Antrenör bulunamadı.');
       const { error } = await client.from('training_coaches').delete().eq('id', current.id).eq('school_id', schoolId);
@@ -951,6 +953,7 @@
       requireContext();
       const { data: existing, error: existingError } = await client.from('training_fields').select('id, name').eq('school_id', schoolId);
       if (existingError) throw existingError;
+      if ((existing || []).length <= 1) throw new Error('Okuldaki son saha silinemez.');
       const current = (existing || []).find(item => item.name === trainingFieldName);
       if (!current) throw new Error('Saha bulunamadı.');
       const { error } = await client.from('training_fields').delete().eq('id', current.id).eq('school_id', schoolId);
