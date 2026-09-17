@@ -880,6 +880,7 @@
       requireContext();
       const { data: existing, error: existingError } = await client.from('training_types').select('id, name').eq('school_id', schoolId);
       if (existingError) throw existingError;
+      if ((existing || []).length <= 1) throw new Error('Okuldaki son antrenman türü silinemez.');
       const current = (existing || []).find(item => item.name === trainingTypeName);
       if (!current) throw new Error('Antrenman adı bulunamadı.');
       const { error } = await client.from('training_types').delete().eq('id', current.id).eq('school_id', schoolId);

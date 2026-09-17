@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.17.410';
+const APP_VERSION = '2026.09.17.411';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1764,7 +1764,7 @@ function trainingSettingsView() {
     if (state.editingTrainingTypeName === type) {
       return `<form class="group-settings-row training-type-rename-form" data-original-type="${escapeHtml(type)}"><div><label for="editTrainingTypeName">Antrenman adını düzenle</label><input id="editTrainingTypeName" name="trainingTypeName" maxlength="60" value="${escapeHtml(type)}" required><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="cancel-edit-training-type">Vazgeç</button><button class="primary-button" type="submit">Kaydet</button></div></form>`;
     }
-    return `<div class="group-settings-row"><div><strong>${escapeHtml(type)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-type" data-type="${escapeHtml(type)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-type" data-type="${escapeHtml(type)}">Sil</button></div></div>`;
+    return `<div class="group-settings-row"><div><strong>${escapeHtml(type)}</strong><small>${usageCount} antrenmanda kullanılıyor</small></div><div class="group-settings-actions"><button class="secondary-button" type="button" data-action="edit-training-type" data-type="${escapeHtml(type)}">Düzenle</button><button class="danger-button" type="button" data-action="delete-training-type" data-type="${escapeHtml(type)}" ${state.trainingTypes.length <= 1 ? 'disabled title="Okuldaki son antrenman türü silinemez"' : ''}>Sil</button></div></div>`;
   }).join('');
   const sortedCoaches = [...state.trainingCoaches].sort((left, right) => left.localeCompare(right, 'tr-TR', { numeric: true, sensitivity: 'base' }));
   const coachRows = sortedCoaches.map(coach => {
@@ -4544,6 +4544,7 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'delete-training-type' && ['super_admin', 'admin'].includes(state.role)) {
     const trainingTypeName = String(actionButton.dataset.type || '');
+    if (state.trainingTypes.length <= 1) { showToast('Okuldaki son antrenman türü silinemez.'); return; }
     if (!trainingTypeName || !window.confirm(`“${trainingTypeName}” antrenman ismi önerilerden kaldırılsın mı? Geçmiş antrenman kayıtları değişmeyecek.`)) return;
     const saved = await runRemoteMutation(() => remoteDataStore.deleteTrainingType(trainingTypeName));
     if (!saved) return;
