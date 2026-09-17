@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.17.411';
+const APP_VERSION = '2026.09.17.412';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -5321,7 +5321,7 @@ document.querySelector('#attendanceForm').addEventListener('submit', async event
 });
 document.querySelector('#trainingForm').addEventListener('submit', async event => {
   event.preventDefault();
-  if (!['super_admin', 'admin'].includes(state.role)) return;
+  if (!['super_admin', 'admin', 'coach'].includes(state.role)) return;
   const form = event.currentTarget;
   const data = new FormData(form);
   const group = data.get('group');
