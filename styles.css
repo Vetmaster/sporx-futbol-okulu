@@ -655,6 +655,11 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
 .install-prompt-actions .primary-button, .install-prompt-actions .secondary-button { min-height: 38px; padding: 8px 13px; }
 .install-prompt-actions .secondary-button { color: white; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
 .install-prompt-dismiss { min-height: 38px; padding: 7px 10px; border: 0; color: rgba(255,255,255,.72); background: transparent; font-weight: 700; cursor: pointer; }
+#installPrompt .install-prompt-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#installPrompt .install-prompt-actions .primary-button, #installPrompt .install-prompt-actions .secondary-button { width: 100%; }
+#installPrompt .install-prompt-dismiss, #installPrompt .install-prompt-never-show { grid-column: 1 / -1; }
+.install-prompt-never-show { display: flex; align-items: center; gap: 8px; padding: 6px 10px; color: white; font-size: 14px; cursor: pointer; }
+.install-prompt-never-show input { width: 18px; height: 18px; margin: 0; accent-color: #fff; }
 .bottom-nav, .sidebar-scrim { display: none; }
 @keyframes mobile-tab-enter-next { from { opacity: .68; transform: translateX(22px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes mobile-tab-enter-previous { from { opacity: .68; transform: translateX(-22px); } to { opacity: 1; transform: translateX(0); } }

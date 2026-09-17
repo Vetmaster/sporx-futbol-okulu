@@ -1,6 +1,7 @@
-const APP_VERSION = '2026.09.17.407';
+const APP_VERSION = '2026.09.17.408';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
-const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
+const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
+const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
 const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
 const ANDROID_APP_SEEN_MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
@@ -504,6 +505,7 @@ const adminMfaCopySecretButton = document.querySelector('#adminMfaCopySecretButt
 const adminMfaOpenAuthenticator = document.querySelector('#adminMfaOpenAuthenticator');
 const installPrompt = document.querySelector('#installPrompt');
 const installAppButton = document.querySelector('#installAppButton');
+const neverShowInstallPrompt = document.querySelector('#neverShowInstallPrompt');
 const appUpdatePrompt = document.querySelector('#appUpdatePrompt');
 const appUpdatePromptDescription = document.querySelector('#appUpdatePromptDescription');
 let pendingUpdateUrl = ANDROID_APK_URL;
@@ -517,7 +519,8 @@ function shouldOfferAndroidInstall() {
   return /Android/i.test(window.navigator.userAgent)
     && !runsInAndroidAppShell()
     && !runsAsInstalledApp()
-    && !window.localStorage.getItem(INSTALL_PROMPT_DISMISS_KEY);
+    && !window.localStorage.getItem(INSTALL_PROMPT_DISMISS_KEY)
+    && !window.sessionStorage.getItem(INSTALL_PROMPT_SESSION_DISMISS_KEY);
 }
 
 function markAndroidAppAsSeen() {
@@ -554,6 +557,7 @@ async function showAndroidInstallPrompt() {
     installPrompt.classList.add('is-hidden');
     return;
   }
+  if (!shouldOfferAndroidInstall()) return;
   appUpdatePrompt.classList.add('is-hidden');
   installPrompt.classList.remove('is-hidden');
 }
@@ -576,13 +580,17 @@ installAppButton.addEventListener('click', async () => {
   await deferredInstallPrompt.userChoice;
   deferredInstallPrompt = null;
   installAppButton.classList.add('is-hidden');
-  installPrompt.classList.add('is-hidden');
+  closeInstallPrompt();
 });
 
-document.querySelector('#dismissInstallPrompt').addEventListener('click', () => {
-  window.localStorage.setItem(INSTALL_PROMPT_DISMISS_KEY, '1');
+function closeInstallPrompt() {
+  window.sessionStorage.setItem(INSTALL_PROMPT_SESSION_DISMISS_KEY, '1');
+  if (neverShowInstallPrompt.checked) window.localStorage.setItem(INSTALL_PROMPT_DISMISS_KEY, '1');
   installPrompt.classList.add('is-hidden');
-});
+}
+
+document.querySelector('#continueOnWebButton').addEventListener('click', closeInstallPrompt);
+document.querySelector('#dismissInstallPrompt').addEventListener('click', closeInstallPrompt);
 
 window.setTimeout(showAndroidInstallPrompt, 1200);
 
