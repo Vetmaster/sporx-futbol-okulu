@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.16.406';
+const APP_VERSION = '2026.09.17.407';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v1';
 const NATIVE_VERSION_STORAGE_KEY = 'sasa_native_version_code';
@@ -492,7 +492,6 @@ const loginEmail = document.querySelector('#loginEmail');
 const loginPassword = document.querySelector('#loginPassword');
 const loginPasswordConfirm = document.querySelector('#loginPasswordConfirm');
 const loginSubmitButton = document.querySelector('#loginSubmitButton');
-const authAndroidDownload = document.querySelector('.auth-android-download');
 const authMessage = document.querySelector('#authMessage');
 const adminMfaForm = document.querySelector('#adminMfaForm');
 const adminMfaCode = document.querySelector('#adminMfaCode');
@@ -550,7 +549,7 @@ async function isAndroidAppInstalled() {
 }
 
 async function showAndroidInstallPrompt() {
-  if (!shouldOfferAndroidInstall()) return;
+  if (!shouldOfferAndroidInstall() || !deferredInstallPrompt) return;
   if (await isAndroidAppInstalled()) {
     installPrompt.classList.add('is-hidden');
     return;
@@ -578,12 +577,6 @@ installAppButton.addEventListener('click', async () => {
   deferredInstallPrompt = null;
   installAppButton.classList.add('is-hidden');
   installPrompt.classList.add('is-hidden');
-});
-
-document.querySelector('#downloadApkButton').addEventListener('click', () => {
-  window.localStorage.setItem(INSTALL_PROMPT_DISMISS_KEY, '1');
-  installPrompt.classList.add('is-hidden');
-  window.location.assign(ANDROID_APK_URL);
 });
 
 document.querySelector('#dismissInstallPrompt').addEventListener('click', () => {
@@ -614,17 +607,6 @@ function runsInAndroidAppShell() {
 
 if (runsInAndroidAppShell()) markAndroidAppAsSeen();
 
-function configurePersistentAndroidDownloads() {
-  const shouldShow = /Android/i.test(window.navigator.userAgent)
-    && !runsInAndroidAppShell()
-    && !runsAsInstalledApp();
-  document.querySelectorAll('[data-android-apk-download]').forEach(link => {
-    link.href = ANDROID_APK_URL;
-    link.classList.toggle('is-hidden', !shouldShow);
-  });
-}
-
-configurePersistentAndroidDownloads();
 
 async function checkForAndroidUpdate() {
   if (!runsInAndroidAppShell()) return;
@@ -2224,7 +2206,6 @@ function showLoginScreen(message = '', isError = false) {
   adminMfaForm.classList.add('is-hidden');
   loginForm.classList.remove('is-hidden');
   configureAuthForm('login');
-  configurePersistentAndroidDownloads();
   loginSubmitButton.classList.remove('is-hidden');
   showAuthMessage(message, isError);
   window.setTimeout(() => loginEmail.focus(), 0);
@@ -2270,7 +2251,6 @@ function showExpiredPasswordLinkScreen() {
   adminMfaForm.classList.add('is-hidden');
   loginForm.classList.remove('is-hidden');
   configureAuthForm('reset-password');
-  configurePersistentAndroidDownloads();
   showAuthMessage('Bu şifre yenileme bağlantısı kullanılmış veya süresi dolmuş. Lütfen yeni bir bağlantı isteyin.', true);
   window.setTimeout(() => loginEmail.focus(), 0);
 }
@@ -2707,7 +2687,6 @@ async function showAuthenticatedApp(user) {
   document.querySelector('#authPasswordField').classList.add('is-hidden');
   document.querySelector('#authSecondaryActions').classList.add('is-hidden');
   loginSubmitButton.classList.add('is-hidden');
-  authAndroidDownload.classList.add('is-hidden');
 
   let remoteData;
   try {
