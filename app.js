@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.17.412';
+const APP_VERSION = '2026.09.18.414';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -3696,7 +3696,7 @@ function openTrainingDialog(training = null) {
   document.querySelector('#trainingEyebrow').textContent = training ? 'ANTRENMANI DÜZENLE' : 'YENİ ANTRENMAN';
   document.querySelector('#trainingDialogTitle').textContent = training ? 'Antrenman bilgilerini güncelle' : 'Antrenman planla';
   document.querySelector('#trainingSubmitButton').textContent = training ? 'Değişiklikleri kaydet' : 'Antrenmanı kaydet';
-  document.querySelector('#deleteTrainingButton').classList.toggle('is-hidden', !training || !isAdminRole());
+  document.querySelector('#deleteTrainingButton').classList.toggle('is-hidden', !training || !['super_admin', 'admin', 'coach'].includes(state.role));
   document.querySelector('#trainingDialog').showModal();
 }
 
@@ -3704,15 +3704,77 @@ function openAccountingDialog(entry = null) {
   const form = document.querySelector('#accountingForm');
   form.reset();
   state.editingAccountingEntryId = entry?.id || null;
+  form.elements.kind.querySelector('option[value="fee"]').disabled = Boolean(entry);
   form.elements.date.value = entry ? accountingDateInputValue(entry.date) : localDateValue();
   form.elements.kind.value = entry?.kind || '';
   form.elements.paymentMethod.value = entry?.paymentMethod || 'cash';
   form.elements.title.value = entry?.title || '';
   form.elements.amount.value = entry?.amount || '';
+  form.elements.studentId.value = '';
+  document.querySelector('#accountingStudentResults').classList.add('is-hidden');
+  document.querySelector('#accountingFeeMonths').replaceChildren();
+  syncAccountingKindFields();
   document.querySelector('#accountingEyebrow').textContent = entry ? 'İŞLEMİ DÜZENLE' : 'YENİ İŞLEM';
   document.querySelector('#accountingDialogTitle').textContent = entry ? 'Muhasebe kaydını güncelle' : 'Gelir veya gider kaydı';
   document.querySelector('#accountingSubmitButton').textContent = entry ? 'Değişiklikleri kaydet' : 'İşlemi kaydet';
   document.querySelector('#accountingDialog').showModal();
+}
+
+function syncAccountingKindFields() {
+  const form = document.querySelector('#accountingForm');
+  const isFee = form.elements.kind.value === 'fee';
+  const feeFields = document.querySelector('#accountingFeeFields');
+  const wasFee = !feeFields.classList.contains('is-hidden');
+  feeFields.classList.toggle('is-hidden', !isFee);
+  form.elements.studentSearch.required = isFee;
+  form.elements.title.readOnly = isFee;
+  form.elements.amount.readOnly = isFee;
+  form.elements.title.required = !isFee;
+  form.elements.amount.required = !isFee;
+  if (!isFee && wasFee) {
+    form.elements.title.value = '';
+    form.elements.amount.value = '';
+  }
+  if (isFee) updateAccountingFeeSummary();
+}
+
+function updateAccountingStudentResults() {
+  const form = document.querySelector('#accountingForm');
+  const search = form.elements.studentSearch.value.trim().toLocaleLowerCase('tr-TR');
+  form.elements.studentId.value = '';
+  form.elements.title.value = '';
+  form.elements.amount.value = '';
+  document.querySelector('#accountingFeeMonths').replaceChildren();
+  const results = document.querySelector('#accountingStudentResults');
+  const matches = search
+    ? state.students.filter(student => `${student.name} ${student.group} ${studentBirthYearLabel(student)}`.toLocaleLowerCase('tr-TR').includes(search)).slice(0, 8)
+    : [];
+  setSafeHtml(results, matches.map(student => `<button class="student-search-option" type="button" role="option" data-action="select-accounting-student" data-id="${student.id}"><strong>${escapeHtml(student.name)}</strong><small>${escapeHtml(student.group)} · ${escapeHtml(studentBirthYearLabel(student))}</small></button>`).join(''));
+  results.classList.toggle('is-hidden', matches.length === 0);
+  form.elements.studentSearch.setAttribute('aria-expanded', String(matches.length > 0));
+}
+
+function updateAccountingFeeSummary() {
+  const form = document.querySelector('#accountingForm');
+  if (form.elements.kind.value !== 'fee') return;
+  const student = state.students.find(item => item.id === Number(form.elements.studentId.value));
+  const months = [...form.querySelectorAll('input[name="feeMonth"]:checked')].map(input => input.value);
+  form.elements.amount.value = student && months.length
+    ? String(months.reduce((total, month) => total + monthlyFeeAmount(student, month), 0))
+    : '';
+  form.elements.title.value = student && months.length
+    ? `${student.name} · ${months.map(formatFeeMonth).join(', ')} ${months.length === 1 ? 'aidatı' : 'aidatları'}`
+    : '';
+}
+
+function showAccountingFeeMonths(student, rows) {
+  const rowsByMonth = new Map(rows.map(row => [String(row.fee_month).slice(0, 7), row]));
+  setSafeHtml(document.querySelector('#accountingFeeMonths'), upcomingFeeMonths().map(month => {
+    const status = rowsByMonth.get(month)?.status;
+    const unavailable = status === 'paid' || status === 'exempt';
+    return `<label class="student-prepayment-month"><input type="checkbox" name="feeMonth" value="${month}" ${unavailable ? 'disabled' : ''}><span>${formatFeeMonth(month)}</span><small>${unavailable ? status === 'paid' ? 'Ödendi' : 'Muaf' : formatCurrency(monthlyFeeAmount(student, month))}</small></label>`;
+  }).join(''));
+  updateAccountingFeeSummary();
 }
 
 function openAccountingDateRangeDialog() {
@@ -4392,6 +4454,27 @@ document.addEventListener('click', async event => {
     document.querySelector('#feeDefinitionStudentResults').classList.add('is-hidden');
     form.elements.studentSearch.setAttribute('aria-expanded', 'false');
   }
+  else if (action === 'select-accounting-student') {
+    const student = state.students.find(item => item.id === Number(actionButton.dataset.id));
+    if (!student) return;
+    const form = document.querySelector('#accountingForm');
+    form.elements.studentSearch.value = `${student.name} · ${student.group} · ${studentBirthYearLabel(student)}`;
+    form.elements.studentId.value = String(student.id);
+    form.elements.studentSearch.setAttribute('aria-expanded', 'false');
+    document.querySelector('#accountingStudentResults').classList.add('is-hidden');
+    document.querySelector('#accountingFeeMonths').textContent = 'Aidat dönemleri yükleniyor…';
+    try {
+      const months = upcomingFeeMonths();
+      const rows = await remoteDataStore.loadFeePeriods({ from: months[0], to: months.at(-1), studentId: student.id });
+      if (Number(form.elements.studentId.value) !== student.id || !form.closest('dialog')?.open) return;
+      applyFeeRows(rows);
+      showAccountingFeeMonths(student, rows);
+    } catch (error) {
+      form.elements.studentId.value = '';
+      document.querySelector('#accountingFeeMonths').replaceChildren();
+      showToast(`Aidat dönemleri yüklenemedi: ${error.message || 'Bağlantı hatası'}`);
+    }
+  }
   else if (action === 'add-student' && ['super_admin', 'admin'].includes(state.role)) openStudentDialog();
   else if (action === 'send-student-notification' && isAdminRole()) {
     const student = state.students.find(item => item.id === Number(actionButton.dataset.id));
@@ -4426,7 +4509,7 @@ document.addEventListener('click', async event => {
   }
   else if (action === 'new-training' && ['super_admin', 'admin', 'coach'].includes(state.role)) openTrainingDialog();
   else if (action === 'edit-training' && ['super_admin', 'admin', 'coach'].includes(state.role)) { const training = state.trainings.find(item => item.id === Number(actionButton.dataset.id)); if (training) openTrainingDialog(training); }
-  else if (action === 'delete-training' && isAdminRole()) {
+  else if (action === 'delete-training' && ['super_admin', 'admin', 'coach'].includes(state.role)) {
     const training = state.trainings.find(item => item.id === Number(state.editingTrainingId));
     if (training && window.confirm(`“${training.title}” antrenmanı silinsin mi? Bu antrenmana ait yoklama kayıtları da silinecektir.`)) {
       const saved = await runRemoteMutation(() => remoteDataStore.deleteTraining(training.id));
@@ -4437,6 +4520,10 @@ document.addEventListener('click', async event => {
       persistLocalData();
       document.querySelector('#trainingDialog').close();
       render();
+      if (state.role === 'coach') {
+        showRecordCreated('Antrenman silindi. İptal bildirimini okul yöneticisi gönderebilir.');
+        return;
+      }
       try {
         const pushResult = await saveAndSendNotification({
           audience: `${training.group} velileri`,
@@ -5365,6 +5452,9 @@ document.querySelector('#trainingForm').addEventListener('submit', async event =
 });
 document.querySelector('#feeDefinitionStatus').addEventListener('change', updateFeePaymentFields);
 document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', updateFeeDefinitionStudentResults);
+document.querySelector('#accountingStudentSearch').addEventListener('input', updateAccountingStudentResults);
+document.querySelector('#accountingForm [name="kind"]').addEventListener('change', syncAccountingKindFields);
+document.querySelector('#accountingFeeMonths').addEventListener('change', updateAccountingFeeSummary);
 document.querySelector('#feePaymentDialog').addEventListener('cancel', () => window.setTimeout(render, 0));
 document.querySelector('#feePaymentForm').addEventListener('submit', async event => {
   event.preventDefault();
@@ -5433,6 +5523,30 @@ document.querySelector('#accountingForm').addEventListener('submit', async event
   const form = event.currentTarget;
   const data = new FormData(form);
   const kind = data.get('kind');
+  if (kind === 'fee') {
+    const student = state.students.find(item => item.id === Number(data.get('studentId')));
+    const months = [...new Set(data.getAll('feeMonth').map(String))];
+    const paymentDate = String(data.get('date') || '');
+    const paymentMethod = String(data.get('paymentMethod') || '');
+    if (!student || !months.length || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(paymentDate) || !PAYMENT_METHODS[paymentMethod]) {
+      showToast('Öğrenciyi ve ödeme alınacak en az bir aidat ayını seçin.');
+      return;
+    }
+    const recorded = await runRemoteMutation(() => remoteDataStore.recordAccountingFeePayments(student.id, months, paymentDate, paymentMethod));
+    if (!recorded) return;
+    recorded.forEach(item => {
+      setMonthlyFeeStatus(student, item.month, 'paid', { amount: Number(item.amount), paymentDate, paymentMethod });
+      const entry = state.accountingEntries.find(row => row.reference === feeAccountingReference(student, item.month));
+      if (entry) entry.id = Number(item.accountingId);
+    });
+    persistLocalData();
+    document.querySelector('#accountingDialog').close();
+    form.reset();
+    if (state.page !== 'accountingEntries') state.page = 'accounting';
+    render();
+    showRecordCreated(`${recorded.length} aylık aidat öğrenciye ve muhasebeye işlendi.`);
+    return;
+  }
   const entryData = {
     date: data.get('date'),
     title: data.get('title').trim(),

@@ -1193,6 +1193,19 @@
       }
     }
 
+    async function recordAccountingFeePayments(studentId, months, paymentDate, paymentMethod) {
+      requireContext();
+      const { data, error } = await client.rpc('record_accounting_fee_payments', {
+        target_school_id: schoolId,
+        target_student_id: studentId,
+        target_months: months,
+        payment_date: paymentDate,
+        payment_method: paymentMethod
+      });
+      if (error) throw error;
+      return data || [];
+    }
+
     async function saveAttendance(trainingId, allStudentIds, presentStudentIds) {
       requireContext();
       const { data: session, error: sessionError } = await client
@@ -1338,6 +1351,7 @@
       saveAccounting,
       deleteAccounting,
       saveFeeStatus,
+      recordAccountingFeePayments,
       saveAttendance,
       saveNotification,
       markNotificationsRead,

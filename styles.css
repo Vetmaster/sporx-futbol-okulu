@@ -369,6 +369,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .student-search-option:last-child { border-bottom: 0; }
 .student-search-option:hover, .student-search-option:focus-visible { background: var(--brand-soft); }
 .student-search-option small { color: var(--muted); }
+.accounting-fee-fields { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--brand-soft); }
+.accounting-fee-months { padding-top: 2px; }
+.accounting-fee-months .student-prepayment-month:has(input:disabled) { opacity: .6; cursor: not-allowed; }
 .panel { min-width: 0; overflow: hidden; }
 .onboarding-card { display: grid; gap: 18px; padding: clamp(20px, 3vw, 32px); }
 .onboarding-card h2, .onboarding-card h3, .onboarding-card p { margin: 0; }
