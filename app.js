@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.18.414';
+const APP_VERSION = '2026.09.18.415';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -3758,13 +3758,20 @@ function updateAccountingFeeSummary() {
   const form = document.querySelector('#accountingForm');
   if (form.elements.kind.value !== 'fee') return;
   const student = state.students.find(item => item.id === Number(form.elements.studentId.value));
-  const months = [...form.querySelectorAll('input[name="feeMonth"]:checked')].map(input => input.value);
-  form.elements.amount.value = student && months.length
-    ? String(months.reduce((total, month) => total + monthlyFeeAmount(student, month), 0))
+  const selectedRows = [...form.querySelectorAll('input[name="feeMonth"]:checked')].map(input => input.closest('.accounting-fee-month-row'));
+  const months = selectedRows.map(row => row.dataset.month);
+  const amounts = selectedRows.map(accountingFeeRowAmount);
+  form.elements.amount.value = student && months.length && amounts.every(amount => Number.isFinite(amount) && amount > 0)
+    ? String(Math.round(amounts.reduce((total, amount) => total + amount, 0) * 100) / 100)
     : '';
   form.elements.title.value = student && months.length
     ? `${student.name} · ${months.map(formatFeeMonth).join(', ')} ${months.length === 1 ? 'aidatı' : 'aidatları'}`
     : '';
+}
+
+function accountingFeeRowAmount(row) {
+  const input = row.querySelector('[data-accounting-fee-price-input]');
+  return Number(row.classList.contains('is-editing') ? input?.value : row.dataset.amount);
 }
 
 function showAccountingFeeMonths(student, rows) {
@@ -3772,7 +3779,8 @@ function showAccountingFeeMonths(student, rows) {
   setSafeHtml(document.querySelector('#accountingFeeMonths'), upcomingFeeMonths().map(month => {
     const status = rowsByMonth.get(month)?.status;
     const unavailable = status === 'paid' || status === 'exempt';
-    return `<label class="student-prepayment-month"><input type="checkbox" name="feeMonth" value="${month}" ${unavailable ? 'disabled' : ''}><span>${formatFeeMonth(month)}</span><small>${unavailable ? status === 'paid' ? 'Ödendi' : 'Muaf' : formatCurrency(monthlyFeeAmount(student, month))}</small></label>`;
+    const amount = monthlyFeeAmount(student, month);
+    return `<div class="accounting-fee-month-row" data-month="${month}" data-amount="${amount}"><label class="student-prepayment-month"><input type="checkbox" name="feeMonth" value="${month}" ${unavailable ? 'disabled' : ''}><span>${formatFeeMonth(month)}</span></label><span class="accounting-fee-price">${unavailable ? status === 'paid' ? 'Ödendi' : 'Muaf' : formatCurrency(amount)}</span>${unavailable ? '' : `<input class="accounting-fee-price-input is-hidden" data-accounting-fee-price-input type="number" min="0.01" max="99999999.99" step="0.01" inputmode="decimal" value="${amount}" aria-label="${formatFeeMonth(month)} aidat tutarı"><button class="accounting-fee-edit-button" type="button" data-action="edit-accounting-fee-price" aria-label="${formatFeeMonth(month)} aidat tutarını düzenle" title="Aidat tutarını düzenle">✎</button>`}</div>`;
   }).join(''));
   updateAccountingFeeSummary();
 }
@@ -4474,6 +4482,35 @@ document.addEventListener('click', async event => {
       document.querySelector('#accountingFeeMonths').replaceChildren();
       showToast(`Aidat dönemleri yüklenemedi: ${error.message || 'Bağlantı hatası'}`);
     }
+  }
+  else if (action === 'edit-accounting-fee-price') {
+    const row = actionButton.closest('.accounting-fee-month-row');
+    const input = row?.querySelector('[data-accounting-fee-price-input]');
+    if (!row || !input) return;
+    if (!row.classList.contains('is-editing')) {
+      row.classList.add('is-editing');
+      row.querySelector('.accounting-fee-price').classList.add('is-hidden');
+      input.classList.remove('is-hidden');
+      actionButton.textContent = '✓';
+      actionButton.setAttribute('aria-label', 'Yeni aidat tutarını kaydet');
+      input.focus();
+      input.select();
+      return;
+    }
+    const amount = Number(input.value);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 99999999.99) {
+      showToast('Geçerli bir aidat tutarı girin.');
+      input.focus();
+      return;
+    }
+    row.dataset.amount = String(Math.round(amount * 100) / 100);
+    row.classList.remove('is-editing');
+    row.querySelector('.accounting-fee-price').textContent = formatCurrency(Number(row.dataset.amount));
+    row.querySelector('.accounting-fee-price').classList.remove('is-hidden');
+    input.classList.add('is-hidden');
+    actionButton.textContent = '✎';
+    actionButton.setAttribute('aria-label', 'Aidat tutarını düzenle');
+    updateAccountingFeeSummary();
   }
   else if (action === 'add-student' && ['super_admin', 'admin'].includes(state.role)) openStudentDialog();
   else if (action === 'send-student-notification' && isAdminRole()) {
@@ -5455,6 +5492,7 @@ document.querySelector('#feeDefinitionStudentSearch').addEventListener('input', 
 document.querySelector('#accountingStudentSearch').addEventListener('input', updateAccountingStudentResults);
 document.querySelector('#accountingForm [name="kind"]').addEventListener('change', syncAccountingKindFields);
 document.querySelector('#accountingFeeMonths').addEventListener('change', updateAccountingFeeSummary);
+document.querySelector('#accountingFeeMonths').addEventListener('input', updateAccountingFeeSummary);
 document.querySelector('#feePaymentDialog').addEventListener('cancel', () => window.setTimeout(render, 0));
 document.querySelector('#feePaymentForm').addEventListener('submit', async event => {
   event.preventDefault();
@@ -5525,14 +5563,20 @@ document.querySelector('#accountingForm').addEventListener('submit', async event
   const kind = data.get('kind');
   if (kind === 'fee') {
     const student = state.students.find(item => item.id === Number(data.get('studentId')));
-    const months = [...new Set(data.getAll('feeMonth').map(String))];
+    const selectedRows = [...form.querySelectorAll('input[name="feeMonth"]:checked')].map(input => input.closest('.accounting-fee-month-row'));
+    const months = selectedRows.map(row => row.dataset.month);
+    const amounts = selectedRows.map(accountingFeeRowAmount);
     const paymentDate = String(data.get('date') || '');
     const paymentMethod = String(data.get('paymentMethod') || '');
     if (!student || !months.length || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(paymentDate) || !PAYMENT_METHODS[paymentMethod]) {
       showToast('Öğrenciyi ve ödeme alınacak en az bir aidat ayını seçin.');
       return;
     }
-    const recorded = await runRemoteMutation(() => remoteDataStore.recordAccountingFeePayments(student.id, months, paymentDate, paymentMethod));
+    if (amounts.some(amount => !Number.isFinite(amount) || amount <= 0 || amount > 99999999.99)) {
+      showToast('Seçilen ayların aidat tutarlarını kontrol edin.');
+      return;
+    }
+    const recorded = await runRemoteMutation(() => remoteDataStore.recordAccountingFeePayments(student.id, months, amounts, paymentDate, paymentMethod));
     if (!recorded) return;
     recorded.forEach(item => {
       setMonthlyFeeStatus(student, item.month, 'paid', { amount: Number(item.amount), paymentDate, paymentMethod });

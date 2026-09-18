@@ -371,7 +371,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .student-search-option small { color: var(--muted); }
 .accounting-fee-fields { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--brand-soft); }
 .accounting-fee-months { padding-top: 2px; }
-.accounting-fee-months .student-prepayment-month:has(input:disabled) { opacity: .6; cursor: not-allowed; }
+.accounting-fee-month-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; min-width: 0; }
+.accounting-fee-month-row .student-prepayment-month { min-width: 0; }
+.accounting-fee-month-row:has(input[name="feeMonth"]:disabled) { opacity: .6; }
+.accounting-fee-month-row:has(input[name="feeMonth"]:disabled) .student-prepayment-month { cursor: not-allowed; }
+.accounting-fee-price { color: var(--muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.accounting-fee-price-input { width: 100px; min-width: 0; padding: 8px 6px; }
+.accounting-fee-edit-button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; color: var(--brand); background: var(--panel); cursor: pointer; }
 .panel { min-width: 0; overflow: hidden; }
 .onboarding-card { display: grid; gap: 18px; padding: clamp(20px, 3vw, 32px); }
 .onboarding-card h2, .onboarding-card h3, .onboarding-card p { margin: 0; }

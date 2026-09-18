@@ -1193,12 +1193,13 @@
       }
     }
 
-    async function recordAccountingFeePayments(studentId, months, paymentDate, paymentMethod) {
+    async function recordAccountingFeePayments(studentId, months, amounts, paymentDate, paymentMethod) {
       requireContext();
-      const { data, error } = await client.rpc('record_accounting_fee_payments', {
+      const { data, error } = await client.rpc('record_accounting_fee_payments_with_amounts', {
         target_school_id: schoolId,
         target_student_id: studentId,
         target_months: months,
+        target_amounts: amounts,
         payment_date: paymentDate,
         payment_method: paymentMethod
       });
