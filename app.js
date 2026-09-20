@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.421';
+const APP_VERSION = '2026.09.20.422';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -6128,13 +6128,23 @@ async function handleAuthStateChange(event, session) {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.userId && !appShell.classList.contains('is-hidden')) {
     refreshPushStatus(state.page === 'notifications' || state.page === 'dashboard');
-    if (state.page === 'userApprovals') {
-      loadPageData('userApprovals', { force: true })
-        .then(render)
-        .catch(error => console.error('Kullanıcı onayları yenilenemedi:', error));
-    }
+    refreshUserApprovalsOnResume();
   }
 });
+
+let userApprovalsResumeRefreshTimer = null;
+function refreshUserApprovalsOnResume() {
+  if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
+  window.clearTimeout(userApprovalsResumeRefreshTimer);
+  userApprovalsResumeRefreshTimer = window.setTimeout(() => {
+    loadPageData('userApprovals', { force: true })
+      .then(render)
+      .catch(error => console.error('Kullanıcı onayları yenilenemedi:', error));
+  }, 120);
+}
+
+window.addEventListener('focus', refreshUserApprovalsOnResume);
+window.addEventListener('pageshow', refreshUserApprovalsOnResume);
 
 configureAuthForm(authMode);
 if (!supabaseClient) {
