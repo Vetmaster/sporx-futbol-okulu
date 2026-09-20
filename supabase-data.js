@@ -89,6 +89,10 @@
   }
 
   async function fetchAccessRequests(client, schoolId) {
+    const { data: rpcRows, error: rpcError } = await client
+      .rpc('list_school_access_requests', { target_school_id: schoolId });
+    if (!rpcError) return rpcRows || [];
+    if (!String(rpcError?.message || '').includes('list_school_access_requests')) throw rpcError;
     try {
       return await fetchAll(client, 'access_requests', 'id, user_id, school_id, email, full_name, requested_role, status, email_verified_at, reviewed_at, created_at', 'created_at', { school_id: schoolId });
     } catch (error) {

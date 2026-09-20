@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.425';
+const APP_VERSION = '2026.09.20.426';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2068,7 +2068,8 @@ function userApprovalsView() {
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
-  const loadingHint = !state.accessRequests.length ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
+  const accessRequestsLoaded = Number(state.accessRequestsLoadedAt || 0) > 0;
+  const loadingHint = !accessRequestsLoaded ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
   return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><div class="training-list-toolbar">${roleFilter}<span class="muted" aria-live="polite">${filteredRequests.length} / ${visibleRequests.length} kullanıcı</span></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingRequests.length} talep</small></div><span class="status warning">${pendingRequests.length} talep</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedRequests.length} kullanıcı</small></div><span class="status">${approvedRequests.length} kullanıcı</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
 }
 
