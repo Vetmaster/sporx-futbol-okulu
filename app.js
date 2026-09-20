@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.429';
+const APP_VERSION = '2026.09.20.430';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -133,6 +133,7 @@ const state = {
   accessRequests: [],
   accessRequestRoleFilter: 'all',
   accessRequestsLoadedAt: 0,
+  accessRequestsLoading: false,
   emailLogs: [],
   schoolApplications: [],
   applicationSearchQuery: '',
@@ -235,6 +236,8 @@ function clearSensitiveState() {
   state.notifications = [];
   state.attendanceRecords = [];
   state.accessRequests = [];
+  state.accessRequestsLoadedAt = 0;
+  state.accessRequestsLoading = false;
   state.schoolBankAccounts = [];
   state.subscriptionBankAccounts = [];
   state.onboardingPurchaseOpen = false;
@@ -2019,9 +2022,8 @@ function notificationsView() {
 }
 
 function userApprovalsView() {
-  if (!state.accessRequests.length && Date.now() - Number(state.accessRequestsLoadedAt || 0) > 5000) {
-    refreshUserApprovalsData({ force: true });
-  }
+  const accessRequestsLoaded = Number(state.accessRequestsLoadedAt || 0) > 0;
+  const isInitialLoading = !accessRequestsLoaded && !state.accessRequests.length;
   const selectedRoleFilter = ['all', 'admin', 'coach', 'parent'].includes(state.accessRequestRoleFilter)
     ? state.accessRequestRoleFilter
     : 'all';
@@ -2040,6 +2042,10 @@ function userApprovalsView() {
   const roleFilter = `<label class="training-sort-control"><span>Rol</span><select id="accessRequestRoleFilter" aria-label="Kullanıcı onaylarını role göre filtrele">${roleFilterOptions.map(([value, label]) => `<option value="${value}" ${selectedRoleFilter === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
   const pendingRequests = filteredRequests.filter(request => request.status === 'pending');
   const approvedRequests = filteredRequests.filter(request => request.status === 'approved');
+  const pendingCountLabel = isInitialLoading ? 'Yükleniyor' : `${pendingRequests.length} bekleyen erişim talebi`;
+  const filteredCountLabel = isInitialLoading ? 'Yükleniyor' : `${filteredRequests.length} / ${visibleRequests.length} kullanıcı`;
+  const pendingBadgeLabel = isInitialLoading ? '—' : `${pendingRequests.length} talep`;
+  const approvedBadgeLabel = isInitialLoading ? '—' : `${approvedRequests.length} kullanıcı`;
   const pendingRows = pendingRequests.map(request => {
     const emailVerified = Boolean(request.emailVerifiedAt);
     const roleControl = state.role === 'super_admin'
@@ -2068,9 +2074,8 @@ function userApprovalsView() {
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
-  const accessRequestsLoaded = Number(state.accessRequestsLoadedAt || 0) > 0;
-  const loadingHint = !accessRequestsLoaded ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><div class="training-list-toolbar">${roleFilter}<span class="muted" aria-live="polite">${filteredRequests.length} / ${visibleRequests.length} kullanıcı</span></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingRequests.length} talep</small></div><span class="status warning">${pendingRequests.length} talep</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedRequests.length} kullanıcı</small></div><span class="status">${approvedRequests.length} kullanıcı</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
+  const loadingHint = isInitialLoading ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingCountLabel}</p></div></div><div class="training-list-toolbar">${roleFilter}<span class="muted" aria-live="polite">${filteredCountLabel}</span></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingBadgeLabel}</small></div><span class="status warning">${pendingBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedBadgeLabel}</small></div><span class="status">${approvedBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
 }
 
 function emailTypeLabel(type) {
@@ -2404,6 +2409,20 @@ function mapAttendanceRows(rows) {
   }));
 }
 
+function mapAccessRequestRows(rows) {
+  return (rows || []).map(row => ({
+    id: Number(row.id),
+    userId: row.user_id,
+    email: row.email,
+    fullName: row.full_name,
+    requestedRole: row.requested_role,
+    status: row.status,
+    emailVerifiedAt: row.email_verified_at,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at
+  }));
+}
+
 async function loadVisibleTrainingAttendance() {
   if (!remoteDataStore?.loadAttendanceForTrainings) return;
   const rows = await remoteDataStore.loadAttendanceForTrainings(state.trainings.map(training => training.id));
@@ -2490,7 +2509,7 @@ async function loadPageData(page = state.page, { force = false } = {}) {
     }
     if (page === 'userApprovals') {
       const rows = await remoteDataStore.loadAccessRequests();
-      state.accessRequests = rows.map(row => ({ id: Number(row.id), userId: row.user_id, email: row.email, fullName: row.full_name, requestedRole: row.requested_role, status: row.status, emailVerifiedAt: row.email_verified_at, reviewedAt: row.reviewed_at, createdAt: row.created_at }));
+      state.accessRequests = mapAccessRequestRows(rows);
       state.accessRequestsLoadedAt = Date.now();
     }
     if (page === 'emailLogs') {
@@ -6141,50 +6160,26 @@ document.addEventListener('visibilitychange', () => {
 let userApprovalsResumeRefreshTimer = null;
 let userApprovalsRefreshInFlight = false;
 let userApprovalsAndroidRefreshInterval = null;
-const USER_APPROVALS_CONTEXT_RECOVERY_KEY = `sasa_user_approvals_context_recovered_${APP_VERSION}`;
-const USER_APPROVALS_RELOAD_RECOVERY_KEY = `sasa_user_approvals_reload_recovered_${APP_VERSION}`;
 async function refreshUserApprovalsData({ force = false } = {}) {
   if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
   if (userApprovalsRefreshInFlight) return;
+  if (!force && state.accessRequestsLoadedAt) return;
   userApprovalsRefreshInFlight = true;
+  state.accessRequestsLoading = true;
+  if (!state.accessRequests.length) render();
   try {
-    await loadPageData('userApprovals', { force });
-    if (state.accessRequests.length) {
-      try {
-        window.sessionStorage.removeItem(USER_APPROVALS_CONTEXT_RECOVERY_KEY);
-        window.sessionStorage.removeItem(USER_APPROVALS_RELOAD_RECOVERY_KEY);
-      } catch {}
-    }
+    const rows = await remoteDataStore.loadAccessRequests();
+    state.accessRequests = mapAccessRequestRows(rows);
+    state.accessRequestsLoadedAt = Date.now();
+    loadedPageData.set(`userApprovals:${state.accountingPeriod === 'month' && state.accountingMonth ? state.accountingMonth : feeMonthKey()}:${state.studentAttendanceMonth || feeMonthKey()}:${state.accountingDateRangeStart}:${state.accountingDateRangeEnd}`, true);
     if (state.page === 'userApprovals') render();
-    if (!state.accessRequests.length) recoverAndroidUserApprovalsEmptyState();
   } catch (error) {
     console.error('Kullanıcı onayları yenilenemedi:', error);
+    if (state.page === 'userApprovals') showToast(`Kullanıcı onayları yüklenemedi: ${error.message || 'Bağlantı hatası'}`);
   } finally {
+    state.accessRequestsLoading = false;
     userApprovalsRefreshInFlight = false;
-  }
-}
-
-async function recoverAndroidUserApprovalsEmptyState() {
-  if (!runsInAndroidAppShell() || state.page !== 'userApprovals' || !state.userId) return;
-  try {
-    if (!window.sessionStorage.getItem(USER_APPROVALS_CONTEXT_RECOVERY_KEY)) {
-      window.sessionStorage.setItem(USER_APPROVALS_CONTEXT_RECOVERY_KEY, '1');
-      window.sessionStorage.setItem(PENDING_OPEN_PAGE_STORAGE_KEY, 'userApprovals');
-      const { data } = await supabaseClient.auth.getSession();
-      if (data?.session?.user) {
-        await showAuthenticatedApp(data.session.user);
-        return;
-      }
-    }
-    if (!window.sessionStorage.getItem(USER_APPROVALS_RELOAD_RECOVERY_KEY)) {
-      window.sessionStorage.setItem(USER_APPROVALS_RELOAD_RECOVERY_KEY, '1');
-      const reloadUrl = new URL(window.location.href);
-      reloadUrl.searchParams.set('open', 'userApprovals');
-      reloadUrl.searchParams.set('resume', String(Date.now()));
-      window.location.replace(`${reloadUrl.pathname}${reloadUrl.search}${reloadUrl.hash}`);
-    }
-  } catch (error) {
-    console.warn('Android kullanıcı onayları kurtarma işlemi tamamlanamadı:', error);
+    if (state.page === 'userApprovals') render();
   }
 }
 
@@ -6202,8 +6197,8 @@ function startAndroidUserApprovalsRefreshGuard() {
     if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
     if (document.visibilityState && document.visibilityState !== 'visible') return;
     const elapsed = Date.now() - Number(state.accessRequestsLoadedAt || 0);
-    if (elapsed > 4000 || !state.accessRequests.length) refreshUserApprovalsData({ force: true });
-  }, 5000);
+    if (!state.accessRequestsLoadedAt || elapsed > 15000) refreshUserApprovalsData({ force: true });
+  }, 10000);
 }
 
 startAndroidUserApprovalsRefreshGuard();
