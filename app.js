@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.436';
+const APP_VERSION = '2026.09.21.437';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -231,6 +231,8 @@ function persistLocalData() {
   });
 }
 function clearSensitiveState() {
+  if (typeof loadedPageData !== 'undefined') loadedPageData.clear();
+  if (typeof pendingPageDataLoads !== 'undefined') pendingPageDataLoads.clear();
   state.students = [];
   state.trainings = [];
   state.accountingEntries = [];
@@ -2498,11 +2500,29 @@ function mapNotificationRows(rows, reads) {
   });
 }
 
+function pageDataCacheKey(page = state.page) {
+  const accountingMonth = state.accountingPeriod === 'month' && state.accountingMonth ? state.accountingMonth : feeMonthKey();
+  const attendanceMonth = state.studentAttendanceMonth || feeMonthKey();
+  return [
+    state.userId || '',
+    state.schoolId || '',
+    state.role || '',
+    state.actualRole || '',
+    page,
+    accountingMonth,
+    attendanceMonth,
+    state.accountingDateRangeStart || '',
+    state.accountingDateRangeEnd || '',
+    state.showPastTrainings ? 'past-trainings' : 'future-trainings',
+    state.showPastAttendance ? 'past-attendance' : 'future-attendance'
+  ].join(':');
+}
+
 async function loadPageData(page = state.page, { force = false } = {}) {
   if (!remoteDataStore || !state.schoolId || !state.userId) return;
   const accountingMonth = state.accountingPeriod === 'month' && state.accountingMonth ? state.accountingMonth : feeMonthKey();
   const attendanceMonth = state.studentAttendanceMonth || feeMonthKey();
-  const key = `${page}:${accountingMonth}:${attendanceMonth}:${state.accountingDateRangeStart}:${state.accountingDateRangeEnd}`;
+  const key = pageDataCacheKey(page);
   if (!force && loadedPageData.get(key)) return;
   if (pendingPageDataLoads.has(key)) return pendingPageDataLoads.get(key);
 
@@ -3159,7 +3179,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.436', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.437', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -5067,6 +5087,7 @@ appContent.addEventListener('change', async event => {
   if (event.target.id === 'showPastAttendanceFilter') {
     state.showPastAttendance = event.target.checked;
     render();
+    loadPageData('attendance', { force: true }).then(render).catch(error => console.error('Yoklama antrenmanları yüklenemedi:', error));
     return;
   }
   if (event.target.id === 'trainingSortSelect') {
@@ -6227,7 +6248,7 @@ async function refreshUserApprovalsData({ force = false } = {}) {
         refreshUserApprovalsData({ force: true });
       }, 1500);
     }
-    loadedPageData.set(`userApprovals:${state.accountingPeriod === 'month' && state.accountingMonth ? state.accountingMonth : feeMonthKey()}:${state.studentAttendanceMonth || feeMonthKey()}:${state.accountingDateRangeStart}:${state.accountingDateRangeEnd}`, true);
+    loadedPageData.set(pageDataCacheKey('userApprovals'), true);
     if (state.page === 'userApprovals') render();
   } catch (error) {
     console.error('Kullanıcı onayları yenilenemedi:', error);
