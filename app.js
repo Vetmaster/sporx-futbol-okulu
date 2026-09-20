@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.431';
+const APP_VERSION = '2026.09.21.432';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -3113,7 +3113,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.431', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.432', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -6160,16 +6160,31 @@ document.addEventListener('visibilitychange', () => {
 let userApprovalsResumeRefreshTimer = null;
 let userApprovalsRefreshInFlight = false;
 let userApprovalsAndroidRefreshInterval = null;
+let userApprovalsEmptyRetryTimer = null;
 async function refreshUserApprovalsData({ force = false } = {}) {
   if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
   if (userApprovalsRefreshInFlight) return;
   if (!force && state.accessRequestsLoadedAt) return;
+  window.clearTimeout(userApprovalsEmptyRetryTimer);
+  const previousAccessRequests = state.accessRequests.slice();
   userApprovalsRefreshInFlight = true;
   state.accessRequestsLoading = true;
   if (!state.accessRequests.length) render();
   try {
     const rows = await remoteDataStore.loadAccessRequests();
-    state.accessRequests = mapAccessRequestRows(rows);
+    const nextAccessRequests = mapAccessRequestRows(rows);
+    const shouldPreservePreviousRows = runsInAndroidAppShell()
+      && force
+      && !nextAccessRequests.length
+      && previousAccessRequests.length > 0;
+    if (shouldPreservePreviousRows) {
+      state.accessRequests = previousAccessRequests;
+      userApprovalsEmptyRetryTimer = window.setTimeout(() => {
+        refreshUserApprovalsData({ force: true });
+      }, 1500);
+    } else {
+      state.accessRequests = nextAccessRequests;
+    }
     state.accessRequestsLoadedAt = Date.now();
     loadedPageData.set(`userApprovals:${state.accountingPeriod === 'month' && state.accountingMonth ? state.accountingMonth : feeMonthKey()}:${state.studentAttendanceMonth || feeMonthKey()}:${state.accountingDateRangeStart}:${state.accountingDateRangeEnd}`, true);
     if (state.page === 'userApprovals') render();
