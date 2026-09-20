@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.424';
+const APP_VERSION = '2026.09.20.425';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -47,7 +47,7 @@ const remoteDataStore = supabaseClient && window.SasaSupabaseData?.create(supaba
 const initialFragmentParameters = new URLSearchParams(window.location.hash.slice(1));
 const PENDING_OPEN_PAGE_STORAGE_KEY = 'sasa_pending_open_page';
 const initialRequestedOpenPage = runtimeQueryParameters.get('open') || initialFragmentParameters.get('open') || '';
-if (['notifications', 'onboarding'].includes(initialRequestedOpenPage)) {
+if (['notifications', 'onboarding', 'userApprovals'].includes(initialRequestedOpenPage)) {
   try {
     window.sessionStorage.setItem(PENDING_OPEN_PAGE_STORAGE_KEY, initialRequestedOpenPage);
   } catch {
@@ -2853,12 +2853,13 @@ async function showAuthenticatedApp(user) {
   } catch {
     requestedPage = requestedPage || '';
   }
-  if (requestedPage === 'notifications' && navItems.notifications.roles.includes(state.role)) {
-    state.page = 'notifications';
+  if (requestedPage && navItems[requestedPage]?.roles.includes(state.role)) {
+    state.page = requestedPage;
     state.pageHistory = [];
     try { window.sessionStorage.removeItem(PENDING_OPEN_PAGE_STORAGE_KEY); } catch {}
     const notificationUrl = new URL(window.location.href);
     notificationUrl.searchParams.delete('open');
+    notificationUrl.searchParams.delete('resume');
     window.history.replaceState(
       null,
       '',
@@ -6139,17 +6140,50 @@ document.addEventListener('visibilitychange', () => {
 let userApprovalsResumeRefreshTimer = null;
 let userApprovalsRefreshInFlight = false;
 let userApprovalsAndroidRefreshInterval = null;
+const USER_APPROVALS_CONTEXT_RECOVERY_KEY = `sasa_user_approvals_context_recovered_${APP_VERSION}`;
+const USER_APPROVALS_RELOAD_RECOVERY_KEY = `sasa_user_approvals_reload_recovered_${APP_VERSION}`;
 async function refreshUserApprovalsData({ force = false } = {}) {
   if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
   if (userApprovalsRefreshInFlight) return;
   userApprovalsRefreshInFlight = true;
   try {
     await loadPageData('userApprovals', { force });
+    if (state.accessRequests.length) {
+      try {
+        window.sessionStorage.removeItem(USER_APPROVALS_CONTEXT_RECOVERY_KEY);
+        window.sessionStorage.removeItem(USER_APPROVALS_RELOAD_RECOVERY_KEY);
+      } catch {}
+    }
     if (state.page === 'userApprovals') render();
+    if (!state.accessRequests.length) recoverAndroidUserApprovalsEmptyState();
   } catch (error) {
     console.error('Kullanıcı onayları yenilenemedi:', error);
   } finally {
     userApprovalsRefreshInFlight = false;
+  }
+}
+
+async function recoverAndroidUserApprovalsEmptyState() {
+  if (!runsInAndroidAppShell() || state.page !== 'userApprovals' || !state.userId) return;
+  try {
+    if (!window.sessionStorage.getItem(USER_APPROVALS_CONTEXT_RECOVERY_KEY)) {
+      window.sessionStorage.setItem(USER_APPROVALS_CONTEXT_RECOVERY_KEY, '1');
+      window.sessionStorage.setItem(PENDING_OPEN_PAGE_STORAGE_KEY, 'userApprovals');
+      const { data } = await supabaseClient.auth.getSession();
+      if (data?.session?.user) {
+        await showAuthenticatedApp(data.session.user);
+        return;
+      }
+    }
+    if (!window.sessionStorage.getItem(USER_APPROVALS_RELOAD_RECOVERY_KEY)) {
+      window.sessionStorage.setItem(USER_APPROVALS_RELOAD_RECOVERY_KEY, '1');
+      const reloadUrl = new URL(window.location.href);
+      reloadUrl.searchParams.set('open', 'userApprovals');
+      reloadUrl.searchParams.set('resume', String(Date.now()));
+      window.location.replace(`${reloadUrl.pathname}${reloadUrl.search}${reloadUrl.hash}`);
+    }
+  } catch (error) {
+    console.warn('Android kullanıcı onayları kurtarma işlemi tamamlanamadı:', error);
   }
 }
 
