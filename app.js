@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.418';
+const APP_VERSION = '2026.09.20.419';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -131,6 +131,7 @@ const state = {
   notifications: localData.notifications,
   attendanceRecords: localData.attendanceRecords,
   accessRequests: [],
+  accessRequestRoleFilter: 'all',
   emailLogs: [],
   schoolApplications: [],
   applicationSearchQuery: '',
@@ -2019,11 +2020,24 @@ function notificationsView() {
 }
 
 function userApprovalsView() {
+  const selectedRoleFilter = ['all', 'admin', 'coach', 'parent'].includes(state.accessRequestRoleFilter)
+    ? state.accessRequestRoleFilter
+    : 'all';
   const visibleRequests = state.role === 'super_admin'
     ? state.accessRequests
     : state.accessRequests.filter(request => request.requestedRole === 'parent');
-  const pendingRequests = visibleRequests.filter(request => request.status === 'pending');
-  const approvedRequests = visibleRequests.filter(request => request.status === 'approved');
+  const filteredRequests = selectedRoleFilter === 'all'
+    ? visibleRequests
+    : visibleRequests.filter(request => request.requestedRole === selectedRoleFilter);
+  const roleFilterOptions = [
+    ['all', 'Tümü'],
+    ['admin', 'Admin'],
+    ['coach', 'Antrenör'],
+    ['parent', 'Veli']
+  ];
+  const roleFilter = `<label class="training-sort-control"><span>Rol</span><select id="accessRequestRoleFilter" aria-label="Kullanıcı onaylarını role göre filtrele">${roleFilterOptions.map(([value, label]) => `<option value="${value}" ${selectedRoleFilter === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
+  const pendingRequests = filteredRequests.filter(request => request.status === 'pending');
+  const approvedRequests = filteredRequests.filter(request => request.status === 'approved');
   const pendingRows = pendingRequests.map(request => {
     const emailVerified = Boolean(request.emailVerifiedAt);
     const roleControl = state.role === 'super_admin'
@@ -2052,7 +2066,7 @@ function userApprovalsView() {
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><div class="training-list-toolbar">${roleFilter}<span class="muted" aria-live="polite">${filteredRequests.length} / ${visibleRequests.length} kullanıcı</span></div><section class="panel"><div class="panel-heading"><h3>Onay bekleyenler</h3><span class="status warning">${pendingRequests.length} talep</span></div>${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</section>${resolvedRows ? `<section class="panel"><div class="panel-heading"><h3>Onaylanmış kullanıcılar</h3></div>${resolvedRows}</section>` : ''}</div>`;
 }
 
 function emailTypeLabel(type) {
@@ -4942,6 +4956,11 @@ appContent.addEventListener('change', async event => {
     state.selectedParentPaymentMonth = null;
     state.expandedTimelineStudentId = null;
     persistNavigationState();
+    render();
+    return;
+  }
+  if (event.target.id === 'accessRequestRoleFilter') {
+    state.accessRequestRoleFilter = ['all', 'admin', 'coach', 'parent'].includes(event.target.value) ? event.target.value : 'all';
     render();
     return;
   }
