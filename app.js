@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.439';
+const APP_VERSION = '2026.09.21.440';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2225,6 +2225,7 @@ function configureAuthForm(mode = 'login') {
   document.querySelector('#authPasswordConfirmField').classList.toggle('is-hidden', !settingPassword);
   document.querySelector('#authSecondaryActions').classList.toggle('is-hidden', settingPassword || resettingPassword);
   document.querySelector('#backToLoginButton').classList.toggle('is-hidden', !settingPassword && !resettingPassword);
+  document.querySelector('#pendingAccessLogoutButton')?.classList.add('is-hidden');
   loginEmail.required = !settingPassword;
   loginPassword.required = !resettingPassword;
   loginPasswordConfirm.required = settingPassword;
@@ -2262,6 +2263,7 @@ function showPendingAccessScreen(request = {}) {
   document.querySelector('#authPasswordConfirmField').classList.add('is-hidden');
   document.querySelector('#authSecondaryActions').classList.add('is-hidden');
   loginSubmitButton.classList.add('is-hidden');
+  document.querySelector('#pendingAccessLogoutButton')?.classList.remove('is-hidden');
   showAuthMessage();
   setAuthPending(false);
 }
@@ -3180,7 +3182,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.439', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.440', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -4276,6 +4278,7 @@ document.querySelector('#adminMfaCancelButton').addEventListener('click', async 
 });
 
 document.querySelector('#logoutButton').addEventListener('click', logout);
+document.querySelector('#pendingAccessLogoutButton')?.addEventListener('click', logout);
 globalBackButton.addEventListener('click', requestAppBack);
 appContent.addEventListener('touchstart', event => {
   if (event.touches.length !== 1 || !window.matchMedia('(max-width: 820px)').matches || isMobileTabSwipeBlocked(event.target)) {
