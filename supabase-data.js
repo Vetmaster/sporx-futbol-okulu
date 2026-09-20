@@ -89,16 +89,29 @@
   }
 
   async function fetchAccessRequests(client, schoolId) {
+    async function fetchAccessRequestsDirect() {
+      try {
+        return await fetchAll(client, 'access_requests', 'id, user_id, school_id, email, full_name, requested_role, status, email_verified_at, reviewed_at, created_at', 'created_at', { school_id: schoolId });
+      } catch (error) {
+        if (!String(error?.message || '').includes('email_verified_at')) throw error;
+        return fetchAll(client, 'access_requests', 'id, user_id, school_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at', { school_id: schoolId });
+      }
+    }
+
     const { data: rpcRows, error: rpcError } = await client
       .rpc('list_school_access_requests', { target_school_id: schoolId });
-    if (!rpcError) return rpcRows || [];
-    if (!String(rpcError?.message || '').includes('list_school_access_requests')) throw rpcError;
-    try {
-      return await fetchAll(client, 'access_requests', 'id, user_id, school_id, email, full_name, requested_role, status, email_verified_at, reviewed_at, created_at', 'created_at', { school_id: schoolId });
-    } catch (error) {
-      if (!String(error?.message || '').includes('email_verified_at')) throw error;
-      return fetchAll(client, 'access_requests', 'id, user_id, school_id, email, full_name, requested_role, status, reviewed_at, created_at', 'created_at', { school_id: schoolId });
+    if (!rpcError) {
+      const rows = rpcRows || [];
+      if (rows.length) return rows;
+      try {
+        const fallbackRows = await fetchAccessRequestsDirect();
+        return fallbackRows.length ? fallbackRows : rows;
+      } catch {
+        return rows;
+      }
     }
+    if (!String(rpcError?.message || '').includes('list_school_access_requests')) throw rpcError;
+    return fetchAccessRequestsDirect();
   }
 
   async function fetchTrainingTypes(client, schoolId) {
