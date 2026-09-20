@@ -625,7 +625,6 @@ async function checkForAndroidUpdate() {
     const release = await response.json();
     const latestVersionCode = Number(release.versionCode);
     if (!latestVersionCode || latestVersionCode <= androidShellVersion()) return;
-    if (window.sessionStorage.getItem(`sasa_update_dismissed_${latestVersionCode}`)) return;
     pendingUpdateUrl = release.apkUrl || ANDROID_APK_URL;
     appUpdatePrompt.dataset.versionCode = String(latestVersionCode);
     appUpdatePromptDescription.textContent = `${release.versionName || 'Yeni sürüm'} hazır. Güncel özellikler ve yeni logo için uygulamayı güncelleyin.`;
@@ -646,12 +645,11 @@ document.querySelector('#updateAppButton').addEventListener('click', () => {
 });
 
 document.querySelector('#dismissUpdatePrompt').addEventListener('click', () => {
-  const versionCode = appUpdatePrompt.dataset.versionCode;
-  if (versionCode) window.sessionStorage.setItem(`sasa_update_dismissed_${versionCode}`, '1');
   appUpdatePrompt.classList.add('is-hidden');
 });
 
 window.setTimeout(checkForAndroidUpdate, 1500);
+window.setTimeout(checkForAndroidUpdate, 6000);
 
 function syncGroupOptions() {
   document.querySelectorAll('select[name="group"]').forEach(select => {
