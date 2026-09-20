@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.423';
+const APP_VERSION = '2026.09.20.424';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -3094,7 +3094,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.08.30.363', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.20.424', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -6140,6 +6140,7 @@ document.addEventListener('visibilitychange', () => {
 
 let userApprovalsResumeRefreshTimer = null;
 let userApprovalsRefreshInFlight = false;
+let userApprovalsAndroidRefreshInterval = null;
 async function refreshUserApprovalsData({ force = false } = {}) {
   if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
   if (userApprovalsRefreshInFlight) return;
@@ -6161,6 +6162,18 @@ function refreshUserApprovalsOnResume() {
     refreshUserApprovalsData({ force: true });
   }, 120);
 }
+
+function startAndroidUserApprovalsRefreshGuard() {
+  if (!runsInAndroidAppShell() || userApprovalsAndroidRefreshInterval) return;
+  userApprovalsAndroidRefreshInterval = window.setInterval(() => {
+    if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    const elapsed = Date.now() - Number(state.accessRequestsLoadedAt || 0);
+    if (elapsed > 4000 || !state.accessRequests.length) refreshUserApprovalsData({ force: true });
+  }, 5000);
+}
+
+startAndroidUserApprovalsRefreshGuard();
 
 window.addEventListener('focus', refreshUserApprovalsOnResume);
 window.addEventListener('pageshow', refreshUserApprovalsOnResume);
