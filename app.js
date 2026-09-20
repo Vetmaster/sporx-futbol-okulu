@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.426';
+const APP_VERSION = '2026.09.20.427';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2404,10 +2404,23 @@ function mapAttendanceRows(rows) {
   }));
 }
 
-async function loadVisibleTrainingAttendance() {
+function applyAttendanceRows(rows, { replaceAll = false } = {}) {
+  const mappedRows = mapAttendanceRows(rows);
+  if (replaceAll) {
+    state.attendanceRecords = mappedRows;
+    return;
+  }
+  const trainingIds = new Set(mappedRows.map(record => Number(record.trainingId)));
+  state.attendanceRecords = [
+    ...mappedRows,
+    ...state.attendanceRecords.filter(record => !trainingIds.has(Number(record.trainingId)))
+  ];
+}
+
+async function loadVisibleTrainingAttendance({ trainings = state.trainings, replaceAll = false } = {}) {
   if (!remoteDataStore?.loadAttendanceForTrainings) return;
-  const rows = await remoteDataStore.loadAttendanceForTrainings(state.trainings.map(training => training.id));
-  state.attendanceRecords = mapAttendanceRows(rows);
+  const rows = await remoteDataStore.loadAttendanceForTrainings(trainings.map(training => training.id));
+  applyAttendanceRows(rows, { replaceAll });
 }
 
 function mapTrainingRows(rows) {
@@ -2473,16 +2486,24 @@ async function loadPageData(page = state.page, { force = false } = {}) {
       const to = state.accountingDateRangeEnd || (state.accountingPeriod === 'today' ? localDateValue() : bounds.to);
       state.accountingEntries = mapAccountingRows(await remoteDataStore.loadAccountingEntries({ from, to }));
     }
-    if ((page === 'dashboard' && isCoachRole()) || ['attendance', 'studentAttendanceHistory', 'studentProfile'].includes(page)) {
+    if (page === 'dashboard') {
+      await loadVisibleTrainingAttendance({ trainings: state.trainings.filter(training => training.date >= localDateValue()) });
+    }
+    if (page === 'attendance') {
+      const current = localDateValue();
+      state.trainings = mapTrainingRows(await remoteDataStore.loadTrainings({ from: state.showPastAttendance ? '' : current }));
+      await loadVisibleTrainingAttendance({ trainings: state.trainings });
+    }
+    if (['studentAttendanceHistory', 'studentProfile'].includes(page)) {
       const bounds = monthBounds(attendanceMonth);
       const from = page === 'studentProfile' ? bounds.from : (state.studentAttendanceShowAll ? '' : bounds.from);
       const toExclusive = page === 'studentProfile' ? bounds.next : (state.studentAttendanceShowAll ? '' : bounds.next);
-      state.attendanceRecords = mapAttendanceRows(await remoteDataStore.loadAttendanceSessions({ from, toExclusive }));
+      applyAttendanceRows(await remoteDataStore.loadAttendanceSessions({ from, toExclusive }));
     }
     if (page === 'trainings') {
       const current = localDateValue();
       state.trainings = mapTrainingRows(await remoteDataStore.loadTrainings({ from: state.showPastTrainings ? '' : current }));
-      await loadVisibleTrainingAttendance();
+      await loadVisibleTrainingAttendance({ trainings: state.trainings });
     }
     if (page === 'notifications') {
       const notificationData = await remoteDataStore.loadNotifications();
@@ -2615,18 +2636,34 @@ async function refreshRemoteDataFromRealtime() {
       tasks.push(remoteDataStore.loadFeePeriods({ from: currentMonth, to: currentMonth }).then(applyFeeRows));
     }
     if (tables.has('trainings')) {
-      tasks.push(remoteDataStore.loadTrainings({ from: state.showPastTrainings || state.page === 'trainings' ? '' : localDateValue() }).then(rows => { state.trainings = mapTrainingRows(rows); }));
+      const shouldLoadPastTrainings = state.showPastTrainings || state.showPastAttendance || ['trainings', 'attendance'].includes(state.page);
+      tasks.push(remoteDataStore.loadTrainings({ from: shouldLoadPastTrainings ? '' : localDateValue() }).then(async rows => {
+        state.trainings = mapTrainingRows(rows);
+        if (['dashboard', 'trainings', 'attendance'].includes(state.page)) {
+          const visibleTrainings = state.page === 'dashboard'
+            ? state.trainings.filter(training => training.date >= localDateValue())
+            : state.page === 'attendance' && !state.showPastAttendance
+              ? state.trainings.filter(training => training.date >= localDateValue())
+              : state.trainings;
+          await loadVisibleTrainingAttendance({ trainings: visibleTrainings });
+        }
+      }));
     }
     if (tables.has('accounting_entries') && ['dashboard', 'accounting', 'accountingEntries'].includes(state.page)) {
       const bounds = monthBounds(state.accountingMonth || currentMonth);
       tasks.push(remoteDataStore.loadAccountingEntries({ from: bounds.from, to: bounds.to }).then(rows => { state.accountingEntries = mapAccountingRows(rows); }));
     }
-    if ((tables.has('attendance_sessions') || tables.has('attendance_records')) && state.page === 'trainings') {
-      tasks.push(loadVisibleTrainingAttendance());
+    if ((tables.has('attendance_sessions') || tables.has('attendance_records')) && ['dashboard', 'trainings', 'attendance'].includes(state.page)) {
+      const visibleTrainings = state.page === 'dashboard'
+        ? state.trainings.filter(training => training.date >= localDateValue())
+        : state.page === 'attendance' && !state.showPastAttendance
+          ? state.trainings.filter(training => training.date >= localDateValue())
+          : state.trainings;
+      tasks.push(loadVisibleTrainingAttendance({ trainings: visibleTrainings }));
     }
-    if ((tables.has('attendance_sessions') || tables.has('attendance_records')) && ['attendance', 'studentAttendanceHistory', 'studentProfile', 'dashboard'].includes(state.page)) {
+    if ((tables.has('attendance_sessions') || tables.has('attendance_records')) && ['studentAttendanceHistory', 'studentProfile'].includes(state.page)) {
       const bounds = monthBounds(state.studentAttendanceMonth || currentMonth);
-      tasks.push(remoteDataStore.loadAttendanceSessions({ from: bounds.from, toExclusive: bounds.next }).then(rows => { state.attendanceRecords = mapAttendanceRows(rows); }));
+      tasks.push(remoteDataStore.loadAttendanceSessions({ from: bounds.from, toExclusive: bounds.next }).then(rows => { applyAttendanceRows(rows); }));
     }
     if (tables.has('notifications') || tables.has('notification_reads') || tables.has('notification_recipients')) {
       tasks.push(remoteDataStore.loadNotifications().then(data => { state.notifications = mapNotificationRows(data.notifications, data.reads); }));
@@ -5002,6 +5039,7 @@ appContent.addEventListener('change', async event => {
   if (event.target.id === 'showPastAttendanceFilter') {
     state.showPastAttendance = event.target.checked;
     render();
+    loadPageData('attendance', { force: true }).then(render).catch(error => console.error('Yoklama merkezi yüklenemedi:', error));
     return;
   }
   if (event.target.id === 'trainingSortSelect') {
