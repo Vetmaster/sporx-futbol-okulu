@@ -101,32 +101,6 @@
     }
   }
 
-  function normalizeAttendanceSessionRows(rows = []) {
-    return rows.map(row => ({
-      ...row,
-      attendance_records: Array.isArray(row.attendance_records)
-        ? row.attendance_records
-        : []
-    }));
-  }
-
-  async function fetchAttendanceSessionsRpc(client, schoolId, { trainingIds = null, from = '', toExclusive = '' } = {}) {
-    const safeTrainingIds = Array.isArray(trainingIds)
-      ? [...new Set(trainingIds.map(id => Number(id)).filter(Number.isFinite))]
-      : null;
-    const { data, error } = await client.rpc('list_training_attendance_sessions', {
-      target_school_id: schoolId,
-      target_training_ids: safeTrainingIds && safeTrainingIds.length ? safeTrainingIds : null,
-      from_taken_at: from || null,
-      to_taken_at: toExclusive || null
-    });
-    if (error) {
-      if (String(error?.message || '').includes('list_training_attendance_sessions')) return null;
-      throw error;
-    }
-    return normalizeAttendanceSessionRows(data || []);
-  }
-
   async function fetchTrainingTypes(client, schoolId) {
     const result = await client
       .from('training_types')
@@ -440,8 +414,6 @@
 
     async function loadAttendanceSessions({ from = '', toExclusive = '' } = {}) {
       requireContext();
-      const rpcRows = await fetchAttendanceSessionsRpc(client, schoolId, { from, toExclusive });
-      if (rpcRows) return rpcRows;
       let query = client
         .from('attendance_sessions')
         .select('id, training_id, taken_at, attendance_records(student_id, present)')
@@ -456,8 +428,6 @@
 
     async function loadAttendanceForTraining(trainingId) {
       requireContext();
-      const rpcRows = await fetchAttendanceSessionsRpc(client, schoolId, { trainingIds: [trainingId] });
-      if (rpcRows) return rpcRows[0] || null;
       const { data, error } = await client
         .from('attendance_sessions')
         .select('id, training_id, taken_at, attendance_records(student_id, present)')
@@ -472,8 +442,6 @@
       requireContext();
       const ids = [...new Set(trainingIds.map(id => Number(id)).filter(Number.isFinite))];
       if (!ids.length) return [];
-      const rpcRows = await fetchAttendanceSessionsRpc(client, schoolId, { trainingIds: ids });
-      if (rpcRows) return rpcRows;
       const { data, error } = await client
         .from('attendance_sessions')
         .select('id, training_id, taken_at, attendance_records(student_id, present)')
