@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.422';
+const APP_VERSION = '2026.09.20.423';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -132,6 +132,7 @@ const state = {
   attendanceRecords: localData.attendanceRecords,
   accessRequests: [],
   accessRequestRoleFilter: 'all',
+  accessRequestsLoadedAt: 0,
   emailLogs: [],
   schoolApplications: [],
   applicationSearchQuery: '',
@@ -2020,6 +2021,9 @@ function notificationsView() {
 }
 
 function userApprovalsView() {
+  if (!state.accessRequests.length && Date.now() - Number(state.accessRequestsLoadedAt || 0) > 5000) {
+    refreshUserApprovalsData({ force: true });
+  }
   const selectedRoleFilter = ['all', 'admin', 'coach', 'parent'].includes(state.accessRequestRoleFilter)
     ? state.accessRequestRoleFilter
     : 'all';
@@ -2066,7 +2070,8 @@ function userApprovalsView() {
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><div class="training-list-toolbar">${roleFilter}<span class="muted" aria-live="polite">${filteredRequests.length} / ${visibleRequests.length} kullanıcı</span></div><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingRequests.length} talep</small></div><span class="status warning">${pendingRequests.length} talep</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedRequests.length} kullanıcı</small></div><span class="status">${approvedRequests.length} kullanıcı</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
+  const loadingHint = !state.accessRequests.length ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingRequests.length} bekleyen erişim talebi</p></div></div><div class="training-list-toolbar">${roleFilter}<span class="muted" aria-live="polite">${filteredRequests.length} / ${visibleRequests.length} kullanıcı</span></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingRequests.length} talep</small></div><span class="status warning">${pendingRequests.length} talep</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedRequests.length} kullanıcı</small></div><span class="status">${approvedRequests.length} kullanıcı</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
 }
 
 function emailTypeLabel(type) {
@@ -2487,6 +2492,7 @@ async function loadPageData(page = state.page, { force = false } = {}) {
     if (page === 'userApprovals') {
       const rows = await remoteDataStore.loadAccessRequests();
       state.accessRequests = rows.map(row => ({ id: Number(row.id), userId: row.user_id, email: row.email, fullName: row.full_name, requestedRole: row.requested_role, status: row.status, emailVerifiedAt: row.email_verified_at, reviewedAt: row.reviewed_at, createdAt: row.created_at }));
+      state.accessRequestsLoadedAt = Date.now();
     }
     if (page === 'emailLogs') {
       state.emailLogs = await remoteDataStore.loadSystemEmailLogs();
@@ -6133,13 +6139,26 @@ document.addEventListener('visibilitychange', () => {
 });
 
 let userApprovalsResumeRefreshTimer = null;
+let userApprovalsRefreshInFlight = false;
+async function refreshUserApprovalsData({ force = false } = {}) {
+  if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
+  if (userApprovalsRefreshInFlight) return;
+  userApprovalsRefreshInFlight = true;
+  try {
+    await loadPageData('userApprovals', { force });
+    if (state.page === 'userApprovals') render();
+  } catch (error) {
+    console.error('Kullanıcı onayları yenilenemedi:', error);
+  } finally {
+    userApprovalsRefreshInFlight = false;
+  }
+}
+
 function refreshUserApprovalsOnResume() {
   if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
   window.clearTimeout(userApprovalsResumeRefreshTimer);
   userApprovalsResumeRefreshTimer = window.setTimeout(() => {
-    loadPageData('userApprovals', { force: true })
-      .then(render)
-      .catch(error => console.error('Kullanıcı onayları yenilenemedi:', error));
+    refreshUserApprovalsData({ force: true });
   }, 120);
 }
 
