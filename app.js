@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.20.420';
+const APP_VERSION = '2026.09.20.421';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -6128,6 +6128,11 @@ async function handleAuthStateChange(event, session) {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.userId && !appShell.classList.contains('is-hidden')) {
     refreshPushStatus(state.page === 'notifications' || state.page === 'dashboard');
+    if (state.page === 'userApprovals') {
+      loadPageData('userApprovals', { force: true })
+        .then(render)
+        .catch(error => console.error('Kullanıcı onayları yenilenemedi:', error));
+    }
   }
 });
 
