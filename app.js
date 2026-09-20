@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.432';
+const APP_VERSION = '2026.09.21.433';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -7,6 +7,7 @@ const ANDROID_APP_LAST_SEEN_STORAGE_KEY = 'sasa_android_app_last_seen';
 const ANDROID_APP_SEEN_MAX_AGE_MS = 45 * 24 * 60 * 60 * 1000;
 const PUSH_PREFERENCE_STORAGE_KEY = 'sasa_phone_notifications';
 const PUSH_PROMPT_DISMISS_STORAGE_KEY = 'sasa_push_prompt_dismissed_v1';
+const ACCESS_REQUEST_CACHE_PREFIX = 'sasa_access_requests_cache_v1';
 const ANDROID_PACKAGE_ID = 'com.sasafutbol.yonetim';
 const SUPABASE_URL = 'https://tezeflsiljqprrqbsypl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_b8NKvXEXTLAOz2o1L8XN9w_QQVuMUJx';
@@ -2325,7 +2326,9 @@ function applyRemoteData(remoteData) {
   state.accountingEntries = remoteData.accountingEntries;
   state.notifications = remoteData.notifications;
   state.attendanceRecords = remoteData.attendanceRecords;
-  state.accessRequests = remoteData.accessRequests || [];
+  setAccessRequestsFromRows(remoteData.accessRequests || [], {
+    preserveEmpty: state.page === 'userApprovals' && Number(state.accessRequestsLoadedAt || 0) > 0
+  });
   state.monthlyFeeAmount = Number(remoteData.monthlyFeeAmount) > 0 ? Number(remoteData.monthlyFeeAmount) : 1500;
   const remoteBankAccounts = Array.isArray(remoteData.bankAccounts)
     ? remoteData.bankAccounts
@@ -2423,6 +2426,48 @@ function mapAccessRequestRows(rows) {
   }));
 }
 
+function accessRequestCacheKey() {
+  if (!state.userId || !state.schoolId) return '';
+  return `${ACCESS_REQUEST_CACHE_PREFIX}:${state.userId}:${state.schoolId}:${state.role}`;
+}
+
+function readCachedAccessRequests() {
+  try {
+    const key = accessRequestCacheKey();
+    if (!key) return [];
+    const cached = JSON.parse(window.sessionStorage.getItem(key) || '[]');
+    return Array.isArray(cached) ? cached : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCachedAccessRequests(rows) {
+  try {
+    const key = accessRequestCacheKey();
+    if (!key || !rows.length) return;
+    window.sessionStorage.setItem(key, JSON.stringify(rows.slice(0, 100)));
+  } catch {
+    // Session storage is best-effort only.
+  }
+}
+
+function setAccessRequestsFromRows(rows, { preserveEmpty = false, markLoaded = true } = {}) {
+  const nextAccessRequests = mapAccessRequestRows(rows);
+  if (preserveEmpty && !nextAccessRequests.length) {
+    const fallbackRows = state.accessRequests.length ? state.accessRequests : readCachedAccessRequests();
+    if (fallbackRows.length) {
+      state.accessRequests = fallbackRows;
+      if (markLoaded) state.accessRequestsLoadedAt = Date.now();
+      return state.accessRequests;
+    }
+  }
+  state.accessRequests = nextAccessRequests;
+  if (state.accessRequests.length) writeCachedAccessRequests(state.accessRequests);
+  if (markLoaded) state.accessRequestsLoadedAt = Date.now();
+  return state.accessRequests;
+}
+
 async function loadVisibleTrainingAttendance() {
   if (!remoteDataStore?.loadAttendanceForTrainings) return;
   const rows = await remoteDataStore.loadAttendanceForTrainings(state.trainings.map(training => training.id));
@@ -2509,8 +2554,7 @@ async function loadPageData(page = state.page, { force = false } = {}) {
     }
     if (page === 'userApprovals') {
       const rows = await remoteDataStore.loadAccessRequests();
-      state.accessRequests = mapAccessRequestRows(rows);
-      state.accessRequestsLoadedAt = Date.now();
+      setAccessRequestsFromRows(rows, { preserveEmpty: force || state.page === 'userApprovals' });
     }
     if (page === 'emailLogs') {
       state.emailLogs = await remoteDataStore.loadSystemEmailLogs();
@@ -2651,7 +2695,9 @@ async function refreshRemoteDataFromRealtime() {
       tasks.push(remoteDataStore.loadNotifications().then(data => { state.notifications = mapNotificationRows(data.notifications, data.reads); }));
     }
     if (tables.has('access_requests') && state.page === 'userApprovals') {
-      tasks.push(remoteDataStore.loadAccessRequests().then(rows => { state.accessRequests = rows.map(row => ({ id: Number(row.id), userId: row.user_id, email: row.email, fullName: row.full_name, requestedRole: row.requested_role, status: row.status, emailVerifiedAt: row.email_verified_at, reviewedAt: row.reviewed_at, createdAt: row.created_at })); }));
+      tasks.push(remoteDataStore.loadAccessRequests().then(rows => {
+        setAccessRequestsFromRows(rows, { preserveEmpty: true, markLoaded: false });
+      }));
     }
     if (tables.has('schools') || tables.has('training_groups') || tables.has('training_types') || tables.has('training_coaches') || tables.has('training_fields') || tables.has('school_user_memberships')) {
       tasks.push(remoteDataStore.loadConfiguration(state.actualRole).then(configuration => {
@@ -3113,7 +3159,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.432', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.433', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -6166,26 +6212,17 @@ async function refreshUserApprovalsData({ force = false } = {}) {
   if (userApprovalsRefreshInFlight) return;
   if (!force && state.accessRequestsLoadedAt) return;
   window.clearTimeout(userApprovalsEmptyRetryTimer);
-  const previousAccessRequests = state.accessRequests.slice();
   userApprovalsRefreshInFlight = true;
   state.accessRequestsLoading = true;
   if (!state.accessRequests.length) render();
   try {
     const rows = await remoteDataStore.loadAccessRequests();
-    const nextAccessRequests = mapAccessRequestRows(rows);
-    const shouldPreservePreviousRows = runsInAndroidAppShell()
-      && force
-      && !nextAccessRequests.length
-      && previousAccessRequests.length > 0;
-    if (shouldPreservePreviousRows) {
-      state.accessRequests = previousAccessRequests;
+    const updatedRows = setAccessRequestsFromRows(rows, { preserveEmpty: force });
+    if (force && !rows.length && updatedRows.length) {
       userApprovalsEmptyRetryTimer = window.setTimeout(() => {
         refreshUserApprovalsData({ force: true });
       }, 1500);
-    } else {
-      state.accessRequests = nextAccessRequests;
     }
-    state.accessRequestsLoadedAt = Date.now();
     loadedPageData.set(`userApprovals:${state.accountingPeriod === 'month' && state.accountingMonth ? state.accountingMonth : feeMonthKey()}:${state.studentAttendanceMonth || feeMonthKey()}:${state.accountingDateRangeStart}:${state.accountingDateRangeEnd}`, true);
     if (state.page === 'userApprovals') render();
   } catch (error) {
