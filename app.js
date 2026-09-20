@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.18.415';
+const APP_VERSION = '2026.09.18.417';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2366,6 +2366,12 @@ function mapAttendanceRows(rows) {
   }));
 }
 
+async function loadVisibleTrainingAttendance() {
+  if (!remoteDataStore?.loadAttendanceForTrainings) return;
+  const rows = await remoteDataStore.loadAttendanceForTrainings(state.trainings.map(training => training.id));
+  state.attendanceRecords = mapAttendanceRows(rows);
+}
+
 function mapTrainingRows(rows) {
   return rows.map(row => ({
     id: Number(row.id), date: row.training_date, time: String(row.start_time || '').slice(0, 5),
@@ -2438,6 +2444,7 @@ async function loadPageData(page = state.page, { force = false } = {}) {
     if (page === 'trainings') {
       const current = localDateValue();
       state.trainings = mapTrainingRows(await remoteDataStore.loadTrainings({ from: state.showPastTrainings ? '' : current }));
+      await loadVisibleTrainingAttendance();
     }
     if (page === 'notifications') {
       const notificationData = await remoteDataStore.loadNotifications();
@@ -2574,6 +2581,9 @@ async function refreshRemoteDataFromRealtime() {
     if (tables.has('accounting_entries') && ['dashboard', 'accounting', 'accountingEntries'].includes(state.page)) {
       const bounds = monthBounds(state.accountingMonth || currentMonth);
       tasks.push(remoteDataStore.loadAccountingEntries({ from: bounds.from, to: bounds.to }).then(rows => { state.accountingEntries = mapAccountingRows(rows); }));
+    }
+    if ((tables.has('attendance_sessions') || tables.has('attendance_records')) && state.page === 'trainings') {
+      tasks.push(loadVisibleTrainingAttendance());
     }
     if ((tables.has('attendance_sessions') || tables.has('attendance_records')) && ['attendance', 'studentAttendanceHistory', 'studentProfile', 'dashboard'].includes(state.page)) {
       const bounds = monthBounds(state.studentAttendanceMonth || currentMonth);
@@ -3498,8 +3508,19 @@ async function runRemoteMutation(action) {
   }
 }
 
-function openAttendance(id) {
+async function openAttendance(id) {
   const training = state.trainings.find(item => item.id === Number(id));
+  if (!training) return;
+  const selectedSchoolId = state.schoolId;
+  try {
+    const attendanceRow = await remoteDataStore.loadAttendanceForTraining(training.id);
+    if (state.schoolId !== selectedSchoolId) return;
+    state.attendanceRecords = state.attendanceRecords.filter(record => Number(record.trainingId) !== Number(training.id));
+    if (attendanceRow) state.attendanceRecords.unshift(...mapAttendanceRows([attendanceRow]));
+  } catch (error) {
+    showToast(`Yoklama bilgileri yüklenemedi: ${error.message || 'Bağlantı hatası'}`);
+    return;
+  }
   const trainingStudents = studentsForTraining(training);
   const latestAttendance = latestAttendanceForTraining(training);
   state.activeTrainingId = training.id;
@@ -4810,7 +4831,7 @@ document.addEventListener('click', async event => {
       showRecordCreated(feeReferenceMatch ? 'Tahsilat silindi; ilgili aidat Ödenmedi durumuna alındı.' : `${entry.type} kaydı silindi.`);
     }
   }
-  else if (action === 'attendance') openAttendance(actionButton.dataset.id);
+  else if (action === 'attendance') await openAttendance(actionButton.dataset.id);
   else if (action === 'profile') { const studentDialog = document.querySelector('#studentDialog'); const attendanceDialog = document.querySelector('#attendanceDialog'); if (studentDialog.open) studentDialog.close(); if (attendanceDialog.open) attendanceDialog.close(); navigateToPage('studentProfile', { selectedStudentId: Number(actionButton.dataset.id), expandedTimelineStudentId: null }); }
   else showToast('Bu işlem sonraki geliştirme adımında açılacak.');
 });

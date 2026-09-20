@@ -422,6 +422,32 @@
       return data || [];
     }
 
+    async function loadAttendanceForTraining(trainingId) {
+      requireContext();
+      const { data, error } = await client
+        .from('attendance_sessions')
+        .select('id, training_id, taken_at, attendance_records(student_id, present)')
+        .eq('school_id', schoolId)
+        .eq('training_id', trainingId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    }
+
+    async function loadAttendanceForTrainings(trainingIds = []) {
+      requireContext();
+      const ids = [...new Set(trainingIds.map(id => Number(id)).filter(Number.isFinite))];
+      if (!ids.length) return [];
+      const { data, error } = await client
+        .from('attendance_sessions')
+        .select('id, training_id, taken_at, attendance_records(student_id, present)')
+        .eq('school_id', schoolId)
+        .in('training_id', ids)
+        .order('taken_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+
     async function loadTrainings({ from = '', to = '' } = {}) {
       requireContext();
       let query = client
@@ -1209,38 +1235,14 @@
 
     async function saveAttendance(trainingId, allStudentIds, presentStudentIds) {
       requireContext();
-      const { data: session, error: sessionError } = await client
-        .from('attendance_sessions')
-        .upsert({
-          school_id: schoolId,
-          training_id: trainingId,
-          taken_by: userId,
-          taken_at: new Date().toISOString()
-        }, { onConflict: 'training_id' })
-        .select('id')
-        .single();
-      if (sessionError) throw sessionError;
-
-      const presentSet = new Set(presentStudentIds.map(Number));
-      if (allStudentIds.length) {
-        const { error: upsertError } = await client.from('attendance_records').upsert(
-        allStudentIds.map(studentId => ({
-          session_id: session.id,
-          student_id: studentId,
-          present: presentSet.has(Number(studentId))
-        })), { onConflict: 'session_id,student_id' });
-        if (upsertError) throw upsertError;
-        const { error: cleanupError } = await client
-          .from('attendance_records')
-          .delete()
-          .eq('session_id', session.id)
-          .not('student_id', 'in', `(${allStudentIds.join(',')})`);
-        if (cleanupError) throw cleanupError;
-      } else {
-        const { error: deleteError } = await client.from('attendance_records').delete().eq('session_id', session.id);
-        if (deleteError) throw deleteError;
-      }
-      return Number(session.id);
+      const { data, error } = await client.rpc('save_training_attendance', {
+        target_school_id: schoolId,
+        target_training_id: trainingId,
+        student_ids: allStudentIds,
+        present_student_ids: presentStudentIds
+      });
+      if (error) throw error;
+      return Number(data);
     }
 
     async function saveNotification(notification) {
@@ -1299,6 +1301,8 @@
       loadFeePeriods,
       loadAccountingEntries,
       loadAttendanceSessions,
+      loadAttendanceForTraining,
+      loadAttendanceForTrainings,
       loadTrainings,
       loadNotifications,
       loadAccessRequests,
