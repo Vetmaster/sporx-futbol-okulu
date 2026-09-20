@@ -36,11 +36,12 @@ Deno.serve(async request => {
   const country = clean(body.country, 20);
   const city = clean(body.city, 80);
   const district = clean(body.district, 80);
+  const address = clean(body.address, 500);
   const applicantName = clean(body.applicantName, 120);
   const phone = formatNationalPhone(body.phone);
   const email = clean(body.email, 254).toLocaleLowerCase('en-US');
   const note = clean(body.note, 1200) || null;
-  if (!['Türkiye', 'KKTC'].includes(country) || !schoolName || !city || (country === 'Türkiye' && !district) || !applicantName || !phone || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!['Türkiye', 'KKTC'].includes(country) || !schoolName || !city || (country === 'Türkiye' && !district) || address.length < 5 || !applicantName || !phone || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return response({ error: 'Lütfen zorunlu alanları ve e-posta adresini kontrol edin.' }, 400);
   }
 
@@ -94,7 +95,7 @@ Deno.serve(async request => {
   }
 
   const { data, error } = await admin.from('school_applications').insert({
-    school_name: schoolName, country, city, district: district || null, applicant_name: applicantName, phone, email, note
+    school_name: schoolName, country, city, district: district || null, address, applicant_name: applicantName, phone, email, note
   }).select('id, created_at').single();
   if (error) {
     if (error.code === '23505') return response({ status: 'IGNORED', duplicate: true }, 202);

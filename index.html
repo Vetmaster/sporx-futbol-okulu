@@ -88,6 +88,7 @@
         <label>Ülke<select name="country" id="schoolApplicationCountry" required><option value="Türkiye" selected>Türkiye</option><option value="KKTC">KKTC</option></select></label>
         <label>İl<select name="city" id="schoolApplicationCity" required disabled><option value="">Önce ülke seçin</option></select></label>
         <label id="schoolApplicationDistrictField">İlçe<select name="district" id="schoolApplicationDistrict" required disabled><option value="">Önce il seçin</option></select></label>
+        <label class="form-grid-full">Adres<textarea name="address" maxlength="500" rows="3" autocomplete="street-address" placeholder="Mahalle, cadde/sokak, bina no" required></textarea></label>
         <label>Yetkili adı soyadı<input name="applicantName" maxlength="120" required></label>
         <label>Telefon<input id="schoolApplicationPhone" name="phone" maxlength="17" inputmode="tel" autocomplete="tel-national" placeholder="0 (5XX) XXX XX XX" pattern="0 \([0-9]{3}\) [0-9]{3} [0-9]{2} [0-9]{2}" required><small class="form-hint">0 (XXX) XXX XX XX biçiminde girin.</small></label>
         <label>E-posta<input id="schoolApplicationEmail" name="email" maxlength="254" type="email" inputmode="email" autocomplete="email" pattern="[^\s@]+@[^\s@]+\.[^\s@]+" required><small class="form-hint">Örn. adiniz@ornek.com</small></label>
@@ -424,7 +425,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3" integrity="sha384-l8ah+VgaWtk1mvOe9VC+OirC6qHFF4yH7l7mKRidV9MSti3E9F463bMp6ZVN4kuC" crossorigin="anonymous"></script>
   <script src="students-seed.js?v=2026.07.24.112"></script>
   <script src="local-db.js?v=2026.07.24.112"></script>
-  <script src="supabase-data.js?v=2026.09.21.437"></script>
-  <script src="app.js?v=2026.09.21.437"></script>
+  <script src="supabase-data.js?v=2026.09.21.438"></script>
+  <script src="app.js?v=2026.09.21.438"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.437';
+const APP_VERSION = '2026.09.21.438';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1331,6 +1331,7 @@ function applicationsView() {
       : '';
     return `<article class="panel application-card">
       <div class="panel-heading"><div><span class="eyebrow">${escapeHtml(location)}</span><h3>${escapeHtml(application.school_name)}</h3><small>${escapeHtml(application.applicant_name)} · ${escapeHtml(application.email)} · ${escapeHtml(application.phone)}</small></div><span class="status ${application.status === 'APPROVED' ? '' : application.status === 'REJECTED' ? 'warning' : 'blue'}">${applicationStatusLabel(application.status)}</span></div>
+      ${application.address ? `<p class="muted"><strong>Adres:</strong> ${escapeHtml(application.address)}</p>` : ''}
       ${application.note ? `<p>${escapeHtml(application.note)}</p>` : ''}
       ${application.customer_message ? `<p class="muted"><strong>Müşteriye not:</strong> ${escapeHtml(application.customer_message)}</p>` : ''}
       ${application.internal_note ? `<p class="muted"><strong>İç not:</strong> ${escapeHtml(application.internal_note)}</p>` : ''}
@@ -3179,7 +3180,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.437', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.438', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
