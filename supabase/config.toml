@@ -52,6 +52,16 @@ sender_name = "SASA-F"
 subject = "SASA-F hesabınıza davet edildiniz"
 content_path = "./supabase/templates/invite.html"
 
+[auth.rate_limit]
+email_sent = 100
+sms_sent = 30
+anonymous_users = 30
+token_refresh = 150
+sign_in_sign_ups = 30
+token_verifications = 30
+otp = 30
+web3 = 30
+
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true

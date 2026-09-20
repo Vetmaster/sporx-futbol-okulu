@@ -8,6 +8,12 @@ const corsHeaders = {
 const inviteRedirectUrl = 'https://sasa-f.com/';
 function response(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
 function normalizeEmail(value: unknown) { return String(value || '').trim().toLocaleLowerCase('en-US'); }
+function authEmailErrorMessage(message: string | undefined, fallback: string) {
+  if (/email rate limit exceeded|over_email_send_rate_limit|rate limit/i.test(message || '')) {
+    return 'Davet e-postası gönderim limiti doldu. Lütfen kısa bir süre sonra tekrar deneyin veya e-posta limitini yükseltin.';
+  }
+  return message || fallback;
+}
 function slugify(value: string) {
   return value.toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 68) || 'futbol-okulu';
 }
@@ -54,7 +60,7 @@ Deno.serve(async request => {
       redirectTo: inviteRedirectUrl,
       data: { full_name: application.applicant_name, role: 'admin', application_id: application.id }
     });
-    if (error || !data.user) return response({ error: error?.message || 'Şifre oluşturma daveti gönderilemedi.' }, 502);
+    if (error || !data.user) return response({ error: authEmailErrorMessage(error?.message, 'Şifre oluşturma daveti gönderilemedi.') }, 502);
     user = data.user;
     invitationSent = true;
     await logEmail(admin, {

@@ -19,6 +19,13 @@ function normalizedEmail(value: unknown) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
+function authEmailErrorMessage(message: string | undefined, fallback: string) {
+  if (/email rate limit exceeded|over_email_send_rate_limit|rate limit/i.test(message || '')) {
+    return 'Davet e-postası gönderim limiti doldu. Lütfen kısa bir süre sonra tekrar deneyin veya e-posta limitini yükseltin.';
+  }
+  return message || fallback;
+}
+
 async function findUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
   const perPage = 1000;
   for (let page = 1; page <= 20; page += 1) {
@@ -103,7 +110,7 @@ Deno.serve(async request => {
       redirectTo: inviteRedirectUrl,
       data: { full_name: fullName, role, school_id: schoolId, access_request: false }
     });
-    if (error || !data.user) return json({ error: error?.message || 'Kullanıcı daveti gönderilemedi.' }, 502);
+    if (error || !data.user) return json({ error: authEmailErrorMessage(error?.message, 'Kullanıcı daveti gönderilemedi.') }, 502);
     invitedUser = data.user;
     invited = true;
     await logEmail(admin, {

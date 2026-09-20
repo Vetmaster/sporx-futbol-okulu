@@ -20,25 +20,31 @@
   }
 
   async function edgeFunctionErrorMessage(error, data, fallback) {
-    if (data?.error) return String(data.error);
+    const friendlyEdgeMessage = message => {
+      if (/email rate limit exceeded|over_email_send_rate_limit|rate limit/i.test(message)) {
+        return 'Davet e-postası gönderim limiti doldu. Lütfen kısa bir süre sonra tekrar deneyin veya e-posta limitini yükseltin.';
+      }
+      return message;
+    };
+    if (data?.error) return friendlyEdgeMessage(String(data.error));
     const context = error?.context;
     if (context) {
       try {
         const response = typeof context.clone === 'function' ? context.clone() : context;
         const responseBody = await response.json();
-        if (responseBody?.error) return String(responseBody.error);
-        if (responseBody?.message) return String(responseBody.message);
+        if (responseBody?.error) return friendlyEdgeMessage(String(responseBody.error));
+        if (responseBody?.message) return friendlyEdgeMessage(String(responseBody.message));
       } catch {
         try {
           const response = typeof context.clone === 'function' ? context.clone() : context;
           const responseText = await response.text();
-          if (responseText) return responseText;
+          if (responseText) return friendlyEdgeMessage(responseText);
         } catch {
           // Use the Supabase client error below when the response body cannot be read.
         }
       }
     }
-    return error?.message || fallback;
+    return friendlyEdgeMessage(error?.message || fallback);
   }
 
   function isValidTurkishIban(value) {

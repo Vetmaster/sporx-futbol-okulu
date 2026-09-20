@@ -19,6 +19,13 @@ function normalizedEmail(value: unknown) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
+function authEmailErrorMessage(message: string | undefined, fallback: string) {
+  if (/email rate limit exceeded|over_email_send_rate_limit|rate limit/i.test(message || '')) {
+    return 'Davet e-postası gönderim limiti doldu. Lütfen kısa bir süre sonra tekrar deneyin veya e-posta limitini yükseltin.';
+  }
+  return message || fallback;
+}
+
 function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -125,7 +132,7 @@ Deno.serve(async request => {
       }
     });
     if (inviteError || !inviteResult.user) {
-      return json({ error: inviteError?.message || 'Veli davet e-postası gönderilemedi.' }, 502);
+      return json({ error: authEmailErrorMessage(inviteError?.message, 'Veli davet e-postası gönderilemedi.') }, 502);
     }
     guardianUser = inviteResult.user;
     invited = true;
