@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.18.417';
+const APP_VERSION = '2026.09.20.418';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.29-beta/SASA-F-v1.0.29-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2219,6 +2219,26 @@ function showLoginScreen(message = '', isError = false) {
   window.setTimeout(() => loginEmail.focus(), 0);
 }
 
+function showPendingAccessScreen(request = {}) {
+  const school = Array.isArray(request.schools) ? request.schools[0] : request.schools;
+  const schoolName = school?.name || request.school_name || request.schoolName || 'okul';
+  appShell.classList.add('is-hidden');
+  authScreen.classList.remove('is-hidden');
+  adminMfaForm.classList.add('is-hidden');
+  loginForm.classList.remove('is-hidden');
+  configureAuthForm('login');
+  document.querySelector('#authEyebrow').textContent = 'ONAY BEKLENİYOR';
+  document.querySelector('#authTitle').textContent = 'Kayıt onayı bekleniyor';
+  document.querySelector('#authDescription').textContent = `Kayıt işleminiz ${schoolName} okulu yetkilisi tarafından onay beklemektedir. Lütfen daha sonra tekrar deneyiniz.`;
+  document.querySelector('#authEmailField').classList.add('is-hidden');
+  document.querySelector('#authPasswordField').classList.add('is-hidden');
+  document.querySelector('#authPasswordConfirmField').classList.add('is-hidden');
+  document.querySelector('#authSecondaryActions').classList.add('is-hidden');
+  loginSubmitButton.classList.add('is-hidden');
+  showAuthMessage();
+  setAuthPending(false);
+}
+
 function showAdminMfaMessage(message = '', isError = false) {
   adminMfaMessage.textContent = message;
   adminMfaMessage.classList.toggle('is-hidden', !message);
@@ -2659,16 +2679,29 @@ async function showAuthenticatedApp(user) {
     .maybeSingle();
 
   if (!error && !profile) {
-    const { data: request } = await supabaseClient
-      .from('access_requests')
-      .select('status')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    let request = null;
+    const { data: pendingRequest, error: pendingRequestError } = await supabaseClient
+      .rpc('pending_access_request_for_current_user');
+    if (!pendingRequestError && Array.isArray(pendingRequest) && pendingRequest.length) {
+      request = pendingRequest[0];
+    } else {
+      const { data: fallbackRequest } = await supabaseClient
+        .from('access_requests')
+        .select('status, requested_role')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      request = fallbackRequest;
+    }
+    if (request?.status === 'pending' && request.requested_role === 'parent') {
+      showPendingAccessScreen(request);
+      setAuthPending(false);
+      return;
+    }
     await supabaseClient.auth.signOut();
     const requestMessage = request?.status === 'pending'
-      ? 'E-posta adresiniz doğrulandı. Uygulama erişiminiz Süper Admin onayı bekliyor.'
+      ? 'E-posta adresiniz doğrulandı. Uygulama erişiminiz yetkili onayı bekliyor.'
       : request?.status === 'rejected'
         ? 'Kullanıcı erişim talebiniz admin tarafından reddedildi.'
         : 'Bu hesap için yetkili bir SASA-F profili bulunamadı.';
