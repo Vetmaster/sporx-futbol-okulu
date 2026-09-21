@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.444';
+const APP_VERSION = '2026.09.21.445';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2109,7 +2109,18 @@ function emailLogsView() {
 
 const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, applications: applicationsView, subscriptionPayments: subscriptionPaymentsView, emailLogs: emailLogsView, onboarding: onboardingView, bankSettings: bankSettingsView, subscriptionBankSettings: subscriptionBankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
+function captureNotificationDraftFromDom() {
+  const form = document.querySelector('#notificationForm');
+  if (!form) return;
+  state.notificationDraft = {
+    audience: form.elements.audience?.value || state.notificationDraft.audience || 'Tüm kullanıcılar',
+    title: form.elements.title?.value || '',
+    body: form.elements.message?.value || ''
+  };
+}
+
 function render() {
+  captureNotificationDraftFromDom();
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
   persistNavigationState();
   renderNavigation();
@@ -3259,7 +3270,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.444', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.445', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
