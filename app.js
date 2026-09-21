@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.446';
+const APP_VERSION = '2026.09.21.447';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -3273,20 +3273,45 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.446', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.447', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
 }
 
+async function getFreshFunctionAccessToken({ forceRefresh = false } = {}) {
+  if (!supabaseClient?.auth) return '';
+  let session = null;
+  try {
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (!error) session = data.session || null;
+  } catch (_) {
+    session = null;
+  }
+  const expiresAtMs = Number(session?.expires_at || 0) * 1000;
+  const shouldRefresh = forceRefresh || !session?.access_token || (expiresAtMs && expiresAtMs < Date.now() + 60000);
+  if (shouldRefresh) {
+    try {
+      const { data } = await supabaseClient.auth.refreshSession(session || undefined);
+      session = data.session || session;
+    } catch (_) {}
+  }
+  if (!session?.access_token) {
+    try {
+      await supabaseClient.auth.getUser();
+      const { data } = await supabaseClient.auth.getSession();
+      session = data.session || session;
+    } catch (_) {}
+  }
+  return session?.access_token || '';
+}
+
 async function invokePushFunction(body) {
   let accessToken = '';
   if (body.action !== 'public-key') {
-    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-    accessToken = sessionData.session?.access_token || '';
-    if (sessionError || !accessToken) {
-      const refreshed = await supabaseClient.auth.refreshSession();
-      accessToken = refreshed.data.session?.access_token || '';
+    accessToken = await getFreshFunctionAccessToken();
+    if (!accessToken) {
+      accessToken = await getFreshFunctionAccessToken({ forceRefresh: true });
     }
     if (!accessToken) {
       return { data: null, error: new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.') };
@@ -3303,8 +3328,7 @@ async function invokePushFunction(body) {
     });
   let response = await requestPushFunction(accessToken);
   if (response.status === 401 && body.action !== 'public-key') {
-    const refreshed = await supabaseClient.auth.refreshSession();
-    const refreshedAccessToken = refreshed.data.session?.access_token || '';
+    const refreshedAccessToken = await getFreshFunctionAccessToken({ forceRefresh: true });
     if (refreshedAccessToken) response = await requestPushFunction(refreshedAccessToken);
   }
   let result = null;
