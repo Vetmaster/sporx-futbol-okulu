@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.441';
+const APP_VERSION = '2026.09.21.442';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2651,14 +2651,21 @@ const REALTIME_TABLES = [
 let realtimeChannel = null;
 let realtimeRefreshTimer = null;
 let realtimeReconnectTimer = null;
+let visiblePageRefreshInterval = null;
 let realtimeChannelStatus = 'closed';
 let realtimeRefreshInFlight = false;
 let realtimeRefreshQueued = false;
 const realtimeChangedTables = new Set();
 
+function stopVisiblePageRefreshGuard() {
+  window.clearInterval(visiblePageRefreshInterval);
+  visiblePageRefreshInterval = null;
+}
+
 function stopRealtimeSync({ clearPending = true } = {}) {
   window.clearTimeout(realtimeRefreshTimer);
   window.clearTimeout(realtimeReconnectTimer);
+  stopVisiblePageRefreshGuard();
   realtimeRefreshTimer = null;
   realtimeReconnectTimer = null;
   realtimeRefreshQueued = false;
@@ -2795,6 +2802,7 @@ function startRealtimeSync({ preservePending = false } = {}) {
       queueRealtimeReconnect(realtimeChannelStatus === 'timed_out' ? 2500 : 1500);
     }
   });
+  startVisiblePageRefreshGuard();
 }
 
 function queueVisiblePageDataRefresh() {
@@ -2824,6 +2832,19 @@ function queueVisiblePageDataRefresh() {
   tables.forEach(table => realtimeChangedTables.add(table));
   window.clearTimeout(realtimeRefreshTimer);
   realtimeRefreshTimer = window.setTimeout(refreshRemoteDataFromRealtime, 350);
+}
+
+function startVisiblePageRefreshGuard() {
+  stopVisiblePageRefreshGuard();
+  if (!state.userId || !state.schoolId || appShell.classList.contains('is-hidden')) return;
+  if (document.visibilityState === 'hidden') return;
+  visiblePageRefreshInterval = window.setInterval(() => {
+    if (document.visibilityState === 'hidden' || appShell.classList.contains('is-hidden')) {
+      stopVisiblePageRefreshGuard();
+      return;
+    }
+    queueVisiblePageDataRefresh();
+  }, 7000);
 }
 
 function handleAppResume() {
@@ -3240,7 +3261,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.441', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.442', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -6286,6 +6307,8 @@ async function handleAuthStateChange(event, session) {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.userId && !appShell.classList.contains('is-hidden')) {
     handleAppResume();
+  } else if (document.visibilityState === 'hidden') {
+    stopVisiblePageRefreshGuard();
   }
 });
 
