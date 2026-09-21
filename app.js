@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.451';
+const APP_VERSION = '2026.09.21.452';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -857,6 +857,11 @@ function notificationDate(value) {
   if (date.toDateString() === today.toDateString()) return 'Bugün';
   if (date.toDateString() === yesterday.toDateString()) return 'Dün';
   return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(date);
+}
+function notificationTargetLabel(audience) {
+  return ['Aidat borcu olanlar', 'Aidat borcu olmayanlar'].includes(audience)
+    ? 'Aidat hatırlatma'
+    : audience;
 }
 function formatFeeMonth(key) { const [year, month] = String(key).split('-').map(Number); return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)); }
 function upcomingFeeMonths(count = 6) {
@@ -2021,7 +2026,7 @@ function notificationsView() {
     const statusMarkup = canDelete
       ? `<div class="notification-metrics">${deliveryStatus}${readStatus}</div>`
       : `<span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span>`;
-    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>Gönderen → ${escapeHtml(state.schoolName || 'SASA-F')} · ${escapeHtml(item.time)}</small></div>${deleteButton}${statusMarkup}</div>`;
+    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>${escapeHtml(state.schoolName || 'SASA-F')} --> ${escapeHtml(notificationTargetLabel(item.audience))} · ${escapeHtml(item.time)}</small></div>${deleteButton}${statusMarkup}</div>`;
   }).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div>${pushPermissionCard}${composePanel}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${notificationRows}</section></div>`;
 }
@@ -2691,6 +2696,11 @@ function stopRealtimeSync({ clearPending = true } = {}) {
   realtimeChannel = null;
 }
 
+function userApprovalsPanelsOpen() {
+  return state.page === 'userApprovals'
+    && Boolean(document.querySelector('.approval-section-panel[open]'));
+}
+
 function applyStudentRows(rows) {
   const currentMonth = feeMonthKey();
   const byId = new Map(state.students.map(student => [Number(student.id), student]));
@@ -2749,9 +2759,13 @@ async function refreshRemoteDataFromRealtime() {
       tasks.push(remoteDataStore.loadNotifications().then(data => { state.notifications = mapNotificationRows(data.notifications, data.reads); }));
     }
     if (tables.has('access_requests') && state.page === 'userApprovals') {
+      if (userApprovalsPanelsOpen()) {
+        realtimeChangedTables.add('access_requests');
+      } else {
       tasks.push(remoteDataStore.loadAccessRequests().then(rows => {
         setAccessRequestsFromRows(rows, { preserveEmpty: true, markLoaded: false });
       }));
+      }
     }
     if (tables.has('schools') || tables.has('training_groups') || tables.has('training_types') || tables.has('training_coaches') || tables.has('training_fields') || tables.has('school_user_memberships')) {
       tasks.push(remoteDataStore.loadConfiguration(state.actualRole).then(configuration => {
@@ -2841,7 +2855,7 @@ function queueVisiblePageDataRefresh() {
     tables.add('notification_reads');
     tables.add('notification_recipients');
   }
-  if (page === 'userApprovals') {
+  if (page === 'userApprovals' && !userApprovalsPanelsOpen()) {
     refreshUserApprovalsOnResume();
   }
   if (!tables.size) return;
@@ -3278,7 +3292,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.451', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.452', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -5949,6 +5963,10 @@ appContent.addEventListener('toggle', event => {
   const details = event.target;
   if (!details.matches?.('.group-settings-panel')) return;
   if (!details.isConnected) return;
+  if (details.classList.contains('approval-section-panel')) {
+    if (!details.open) refreshUserApprovalsOnResume();
+    return;
+  }
   if (details.classList.contains('training-type-settings-panel')) {
     state.trainingTypeSettingsOpen = details.open;
     return;
@@ -6363,6 +6381,7 @@ let userApprovalsAndroidRefreshInterval = null;
 let userApprovalsEmptyRetryTimer = null;
 async function refreshUserApprovalsData({ force = false } = {}) {
   if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
+  if (userApprovalsPanelsOpen()) return;
   if (userApprovalsRefreshInFlight) return;
   if (!force && state.accessRequestsLoadedAt) return;
   window.clearTimeout(userApprovalsEmptyRetryTimer);
@@ -6391,6 +6410,7 @@ async function refreshUserApprovalsData({ force = false } = {}) {
 
 function refreshUserApprovalsOnResume() {
   if (state.page !== 'userApprovals' || !state.userId || appShell.classList.contains('is-hidden')) return;
+  if (userApprovalsPanelsOpen()) return;
   window.clearTimeout(userApprovalsResumeRefreshTimer);
   userApprovalsResumeRefreshTimer = window.setTimeout(() => {
     refreshUserApprovalsData({ force: true });
