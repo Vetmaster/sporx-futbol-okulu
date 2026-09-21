@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.449';
+const APP_VERSION = '2026.09.21.450';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -202,6 +202,7 @@ const state = {
   editingAccountingEntryId: null
 };
 const notificationReadIdsInFlight = new Set();
+let skipNextNotificationDraftCapture = false;
 let browserNavigationReady = false;
 
 const MENU_ICONS = {
@@ -856,6 +857,11 @@ function notificationDate(value) {
   if (date.toDateString() === today.toDateString()) return 'Bugün';
   if (date.toDateString() === yesterday.toDateString()) return 'Dün';
   return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(date);
+}
+function notificationAudienceLabel(audience) {
+  return ['Aidat borcu olanlar', 'Aidat borcu olmayanlar'].includes(audience)
+    ? 'Aidat hatırlatma'
+    : audience;
 }
 function formatFeeMonth(key) { const [year, month] = String(key).split('-').map(Number); return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)); }
 function upcomingFeeMonths(count = 6) {
@@ -2020,7 +2026,7 @@ function notificationsView() {
     const statusMarkup = canDelete
       ? `<div class="notification-metrics">${deliveryStatus}${readStatus}</div>`
       : `<span class="status ${!sentByCurrentUser && !item.read ? 'warning' : ''}">${escapeHtml(visibleStatus)}</span>`;
-    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>Gönderen → ${escapeHtml(item.audience)} · ${escapeHtml(item.time)}</small></div>${deleteButton}${statusMarkup}</div>`;
+    return `<div class="list-row notification-list-row"><span class="time">${escapeHtml(item.date)}</span><div class="notification-list-content"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.body || '')}</p><small>Gönderen → ${escapeHtml(notificationAudienceLabel(item.audience))} · ${escapeHtml(item.time)}</small></div>${deleteButton}${statusMarkup}</div>`;
   }).join('');
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div>${pushPermissionCard}${composePanel}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${notificationRows}</section></div>`;
 }
@@ -2110,6 +2116,10 @@ function emailLogsView() {
 const views = { dashboard: dashboardView, schools: schoolsView, settings: settingsView, subscriptions: subscriptionsView, applications: applicationsView, subscriptionPayments: subscriptionPaymentsView, emailLogs: emailLogsView, onboarding: onboardingView, bankSettings: bankSettingsView, subscriptionBankSettings: subscriptionBankSettingsView, students: studentsView, studentSettings: studentSettingsView, studentProfile: studentProfileView, studentAttendanceHistory: studentAttendanceHistoryView, child: studentProfileView, trainings: trainingsView, trainingSettings: trainingSettingsView, attendance: attendanceView, fees: feesView, parentPayment: parentPaymentView, parentBankTransfer: parentBankTransferView, parentCardPayment: parentCardPaymentView, accounting: accountingView, accountingSettings: accountingSettingsView, accountingEntries: accountingEntriesView, userApprovals: userApprovalsView, notifications: notificationsView };
 
 function captureNotificationDraftFromDom() {
+  if (skipNextNotificationDraftCapture) {
+    skipNextNotificationDraftCapture = false;
+    return;
+  }
   const form = document.querySelector('#notificationForm');
   if (!form) return;
   const audienceField = form.querySelector('#notificationAudience');
@@ -3273,7 +3283,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.449', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.450', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -6285,6 +6295,7 @@ appContent.addEventListener('submit', async event => {
     });
     state.notificationComposeOpen = false;
     state.notificationDraft = { audience: 'Tüm kullanıcılar', title: '', body: '' };
+    skipNextNotificationDraftCapture = true;
     event.target.reset();
     render();
     markAllNotificationsRead();
