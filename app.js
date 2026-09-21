@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.458';
+const APP_VERSION = '2026.09.21.459';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2143,7 +2143,7 @@ function userApprovalsView() {
   }).join('');
   const resolvedRows = approvedRequests.slice(0, 10).map(request => `
     <div class="list-row">
-      <span class="status">Onaylandı</span>
+      <div class="approval-status-stack"><span class="status">Onaylandı</span>${request.reviewedAt ? `<small class="muted">${escapeHtml(formatDateTime(request.reviewedAt))}</small>` : ''}</div>
       <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${escapeHtml(accessRequestRoleLabel(request))}</small></div>
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
@@ -3363,7 +3363,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.458', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.459', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
