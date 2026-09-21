@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.461';
+const APP_VERSION = '2026.09.21.462';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2161,7 +2161,7 @@ function userApprovalsView() {
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
   const loadingHint = isInitialLoading ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingCountLabel}</p></div></div><div class="training-list-toolbar access-requests-toolbar">${roleFilter}${sortFilter}${searchFilter}<span class="muted" aria-live="polite">${filteredCountLabel}</span></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingBadgeLabel}</small></div><span class="status warning">${pendingBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedBadgeLabel}</small></div><span class="status">${approvedBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingCountLabel}</p></div></div><div class="access-requests-toolbar"><div class="access-requests-filter-row">${roleFilter}${sortFilter}</div><div class="access-requests-search-row">${searchFilter}<span class="muted" aria-live="polite">${filteredCountLabel}</span></div></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingBadgeLabel}</small></div><span class="status warning">${pendingBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedBadgeLabel}</small></div><span class="status">${approvedBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
 }
 
 function emailTypeLabel(type) {
@@ -3376,7 +3376,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.461', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.462', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
