@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.447';
+const APP_VERSION = '2026.09.21.448';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -3273,7 +3273,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.447', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.448', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -3307,37 +3307,15 @@ async function getFreshFunctionAccessToken({ forceRefresh = false } = {}) {
 }
 
 async function invokePushFunction(body) {
-  let accessToken = '';
-  if (body.action !== 'public-key') {
-    accessToken = await getFreshFunctionAccessToken();
-    if (!accessToken) {
-      accessToken = await getFreshFunctionAccessToken({ forceRefresh: true });
+  const formatPushFunctionError = async ({ data, error, status }) => {
+    let result = data || null;
+    if (!result && error?.context) {
+      try {
+        result = await error.context.clone().json();
+      } catch (_) {
+        result = null;
+      }
     }
-    if (!accessToken) {
-      return { data: null, error: new Error('Oturum doğrulanamadı. Lütfen yeniden giriş yapın.') };
-    }
-  }
-  const requestPushFunction = token => fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify(body)
-    });
-  let response = await requestPushFunction(accessToken);
-  if (response.status === 401 && body.action !== 'public-key') {
-    const refreshedAccessToken = await getFreshFunctionAccessToken({ forceRefresh: true });
-    if (refreshedAccessToken) response = await requestPushFunction(refreshedAccessToken);
-  }
-  let result = null;
-  try {
-    result = await response.json();
-  } catch (_) {
-    result = null;
-  }
-  if (!response.ok) {
     const detail = String(result?.error || '').trim();
     const missingLabels = { audience: 'alıcı grubu', title: 'başlık', message: 'mesaj' };
     const missingFields = Array.isArray(result?.missing)
@@ -3350,12 +3328,37 @@ async function invokePushFunction(body) {
       'Invalid notification': 'Bildirim başlığı, mesajı veya alıcı grubu boş bırakılamaz.',
       'Unauthorized': 'Oturum doğrulanamadı. Lütfen yeniden giriş yapın.'
     };
-    return {
-      data: null,
-      error: new Error(`${translatedErrors[detail] || detail || `Bildirim servisi ${response.status} hatası döndürdü.`}${missingFields ? ` Eksik alan: ${missingFields}.` : ''}`)
-    };
+    return new Error(`${translatedErrors[detail] || detail || error?.message || `Bildirim servisi ${status || ''} hatası döndürdü.`}${missingFields ? ` Eksik alan: ${missingFields}.` : ''}`);
+  };
+  if (body.action === 'public-key') {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_PUBLISHABLE_KEY
+      },
+      body: JSON.stringify(body)
+    });
+    let result = null;
+    try {
+      result = await response.json();
+    } catch (_) {
+      result = null;
+    }
+    if (!response.ok) return { data: null, error: await formatPushFunctionError({ data: result, status: response.status }) };
+    return { data: result, error: null };
   }
-  return { data: result, error: null };
+  await getFreshFunctionAccessToken();
+  let { data, error } = await supabaseClient.functions.invoke('send-push-notification', { body });
+  const status = Number(error?.context?.status || 0);
+  if (error && status === 401) {
+    await getFreshFunctionAccessToken({ forceRefresh: true });
+    ({ data, error } = await supabaseClient.functions.invoke('send-push-notification', { body }));
+  }
+  if (error || data?.error) {
+    return { data: null, error: await formatPushFunctionError({ data, error, status: Number(error?.context?.status || 0) }) };
+  }
+  return { data, error: null };
 }
 
 async function saveAndSendNotification({ audience, title, body, studentId = null }) {
