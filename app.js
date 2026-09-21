@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.452';
+const APP_VERSION = '2026.09.21.453';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2551,7 +2551,7 @@ async function loadPageData(page = state.page, { force = false } = {}) {
   if (pendingPageDataLoads.has(key)) return pendingPageDataLoads.get(key);
 
   const task = (async () => {
-    if (['students', 'studentProfile', 'studentAttendanceHistory'].includes(page)) {
+    if (['students', 'studentProfile', 'studentAttendanceHistory'].includes(page) || (page === 'dashboard' && state.role === 'parent')) {
       const selectedStudent = state.students.find(item => Number(item.id) === Number(state.selectedStudentId)) || currentParentStudent();
       const paths = page === 'students'
         ? state.students.map(student => student.photoPath).filter(Boolean)
@@ -3292,7 +3292,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.452', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.453', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
