@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.445';
+const APP_VERSION = '2026.09.21.446';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2112,10 +2112,13 @@ const views = { dashboard: dashboardView, schools: schoolsView, settings: settin
 function captureNotificationDraftFromDom() {
   const form = document.querySelector('#notificationForm');
   if (!form) return;
+  const audienceField = form.querySelector('#notificationAudience');
+  const titleField = form.querySelector('#notificationTitle');
+  const messageField = form.querySelector('#notificationMessage');
   state.notificationDraft = {
-    audience: form.elements.audience?.value || state.notificationDraft.audience || 'Tüm kullanıcılar',
-    title: form.elements.title?.value || '',
-    body: form.elements.message?.value || ''
+    audience: audienceField?.value || state.notificationDraft.audience || 'Tüm kullanıcılar',
+    title: titleField?.value || '',
+    body: messageField?.value || ''
   };
 }
 
@@ -2828,7 +2831,7 @@ function queueVisiblePageDataRefresh() {
   if (['dashboard', 'accounting', 'accountingEntries'].includes(page)) {
     tables.add('accounting_entries');
   }
-  if (page === 'notifications') {
+  if (page === 'notifications' && !state.notificationComposeOpen) {
     tables.add('notifications');
     tables.add('notification_reads');
     tables.add('notification_recipients');
@@ -3270,7 +3273,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.445', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.446', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
