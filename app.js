@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.454';
+const APP_VERSION = '2026.09.21.455';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -348,7 +348,7 @@ function restoreNavigationState(userId) {
   }
   if (!savedState || savedState.userId !== userId) return;
 
-  state.page = navItems[savedState.page]?.roles.includes(state.role) ? savedState.page : 'dashboard';
+  state.page = subscriptionGatePage(navItems[savedState.page]?.roles.includes(state.role) ? savedState.page : 'dashboard');
   state.selectedStudentId = Number(savedState.selectedStudentId) || null;
   state.selectedParentStudentId = Number(savedState.selectedParentStudentId) || state.students[0]?.id || null;
   state.feeFilter = ['all', 'pending'].includes(savedState.feeFilter) ? savedState.feeFilter : 'all';
@@ -385,11 +385,13 @@ function browserNavigationState(snapshot = navigationSnapshot(), pageHistory = s
 function initializeBrowserNavigation() {
   browserNavigationReady = false;
   const currentSnapshot = navigationSnapshot();
-  const dashboardSnapshot = { ...currentSnapshot, page: 'dashboard' };
+  const defaultPage = subscriptionGatePage('dashboard');
+  currentSnapshot.page = subscriptionGatePage(currentSnapshot.page);
+  const dashboardSnapshot = { ...currentSnapshot, page: defaultPage };
   state.pageHistory = [];
   window.history.replaceState(browserNavigationState(dashboardSnapshot, []), document.title);
 
-  if (currentSnapshot.page !== 'dashboard') {
+  if (currentSnapshot.page !== defaultPage) {
     state.pageHistory = [dashboardSnapshot];
     window.history.pushState(browserNavigationState(currentSnapshot, state.pageHistory), document.title);
   }
@@ -399,6 +401,8 @@ function initializeBrowserNavigation() {
 function restoreBrowserNavigation(eventState) {
   const browserState = eventState?.[BROWSER_NAVIGATION_STATE_KEY];
   if (!browserState?.snapshot || !navItems[browserState.snapshot.page]?.roles.includes(state.role)) return false;
+  browserState.snapshot.page = subscriptionGatePage(browserState.snapshot.page);
+  if (adminMustChooseSubscription()) browserState.pageHistory = [];
   Object.assign(state, browserState.snapshot);
   state.pageHistory = Array.isArray(browserState.pageHistory)
     ? browserState.pageHistory.map(item => ({ ...item }))
@@ -413,7 +417,11 @@ function restoreBrowserNavigation(eventState) {
 }
 
 function navigateToPage(page, updates = {}) {
-  const targetPage = navItems[page]?.roles.includes(state.role) ? page : 'dashboard';
+  const requestedPage = navItems[page]?.roles.includes(state.role) ? page : 'dashboard';
+  const targetPage = subscriptionGatePage(requestedPage);
+  if (targetPage !== requestedPage) {
+    showToast('Uygulamayı kullanmadan önce ücretsiz denemeyi başlatın veya satın alma bildirimi oluşturun.');
+  }
   const pageChanged = targetPage !== state.page;
   if (pageChanged) {
     state.pageHistory.push(navigationSnapshot());
@@ -470,6 +478,12 @@ function navigateMobileTabBySwipe(step) {
 }
 
 function requestAppBack() {
+  if (adminMustChooseSubscription()) {
+    state.page = 'onboarding';
+    state.pageHistory = [];
+    render();
+    return;
+  }
   if (state.page === 'dashboard') return;
   if (browserNavigationReady && window.history.state?.[BROWSER_NAVIGATION_STATE_KEY]) {
     window.history.back();
@@ -479,6 +493,12 @@ function requestAppBack() {
 }
 
 function goBack() {
+  if (adminMustChooseSubscription()) {
+    state.page = 'onboarding';
+    state.pageHistory = [];
+    render();
+    return;
+  }
   const previous = state.pageHistory.pop();
   if (previous && navItems[previous.page]?.roles.includes(state.role)) {
     Object.assign(state, previous);
@@ -708,13 +728,19 @@ syncTrainingFieldOptions();
 document.querySelector('#headerVersionLabel').textContent = `v${APP_VERSION}`;
 document.querySelector('#authVersionLabel').textContent = `v${APP_VERSION}`;
 
-function allowedItems() { return Object.entries(navItems).filter(([, item]) => item.roles.includes(state.role) && !item.hidden); }
+function allowedItems() {
+  if (adminMustChooseSubscription()) return [];
+  return Object.entries(navItems).filter(([, item]) => item.roles.includes(state.role) && !item.hidden);
+}
 function isAdminRole() { return ['super_admin', 'admin'].includes(state.role); }
 function isCoachRole() { return state.role === 'coach'; }
 function isActualSuperAdmin() { return state.actualRole === 'super_admin'; }
 function isRolePreview() { return isActualSuperAdmin() && state.role !== 'super_admin'; }
 function adminMustChooseSubscription() {
   return state.role === 'admin' && ['PENDING_CHOICE', 'PAYMENT_PENDING'].includes(state.onboarding?.status);
+}
+function subscriptionGatePage(page) {
+  return adminMustChooseSubscription() && page !== 'onboarding' ? 'onboarding' : page;
 }
 function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2).join(''); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
@@ -2138,6 +2164,8 @@ function captureNotificationDraftFromDom() {
 function render() {
   captureNotificationDraftFromDom();
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
+  state.page = subscriptionGatePage(state.page);
+  if (adminMustChooseSubscription()) state.pageHistory = [];
   persistNavigationState();
   renderNavigation();
   const [title, subtitle] = pageMeta[state.page];
@@ -3299,7 +3327,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.454', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.455', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
