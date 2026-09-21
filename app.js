@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.455';
+const APP_VERSION = '2026.09.21.456';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2060,6 +2060,24 @@ function notificationsView() {
   return `<div class="page-stack"><div class="section-heading"><div><h2>Bildirim merkezi</h2><p>Telefon bildirimleri ve gönderilen duyurular</p></div></div>${pushPermissionCard}${composePanel}<section class="panel"><div class="panel-heading"><h3>Son bildirimler</h3><span class="status">${state.notifications.length} kayıt</span></div>${notificationRows}</section></div>`;
 }
 
+function accessRequestRoleDetail(request) {
+  if (request.requestedRole === 'coach') {
+    return request.contextSchoolName || state.schoolName || '';
+  }
+  if (request.requestedRole === 'parent') {
+    return request.contextStudentName
+      || state.students.find(student => String(student.email || '').toLocaleLowerCase('tr') === String(request.email || '').toLocaleLowerCase('tr'))?.name
+      || '';
+  }
+  return '';
+}
+
+function accessRequestRoleLabel(request) {
+  const roleLabel = roleNames[request.requestedRole] || request.requestedRole || 'Kullanıcı';
+  const detail = accessRequestRoleDetail(request);
+  return detail ? `${roleLabel} (${detail})` : roleLabel;
+}
+
 function userApprovalsView() {
   const accessRequestsLoaded = Number(state.accessRequestsLoadedAt || 0) > 0;
   const isInitialLoading = !accessRequestsLoaded && !state.accessRequests.length;
@@ -2098,7 +2116,7 @@ function userApprovalsView() {
     <div class="approval-row">
       <div>
         <strong>${escapeHtml(request.fullName)}</strong>
-        <small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small>
+        <small>${escapeHtml(request.email)} · ${escapeHtml(accessRequestRoleLabel(request))}</small>
         <span class="status ${emailVerified ? '' : 'warning'}">${emailVerified ? 'E-posta doğrulandı' : 'E-posta doğrulaması bekleniyor'}</span>
       </div>
       ${roleControl}
@@ -2110,7 +2128,7 @@ function userApprovalsView() {
   const resolvedRows = approvedRequests.slice(0, 10).map(request => `
     <div class="list-row">
       <span class="status">Onaylandı</span>
-      <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${roleNames[request.requestedRole]}</small></div>
+      <div><strong>${escapeHtml(request.fullName)}</strong><small>${escapeHtml(request.email)} · ${escapeHtml(accessRequestRoleLabel(request))}</small></div>
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
   const loadingHint = isInitialLoading ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
@@ -2479,7 +2497,9 @@ function mapAccessRequestRows(rows) {
     status: row.status,
     emailVerifiedAt: row.email_verified_at,
     reviewedAt: row.reviewed_at,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    contextSchoolName: row.context_school_name || row.schools?.name || '',
+    contextStudentName: row.context_student_name || ''
   }));
 }
 
@@ -3327,7 +3347,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.455', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.456', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;

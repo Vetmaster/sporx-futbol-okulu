@@ -361,7 +361,9 @@
           status: row.status,
           emailVerifiedAt: row.email_verified_at,
           reviewedAt: row.reviewed_at,
-          createdAt: row.created_at
+          createdAt: row.created_at,
+          contextSchoolName: row.context_school_name || row.schools?.name || '',
+          contextStudentName: row.context_student_name || ''
         }));
 
       return {
@@ -773,7 +775,7 @@
     async function listSubscriptionPaymentReports() {
       const { data, error } = await client
         .from('subscription_payment_reports')
-        .select('*, schools(name), school_subscription_periods!subscription_payment_reports_period_id_fkey(plan_code, billing_period, starts_on, ends_on)')
+        .select('*, school_subscription_periods!subscription_payment_reports_period_id_fkey(plan_code, billing_period, starts_on, ends_on)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -782,7 +784,7 @@
     async function loadSystemEmailLogs() {
       const { data, error } = await client
         .from('system_email_logs')
-        .select('id, school_id, recipient_email, recipient_name, email_type, subject, status, provider, created_at, schools(name)')
+        .select('id, school_id, recipient_email, recipient_name, email_type, subject, status, provider, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
