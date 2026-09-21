@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.459';
+const APP_VERSION = '2026.09.21.460';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -134,6 +134,7 @@ const state = {
   accessRequests: [],
   accessRequestRoleFilter: 'all',
   accessRequestSearchQuery: '',
+  accessRequestSortOrder: 'name_asc',
   accessRequestsLoadedAt: 0,
   accessRequestsLoading: false,
   emailLogs: [],
@@ -2085,6 +2086,9 @@ function userApprovalsView() {
   const selectedRoleFilter = ['all', 'admin', 'coach', 'parent'].includes(state.accessRequestRoleFilter)
     ? state.accessRequestRoleFilter
     : 'all';
+  const selectedSortOrder = ['name_asc', 'approved_desc', 'approved_asc'].includes(state.accessRequestSortOrder)
+    ? state.accessRequestSortOrder
+    : 'name_asc';
   const accessRequestSearchQuery = String(state.accessRequestSearchQuery || '').trim();
   const normalizedAccessRequestSearch = accessRequestSearchQuery.toLocaleLowerCase('tr');
   const visibleRequests = state.role === 'super_admin'
@@ -2105,6 +2109,14 @@ function userApprovalsView() {
       return searchableText.includes(normalizedAccessRequestSearch);
     })
     : roleFilteredRequests;
+  const sortedRequests = [...filteredRequests].sort((first, second) => {
+    if (selectedSortOrder === 'name_asc') {
+      return String(first.fullName || '').localeCompare(String(second.fullName || ''), 'tr', { sensitivity: 'base' });
+    }
+    const firstDate = new Date(first.reviewedAt || first.createdAt || 0).getTime() || 0;
+    const secondDate = new Date(second.reviewedAt || second.createdAt || 0).getTime() || 0;
+    return selectedSortOrder === 'approved_asc' ? firstDate - secondDate : secondDate - firstDate;
+  });
   const roleFilterOptions = [
     ['all', 'Tümü'],
     ['admin', 'Admin'],
@@ -2112,9 +2124,10 @@ function userApprovalsView() {
     ['parent', 'Veli']
   ];
   const roleFilter = `<label class="training-sort-control"><span>Rol</span><select id="accessRequestRoleFilter" aria-label="Kullanıcı onaylarını role göre filtrele">${roleFilterOptions.map(([value, label]) => `<option value="${value}" ${selectedRoleFilter === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
+  const sortFilter = `<label class="training-sort-control"><span>Sırala</span><select id="accessRequestSortOrder" aria-label="Kullanıcı onaylarını sırala"><option value="name_asc" ${selectedSortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye</option><option value="approved_desc" ${selectedSortOrder === 'approved_desc' ? 'selected' : ''}>Onay tarihi · Yeni-eski</option><option value="approved_asc" ${selectedSortOrder === 'approved_asc' ? 'selected' : ''}>Onay tarihi · Eski-yeni</option></select></label>`;
   const searchFilter = `<input class="search-input" id="accessRequestSearch" type="search" value="${escapeHtml(accessRequestSearchQuery)}" placeholder="İsim veya okul ara" aria-label="Kullanıcı onaylarında isim veya okul adına göre ara">`;
-  const pendingRequests = filteredRequests.filter(request => request.status === 'pending');
-  const approvedRequests = filteredRequests.filter(request => request.status === 'approved');
+  const pendingRequests = sortedRequests.filter(request => request.status === 'pending');
+  const approvedRequests = sortedRequests.filter(request => request.status === 'approved');
   const pendingCountLabel = isInitialLoading ? 'Yükleniyor' : `${pendingRequests.length} bekleyen erişim talebi`;
   const filteredCountLabel = isInitialLoading ? 'Yükleniyor' : `${filteredRequests.length} / ${visibleRequests.length} kullanıcı`;
   const pendingBadgeLabel = isInitialLoading ? '—' : `${pendingRequests.length} talep`;
@@ -2148,7 +2161,7 @@ function userApprovalsView() {
       ${state.role === 'super_admin' ? `<label class="approval-switch-control"><span>Onaylı</span><input type="checkbox" role="switch" checked aria-label="${escapeHtml(request.fullName)} kullanıcısının onayını kaldır" data-action="revoke-user-approval" data-id="${request.id}"><span class="approval-switch-track" aria-hidden="true"><span class="approval-switch-thumb"></span></span></label>` : '<span class="status">Onaylı</span>'}
     </div>`).join('');
   const loadingHint = isInitialLoading ? '<div class="panel empty-state">Kullanıcı onayları yükleniyor...</div>' : '';
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingCountLabel}</p></div></div><div class="training-list-toolbar">${roleFilter}${searchFilter}<span class="muted" aria-live="polite">${filteredCountLabel}</span></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingBadgeLabel}</small></div><span class="status warning">${pendingBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedBadgeLabel}</small></div><span class="status">${approvedBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Kullanıcı onayları</h2><p>${pendingCountLabel}</p></div></div><div class="training-list-toolbar">${roleFilter}${sortFilter}${searchFilter}<span class="muted" aria-live="polite">${filteredCountLabel}</span></div>${loadingHint}<details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onay bekleyenler</h3><small class="muted">${pendingBadgeLabel}</small></div><span class="status warning">${pendingBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : pendingRows || '<div class="empty-state">Onay bekleyen kullanıcı bulunmuyor.</div>'}</div></details><details class="panel group-settings-panel approval-section-panel"><summary class="group-settings-summary"><div><h3>Onaylanmış kullanıcılar</h3><small class="muted">${approvedBadgeLabel}</small></div><span class="status">${approvedBadgeLabel}</span><span class="disclosure-chevron" aria-hidden="true">⌄</span></summary><div class="approval-section-content">${isInitialLoading ? '<div class="empty-state">Kullanıcı onayları yükleniyor...</div>' : resolvedRows || '<div class="empty-state">Onaylanmış kullanıcı bulunmuyor.</div>'}</div></details></div>`;
 }
 
 function emailTypeLabel(type) {
@@ -3363,7 +3376,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.459', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.460', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -5281,6 +5294,11 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'accessRequestRoleFilter') {
     state.accessRequestRoleFilter = ['all', 'admin', 'coach', 'parent'].includes(event.target.value) ? event.target.value : 'all';
+    render();
+    return;
+  }
+  if (event.target.id === 'accessRequestSortOrder') {
+    state.accessRequestSortOrder = ['name_asc', 'approved_desc', 'approved_asc'].includes(event.target.value) ? event.target.value : 'name_asc';
     render();
     return;
   }
