@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.440';
+const APP_VERSION = '2026.09.21.441';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2650,17 +2650,44 @@ const REALTIME_TABLES = [
 ];
 let realtimeChannel = null;
 let realtimeRefreshTimer = null;
+let realtimeReconnectTimer = null;
+let realtimeChannelStatus = 'closed';
 let realtimeRefreshInFlight = false;
 let realtimeRefreshQueued = false;
 const realtimeChangedTables = new Set();
 
-function stopRealtimeSync() {
+function stopRealtimeSync({ clearPending = true } = {}) {
   window.clearTimeout(realtimeRefreshTimer);
+  window.clearTimeout(realtimeReconnectTimer);
   realtimeRefreshTimer = null;
+  realtimeReconnectTimer = null;
   realtimeRefreshQueued = false;
-  realtimeChangedTables.clear();
+  realtimeChannelStatus = 'closed';
+  if (clearPending) realtimeChangedTables.clear();
   if (realtimeChannel && supabaseClient) supabaseClient.removeChannel(realtimeChannel);
   realtimeChannel = null;
+}
+
+function applyStudentRows(rows) {
+  const currentMonth = feeMonthKey();
+  const byId = new Map(state.students.map(student => [Number(student.id), student]));
+  state.students = (rows || []).map(row => {
+    const previous = byId.get(Number(row.id));
+    return {
+      id: Number(row.id), name: row.full_name,
+      birth: row.birth_date || row.birth_year || '',
+      group: (state.actualRole === 'coach' ? row.group_name : row.training_groups?.name) || 'Atanmamış',
+      position: (state.actualRole === 'coach' ? row.player_position : row.position) || '',
+      parent: row.guardian_name || '', phone: row.phone || '', email: row.email || '', address: row.address || '', notes: row.notes || '',
+      photoPath: row.profile_photo_path || '', photoUrl: previous?.photoPath === row.profile_photo_path ? previous.photoUrl : '',
+      playerCard: row.player_card && typeof row.player_card === 'object' ? row.player_card : null,
+      enrollmentDate: row.enrollment_date, feeTrackingStartDate: row.fee_tracking_start_date,
+      monthlyFeeAmount: Number(row.monthly_fee_amount) || 0,
+      feePayments: previous?.feePayments || {}, feeHistory: previous?.feeHistory || {},
+      fee: previous?.feePayments?.[currentMonth] || 'none', attendance: Number(row.attendance_rate || 0),
+      active: row.is_active !== false
+    };
+  });
 }
 
 async function refreshRemoteDataFromRealtime() {
@@ -2676,26 +2703,7 @@ async function refreshRemoteDataFromRealtime() {
     const currentMonth = feeMonthKey();
     const tasks = [];
     if (tables.has('students')) {
-      tasks.push(remoteDataStore.loadStudents().then(rows => {
-        const byId = new Map(state.students.map(student => [Number(student.id), student]));
-        state.students = rows.map(row => {
-          const previous = byId.get(Number(row.id));
-          return {
-            id: Number(row.id), name: row.full_name,
-            birth: row.birth_date || row.birth_year || '',
-            group: (state.actualRole === 'coach' ? row.group_name : row.training_groups?.name) || 'Atanmamış',
-            position: (state.actualRole === 'coach' ? row.player_position : row.position) || '',
-            parent: row.guardian_name || '', phone: row.phone || '', email: row.email || '', address: row.address || '', notes: row.notes || '',
-            photoPath: row.profile_photo_path || '', photoUrl: previous?.photoPath === row.profile_photo_path ? previous.photoUrl : '',
-            playerCard: row.player_card && typeof row.player_card === 'object' ? row.player_card : null,
-            enrollmentDate: row.enrollment_date, feeTrackingStartDate: row.fee_tracking_start_date,
-            monthlyFeeAmount: Number(row.monthly_fee_amount) || 0,
-            feePayments: previous?.feePayments || {}, feeHistory: previous?.feeHistory || {},
-            fee: previous?.feePayments?.[currentMonth] || 'none', attendance: Number(row.attendance_rate || 0),
-            active: row.is_active !== false
-          };
-        });
-      }));
+      tasks.push(remoteDataStore.loadStudents().then(applyStudentRows));
     }
     if (tables.has('fee_periods')) {
       tasks.push(remoteDataStore.loadFeePeriods({ from: currentMonth, to: currentMonth }).then(applyFeeRows));
@@ -2764,15 +2772,65 @@ function scheduleRealtimeRefresh(payload = null) {
   realtimeRefreshTimer = window.setTimeout(refreshRemoteDataFromRealtime, 700);
 }
 
-function startRealtimeSync() {
-  stopRealtimeSync();
+function queueRealtimeReconnect(delay = 1500) {
+  if (!supabaseClient || !state.schoolId || !state.userId || appShell.classList.contains('is-hidden')) return;
+  window.clearTimeout(realtimeReconnectTimer);
+  realtimeReconnectTimer = window.setTimeout(() => {
+    startRealtimeSync({ preservePending: true });
+  }, delay);
+}
+
+function startRealtimeSync({ preservePending = false } = {}) {
+  stopRealtimeSync({ clearPending: !preservePending });
   if (!supabaseClient || !state.schoolId || !state.userId) return;
+  realtimeChannelStatus = 'connecting';
   const channel = supabaseClient.channel(`sasa-school-${state.schoolId}-${state.userId}`);
   REALTIME_TABLES.forEach(table => {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, scheduleRealtimeRefresh);
   });
   realtimeChannel = channel;
-  channel.subscribe();
+  channel.subscribe(status => {
+    realtimeChannelStatus = String(status || '').toLocaleLowerCase('en-US');
+    if (['channel_error', 'timed_out', 'closed'].includes(realtimeChannelStatus)) {
+      queueRealtimeReconnect(realtimeChannelStatus === 'timed_out' ? 2500 : 1500);
+    }
+  });
+}
+
+function queueVisiblePageDataRefresh() {
+  if (!state.userId || !state.schoolId || appShell.classList.contains('is-hidden')) return;
+  const page = state.page;
+  const tables = new Set();
+  if (['dashboard', 'students', 'studentProfile', 'studentAttendanceHistory', 'child', 'attendance', 'fees'].includes(page)) {
+    tables.add('students');
+  }
+  if (['dashboard', 'trainings', 'attendance'].includes(page)) {
+    tables.add('trainings');
+    tables.add('attendance_sessions');
+    tables.add('attendance_records');
+  }
+  if (['dashboard', 'accounting', 'accountingEntries'].includes(page)) {
+    tables.add('accounting_entries');
+  }
+  if (page === 'notifications') {
+    tables.add('notifications');
+    tables.add('notification_reads');
+    tables.add('notification_recipients');
+  }
+  if (page === 'userApprovals') {
+    refreshUserApprovalsOnResume();
+  }
+  if (!tables.size) return;
+  tables.forEach(table => realtimeChangedTables.add(table));
+  window.clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer = window.setTimeout(refreshRemoteDataFromRealtime, 350);
+}
+
+function handleAppResume() {
+  if (!state.userId || appShell.classList.contains('is-hidden')) return;
+  startRealtimeSync({ preservePending: true });
+  refreshPushStatus(state.page === 'notifications' || state.page === 'dashboard');
+  queueVisiblePageDataRefresh();
 }
 
 let activeProfileLoad = null;
@@ -3182,7 +3240,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.440', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.441', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -6227,8 +6285,7 @@ async function handleAuthStateChange(event, session) {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.userId && !appShell.classList.contains('is-hidden')) {
-    refreshPushStatus(state.page === 'notifications' || state.page === 'dashboard');
-    refreshUserApprovalsOnResume();
+    handleAppResume();
   }
 });
 
@@ -6278,8 +6335,8 @@ function startAndroidUserApprovalsRefreshGuard() {
 
 startAndroidUserApprovalsRefreshGuard();
 
-window.addEventListener('focus', refreshUserApprovalsOnResume);
-window.addEventListener('pageshow', refreshUserApprovalsOnResume);
+window.addEventListener('focus', handleAppResume);
+window.addEventListener('pageshow', handleAppResume);
 
 configureAuthForm(authMode);
 if (!supabaseClient) {
