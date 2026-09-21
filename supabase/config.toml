@@ -59,7 +59,6 @@ anonymous_users = 30
 token_refresh = 150
 sign_in_sign_ups = 30
 token_verifications = 30
-otp = 30
 web3 = 30
 
 [auth.mfa.totp]

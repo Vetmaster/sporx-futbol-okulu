@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.453';
+const APP_VERSION = '2026.09.21.454';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -713,6 +713,9 @@ function isAdminRole() { return ['super_admin', 'admin'].includes(state.role); }
 function isCoachRole() { return state.role === 'coach'; }
 function isActualSuperAdmin() { return state.actualRole === 'super_admin'; }
 function isRolePreview() { return isActualSuperAdmin() && state.role !== 'super_admin'; }
+function adminMustChooseSubscription() {
+  return state.role === 'admin' && ['PENDING_CHOICE', 'PAYMENT_PENDING'].includes(state.onboarding?.status);
+}
 function initials(name) { return name.split(' ').map(part => part[0]).slice(0, 2).join(''); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
 function studentAvatarMarkup(student, useStudentIcon = false, extraClasses = '') {
@@ -3048,7 +3051,11 @@ async function showAuthenticatedApp(user) {
   } catch {
     requestedPage = requestedPage || '';
   }
-  if (requestedPage && navItems[requestedPage]?.roles.includes(state.role)) {
+  if (adminMustChooseSubscription()) {
+    state.page = 'onboarding';
+    state.pageHistory = [];
+    state.onboardingPurchaseOpen = false;
+  } else if (requestedPage && navItems[requestedPage]?.roles.includes(state.role)) {
     state.page = requestedPage;
     state.pageHistory = [];
     try { window.sessionStorage.removeItem(PENDING_OPEN_PAGE_STORAGE_KEY); } catch {}
@@ -3292,7 +3299,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.453', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.454', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
@@ -4580,6 +4587,14 @@ document.addEventListener('click', async event => {
     return;
   }
   else if (action === 'complete-onboarding' && state.role === 'admin') {
+    if (adminMustChooseSubscription()) {
+      state.page = 'onboarding';
+      state.pageHistory = [];
+      state.onboardingPurchaseOpen = false;
+      render();
+      showToast('Yönetim ekranına geçmeden önce ücretsiz denemeyi başlatın veya satın alma bildirimi oluşturun.');
+      return;
+    }
     state.page = 'dashboard';
     state.pageHistory = [];
     render();
