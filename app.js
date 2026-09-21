@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.21.443';
+const APP_VERSION = '2026.09.21.444';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -2111,10 +2111,6 @@ const views = { dashboard: dashboardView, schools: schoolsView, settings: settin
 
 function render() {
   if (!navItems[state.page]?.roles.includes(state.role)) state.page = 'dashboard';
-  if (state.role === 'admin' && state.onboarding && ['PENDING_CHOICE', 'PAYMENT_PENDING'].includes(state.onboarding.status) && state.page !== 'onboarding') {
-    state.page = 'onboarding';
-    state.pageHistory = [];
-  }
   persistNavigationState();
   renderNavigation();
   const [title, subtitle] = pageMeta[state.page];
@@ -3006,15 +3002,12 @@ async function showAuthenticatedApp(user) {
     console.warn('Abonelik havale bilgileri yüklenemedi:', subscriptionBankError);
     state.subscriptionBankAccounts = [];
   }
-  if (openDashboardAfterPasswordLogin) {
+  const signedInWithPasswordThisTurn = openDashboardAfterPasswordLogin;
+  if (signedInWithPasswordThisTurn) {
     window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
     openDashboardAfterPasswordLogin = false;
   } else {
     restoreNavigationState(user.id);
-  }
-  if (state.onboarding && ['PENDING_CHOICE', 'PAYMENT_PENDING', 'TRIAL_STARTED'].includes(state.onboarding.status) && profile.role === 'admin') {
-    state.page = 'onboarding';
-    state.pageHistory = [];
   }
   let requestedPage = initialRequestedOpenPage;
   try {
@@ -3046,6 +3039,10 @@ async function showAuthenticatedApp(user) {
       '',
       `${onboardingUrl.pathname}${onboardingUrl.search}${onboardingUrl.hash}`
     );
+  } else if (signedInWithPasswordThisTurn && state.onboarding && ['PENDING_CHOICE', 'PAYMENT_PENDING', 'TRIAL_STARTED'].includes(state.onboarding.status) && profile.role === 'admin') {
+    state.page = 'onboarding';
+    state.pageHistory = [];
+    state.onboardingPurchaseOpen = false;
   }
   if (state.role === 'super_admin' && state.page === 'applications') {
     try {
@@ -3262,7 +3259,7 @@ async function unregisterNativeFcmToken() {
 
 async function getPushRegistration() {
   if (!pushSupported()) return null;
-  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.443', { scope: './', updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./service-worker.js?v=2026.09.21.444', { scope: './', updateViaCache: 'none' });
   await registration.update().catch(() => {});
   if (!registration.pushManager) throw new Error('PushManager kullanılamıyor.');
   return registration;
