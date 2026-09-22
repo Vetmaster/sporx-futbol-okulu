@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.22.466';
+const APP_VERSION = '2026.09.22.467';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1224,6 +1224,7 @@ function dashboardNotificationPromptMarkup() {
 function schoolsView() {
   const activeSchools = state.schools.filter(school => school.active).length;
   const totalStudents = state.schools.reduce((total, school) => total + school.studentCount, 0);
+  const totalActiveStudents = state.schools.reduce((total, school) => total + school.activeStudentCount, 0);
   const normalizedSearch = state.schoolSearchQuery.trim().toLocaleLowerCase('tr');
   const filteredSchools = state.schools.filter(school => !normalizedSearch || `${school.name} ${school.slug}`.toLocaleLowerCase('tr').includes(normalizedSearch));
   const schoolCards = filteredSchools.map(school => `
@@ -1251,7 +1252,7 @@ function schoolsView() {
     <div class="section-heading"><div><h2>Futbol okulları</h2><p>Süper Admin yönetim merkezi</p></div></div>
     <section class="stats-grid school-platform-summary">
       <article class="stat-card"><span class="label">Toplam okul</span><strong>${state.schools.length}</strong><small>${activeSchools} aktif okul</small></article>
-      <article class="stat-card"><span class="label">Toplam öğrenci</span><strong>${totalStudents}</strong><small>Tüm okullar</small></article>
+      <article class="stat-card"><span class="label">Toplam öğrenci</span><strong>${totalStudents}</strong><small>${totalActiveStudents} aktif öğrenci · Tüm okullar</small></article>
     </section>
     <details class="panel school-create-panel">
       <summary class="panel-heading school-create-heading"><div><h3>Yeni okul ekle</h3><small class="muted">Okul kendi öğrencileri, grupları, aidatları ve muhasebesiyle ayrı oluşturulur.</small></div></summary>
