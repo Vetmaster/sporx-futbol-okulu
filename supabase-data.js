@@ -58,8 +58,8 @@
 
   function subscriptionPlanPrice(_value, billingPeriod = 'monthly') {
     const prices = {
-      monthly: 3000,
-      quarterly: 8400,
+      monthly: 2990,
+      quarterly: 8370,
       yearly: 29900
     };
     return prices[billingPeriod] || prices.monthly;

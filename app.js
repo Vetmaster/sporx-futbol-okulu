@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.22.464';
+const APP_VERSION = '2026.09.22.465';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -92,7 +92,7 @@ const SUBSCRIPTION_PERIODS = {
   yearly: { name: 'Yıllık', months: 12 }
 };
 const TRIAL_MODES = { time_limited: 'Süreli deneme' };
-const STANDARD_SUBSCRIPTION_PRICES = { monthly: 3000, quarterly: 8400, yearly: 29900 };
+const STANDARD_SUBSCRIPTION_PRICES = { monthly: 2990, quarterly: 8370, yearly: 29900 };
 const SUBSCRIPTION_STATUSES = { trial: 'Deneme', active: 'Aktif', stopped: 'Durduruldu' };
 const ACCOUNTING_PERIODS = [
   { id: 'today', label: 'Bugün' }
