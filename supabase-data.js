@@ -60,7 +60,7 @@
     const prices = {
       monthly: 3000,
       quarterly: 8400,
-      yearly: 30000
+      yearly: 29900
     };
     return prices[billingPeriod] || prices.monthly;
   }
