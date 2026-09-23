@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.23.476';
+const APP_VERSION = '2026.09.23.477';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1393,7 +1393,7 @@ function subscriptionsView() {
       <article class="stat-card"><span class="label">Aylık eşdeğer gelir</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
     </section>
     <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Dönem ücreti ödeme dönemine göre otomatik uygulanır.</small></div><span class="status blue">${filteredSchools.length} / ${schools.length} okul</span></div>
-      <div class="toolbar subscription-toolbar"><input class="search-input" id="subscriptionSearch" type="search" value="${escapeHtml(state.subscriptionSearchQuery)}" placeholder="Okul adı veya kodu ara" aria-label="Aboneliklerde okul ara"><label class="training-sort-control"><span>Sırala</span><select id="subscriptionSortOrder" aria-label="Abonelikleri sırala"><option value="name_asc" ${sortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye</option><option value="name_desc" ${sortOrder === 'name_desc' ? 'selected' : ''}>Z’den A’ya</option><option value="end_asc" ${sortOrder === 'end_asc' ? 'selected' : ''}>Son ödeme · Eski-yeni</option><option value="end_desc" ${sortOrder === 'end_desc' ? 'selected' : ''}>Son ödeme · Yeni-eski</option></select></label></div>
+      <div class="toolbar subscription-toolbar"><label class="training-sort-control"><span>Sırala</span><select id="subscriptionSortOrder" aria-label="Abonelikleri sırala"><option value="name_asc" ${sortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye</option><option value="name_desc" ${sortOrder === 'name_desc' ? 'selected' : ''}>Z’den A’ya</option><option value="end_asc" ${sortOrder === 'end_asc' ? 'selected' : ''}>Son ödeme · Eski-yeni</option><option value="end_desc" ${sortOrder === 'end_desc' ? 'selected' : ''}>Son ödeme · Yeni-eski</option></select></label><input class="search-input" id="subscriptionSearch" type="search" value="${escapeHtml(state.subscriptionSearchQuery)}" placeholder="Okul adı veya kodu ara" aria-label="Aboneliklerde okul ara"></div>
       <div class="subscription-school-list">${rows || `<div class="empty-state">${schools.length ? 'Aramanızla eşleşen abonelik bulunamadı.' : 'Henüz okul bulunmuyor.'}</div>`}</div>
     </section>
   </div>`;
