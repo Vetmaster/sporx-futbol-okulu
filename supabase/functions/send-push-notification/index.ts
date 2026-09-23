@@ -213,6 +213,13 @@ Deno.serve(async request => {
       .maybeSingle();
     if (studentError || !student) return json({ error: 'Student not found' }, 404);
     recipientIds = student.guardian_user_id ? [student.guardian_user_id] : [];
+  } else if (notification.audience === 'Süper Admin') {
+    const { data: superAdmins, error: superAdminsError } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('role', 'super_admin');
+    if (superAdminsError) return json({ error: 'Super Admin recipients could not be loaded' }, 500);
+    recipientIds = (superAdmins || []).map(profile => profile.id);
   } else if (requestedRecipientIds.length) {
     const { data: memberships, error: membershipsError } = await admin
       .from('school_user_memberships')

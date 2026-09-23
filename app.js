@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.22.467';
+const APP_VERSION = '2026.09.23.468';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -4626,6 +4626,21 @@ document.addEventListener('click', async event => {
     const note = window.prompt(approved ? 'Onay notu (isteğe bağlı):' : 'İptal nedeni (isteğe bağlı):') || '';
     const saved = await runRemoteMutation(() => remoteDataStore.reviewSubscriptionPaymentReport({ reportId: actionButton.dataset.id, approved, note }));
     if (!saved) return;
+    if (approved && saved.reported_by) {
+      await invokePushFunction({
+        action: 'create-and-send',
+        schoolId: saved.school_id || state.schoolId,
+        audience: 'Abonelik işlemi',
+        recipientUserIds: [saved.reported_by],
+        title: 'Aboneliğiniz etkinleşti',
+        message: 'Ödeme bildiriminiz onaylandı. SASA-F aboneliğiniz etkinleştirildi.',
+        notification: {
+          audience: 'Abonelik işlemi',
+          title: 'Aboneliğiniz etkinleşti',
+          body: 'Ödeme bildiriminiz onaylandı. SASA-F aboneliğiniz etkinleştirildi.'
+        }
+      }).catch(error => console.error('Ödeme onay bildirimi gönderilemedi:', error));
+    }
     state.subscriptionPaymentReports = await remoteDataStore.listSubscriptionPaymentReports();
     await refreshSchools();
     render();
@@ -4656,6 +4671,19 @@ document.addEventListener('click', async event => {
     }
     const saved = await runRemoteMutation(() => remoteDataStore.createSubscriptionPaymentReport({ billingPeriod, note }));
     if (!saved) return;
+    const paymentPeriod = subscriptionPeriodLabel(billingPeriod);
+    await invokePushFunction({
+      action: 'create-and-send',
+      schoolId: saved.school_id || state.schoolId,
+      audience: 'Süper Admin',
+      title: 'Yeni abonelik ödeme bildirimi',
+      message: `${state.schoolName || 'Bir okul'} ${paymentPeriod} abonelik ödemesi için bildirim gönderdi.`,
+      notification: {
+        audience: 'Süper Admin',
+        title: 'Yeni abonelik ödeme bildirimi',
+        body: `${state.schoolName || 'Bir okul'} ${paymentPeriod} abonelik ödemesi için bildirim gönderdi.`
+      }
+    }).catch(error => console.error('Süper Admin ödeme bildirimi gönderilemedi:', error));
     state.onboarding = { ...state.onboarding, status: 'PAYMENT_PENDING' };
     render();
     showToast('Ödeme bildiriminiz incelemeye gönderildi.');
