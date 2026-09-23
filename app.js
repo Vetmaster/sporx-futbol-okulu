@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.23.473';
+const APP_VERSION = '2026.09.23.474';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -121,6 +121,8 @@ const state = {
   schoolSubscriptionEndsOn: '',
   schools: [],
   schoolSearchQuery: '',
+  subscriptionSearchQuery: '',
+  subscriptionSortOrder: 'name_asc',
   userId: null,
   userFullName: '',
   userEmail: '',
@@ -1346,6 +1348,23 @@ function subscriptionHistorySection() {
 
 function subscriptionsView() {
   const schools = state.schools;
+  const normalizedSearch = state.subscriptionSearchQuery.trim().toLocaleLowerCase('tr');
+  const sortOrder = ['name_asc', 'name_desc', 'end_asc', 'end_desc'].includes(state.subscriptionSortOrder) ? state.subscriptionSortOrder : 'name_asc';
+  const filteredSchools = schools
+    .filter(school => {
+      if (!normalizedSearch) return true;
+      return `${school.name || ''} ${school.slug || ''}`.toLocaleLowerCase('tr').includes(normalizedSearch);
+    })
+    .sort((firstSchool, secondSchool) => {
+      if (sortOrder === 'end_asc' || sortOrder === 'end_desc') {
+        const firstDate = firstSchool.subscriptionEndsOn || '9999-12-31';
+        const secondDate = secondSchool.subscriptionEndsOn || '9999-12-31';
+        const compared = firstDate.localeCompare(secondDate);
+        return sortOrder === 'end_asc' ? compared : -compared;
+      }
+      const compared = String(firstSchool.name || '').localeCompare(String(secondSchool.name || ''), 'tr');
+      return sortOrder === 'name_asc' ? compared : -compared;
+    });
   const activeCount = schools.filter(school => school.subscriptionStatus === 'active').length;
   const trialCount = schools.filter(school => school.subscriptionStatus === 'trial').length;
   const stoppedCount = schools.filter(school => school.subscriptionStatus === 'stopped').length;
@@ -1356,7 +1375,7 @@ function subscriptionsView() {
       const periodPrice = Number(school.subscriptionPeriodPrice) || subscriptionPrice('standard', billingPeriod);
       return total + periodPrice / (SUBSCRIPTION_PERIODS[billingPeriod]?.months || 1);
     }, 0);
-  const rows = schools.map(school => `<div class="subscription-school-row">
+  const rows = filteredSchools.map(school => `<div class="subscription-school-row">
     <div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.slug)}</small></div>
     ${subscriptionStatusMarkup(school.subscriptionStatus)}
     <span>${school.subscriptionStatus === 'trial' ? 'Ücretsiz' : formatCurrency(school.subscriptionPeriodPrice || subscriptionPrice('standard', school.subscriptionBillingPeriod))}<small>${school.subscriptionStatus === 'trial' ? trialModeLabel(school.subscriptionTrialMode) : subscriptionPeriodLabel(school.subscriptionBillingPeriod)}</small></span>
@@ -1373,8 +1392,9 @@ function subscriptionsView() {
       <article class="stat-card"><span class="label">Durdurulan abonelik</span><strong>${stoppedCount}</strong><small>Erişimi durdurulan okul</small></article>
       <article class="stat-card"><span class="label">Aylık eşdeğer gelir</span><strong>${formatCurrency(recurringTotal)}</strong><small>Aktif ve deneme abonelikleri</small></article>
     </section>
-    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Dönem ücreti ödeme dönemine göre otomatik uygulanır.</small></div><span class="status blue">${schools.length} okul</span></div>
-      <div class="subscription-school-list">${rows || '<div class="empty-state">Henüz okul bulunmuyor.</div>'}</div>
+    <section class="panel subscription-schools-panel"><div class="panel-heading"><div><h3>Okul abonelikleri</h3><small class="muted">Dönem ücreti ödeme dönemine göre otomatik uygulanır.</small></div><span class="status blue">${filteredSchools.length} / ${schools.length} okul</span></div>
+      <div class="toolbar subscription-toolbar"><input class="search-input" id="subscriptionSearch" type="search" value="${escapeHtml(state.subscriptionSearchQuery)}" placeholder="Okul adı veya kodu ara" aria-label="Aboneliklerde okul ara"><label class="training-sort-control"><span>Sırala</span><select id="subscriptionSortOrder" aria-label="Abonelikleri sırala"><option value="name_asc" ${sortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye</option><option value="name_desc" ${sortOrder === 'name_desc' ? 'selected' : ''}>Z’den A’ya</option><option value="end_asc" ${sortOrder === 'end_asc' ? 'selected' : ''}>Bitiş tarihi · Yakın-uzak</option><option value="end_desc" ${sortOrder === 'end_desc' ? 'selected' : ''}>Bitiş tarihi · Uzak-yakın</option></select></label></div>
+      <div class="subscription-school-list">${rows || `<div class="empty-state">${schools.length ? 'Aramanızla eşleşen abonelik bulunamadı.' : 'Henüz okul bulunmuyor.'}</div>`}</div>
     </section>
   </div>`;
 }
@@ -5316,6 +5336,15 @@ appContent.addEventListener('input', event => {
     applicationSearch?.setSelectionRange(cursorPosition, cursorPosition);
     return;
   }
+  if (event.target.id === 'subscriptionSearch') {
+    state.subscriptionSearchQuery = event.target.value;
+    const cursorPosition = event.target.selectionStart ?? state.subscriptionSearchQuery.length;
+    render();
+    const subscriptionSearch = document.querySelector('#subscriptionSearch');
+    subscriptionSearch?.focus();
+    subscriptionSearch?.setSelectionRange(cursorPosition, cursorPosition);
+    return;
+  }
   if (event.target.id === 'accessRequestSearch') {
     state.accessRequestSearchQuery = event.target.value;
     const cursorPosition = event.target.selectionStart ?? state.accessRequestSearchQuery.length;
@@ -5365,6 +5394,11 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'accessRequestSortOrder') {
     state.accessRequestSortOrder = ['name_asc', 'approved_desc', 'approved_asc'].includes(event.target.value) ? event.target.value : 'name_asc';
+    render();
+    return;
+  }
+  if (event.target.id === 'subscriptionSortOrder') {
+    state.subscriptionSortOrder = ['name_asc', 'name_desc', 'end_asc', 'end_desc'].includes(event.target.value) ? event.target.value : 'name_asc';
     render();
     return;
   }
