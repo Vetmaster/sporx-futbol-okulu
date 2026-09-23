@@ -564,6 +564,17 @@
           .select('id, subscription_plan, subscription_status, subscription_monthly_price, subscription_billing_period, subscription_period_price, subscription_starts_on, subscription_ends_on');
       }
       const subscriptionBySchool = new Map((subscriptionResult.data || []).map(item => [item.id, item]));
+      const paymentResult = await client
+        .from('subscription_payment_reports')
+        .select('school_id, created_at, reviewed_at')
+        .order('created_at', { ascending: false });
+      const lastSubscriptionActivityBySchool = new Map();
+      if (!paymentResult.error) {
+        (paymentResult.data || []).forEach(report => {
+          if (!report.school_id || lastSubscriptionActivityBySchool.has(report.school_id)) return;
+          lastSubscriptionActivityBySchool.set(report.school_id, report.reviewed_at || report.created_at || '');
+        });
+      }
       return rows.map(school => {
         const subscription = subscriptionBySchool.get(school.id) || {};
         return {
@@ -575,6 +586,7 @@
           subscriptionPeriodPrice: Number.isFinite(Number(subscription.subscription_period_price)) ? Number(subscription.subscription_period_price) : subscriptionPlanPrice(subscription.subscription_plan, subscription.subscription_billing_period),
           subscriptionStartsOn: subscription.subscription_starts_on || '',
           subscriptionEndsOn: subscription.subscription_ends_on || '',
+          subscriptionLastActivityAt: lastSubscriptionActivityBySchool.get(school.id) || '',
           id: school.id,
           name: school.name,
           slug: school.slug,
