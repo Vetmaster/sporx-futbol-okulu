@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.23.468';
+const APP_VERSION = '2026.09.23.469';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -738,8 +738,14 @@ function isAdminRole() { return ['super_admin', 'admin'].includes(state.role); }
 function isCoachRole() { return state.role === 'coach'; }
 function isActualSuperAdmin() { return state.actualRole === 'super_admin'; }
 function isRolePreview() { return isActualSuperAdmin() && state.role !== 'super_admin'; }
+function hasCurrentSubscriptionAccess() {
+  if (state.role !== 'admin') return false;
+  if (!['active', 'trial'].includes(state.schoolSubscriptionStatus)) return false;
+  if (!state.schoolSubscriptionEndsOn) return true;
+  return state.schoolSubscriptionEndsOn >= localDateValue();
+}
 function adminMustChooseSubscription() {
-  return state.role === 'admin' && ['PENDING_CHOICE', 'PAYMENT_PENDING'].includes(state.onboarding?.status);
+  return state.role === 'admin' && !hasCurrentSubscriptionAccess() && ['PENDING_CHOICE', 'PAYMENT_PENDING'].includes(state.onboarding?.status);
 }
 function subscriptionGatePage(page) {
   return adminMustChooseSubscription() && page !== 'onboarding' ? 'onboarding' : page;
@@ -1397,7 +1403,8 @@ function onboardingView() {
   if (subscriptionActive && !state.onboardingPurchaseOpen) {
     const subscriptionEndsOn = state.schoolSubscriptionEndsOn;
     const remaining = trialRemainingLabel(subscriptionEndsOn);
-    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ABONELİĞİNİZ AKTİF</span><h2>Standart üyeliğiniz devam ediyor.</h2><p>Abonelik sürenizi ve yenileme bilgilerinizi buradan takip edebilirsiniz.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(state.schoolSubscriptionBillingPeriod)}<br><strong>Abonelik bitişi:</strong> ${subscriptionDateLabel(subscriptionEndsOn)}${remaining ? ` · ${remaining}` : ''}</p><div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Süre uzat</button></div></section></div>`;
+    const paymentPendingNotice = paymentPending ? `<p class="onboarding-trial-remaining"><strong>Yeni ödeme bildiriminiz incelemede.</strong><br>sasa-f.com ödemeyi onayladığında satın aldığınız süre mevcut abonelik bitiş tarihinize eklenecek.</p>` : '';
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ABONELİĞİNİZ AKTİF</span><h2>Standart üyeliğiniz devam ediyor.</h2><p>Abonelik sürenizi ve yenileme bilgilerinizi buradan takip edebilirsiniz.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(state.schoolSubscriptionBillingPeriod)}<br><strong>Abonelik bitişi:</strong> ${subscriptionDateLabel(subscriptionEndsOn)}${remaining ? ` · ${remaining}` : ''}</p>${paymentPendingNotice}<div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Süre uzat</button></div></section></div>`;
   }
   if (approvedPeriod && !state.onboardingPurchaseOpen) {
     const scheduledStart = subscriptionDateLabel(approvedPeriod.starts_on);
@@ -3154,7 +3161,7 @@ async function showAuthenticatedApp(user) {
       '',
       `${onboardingUrl.pathname}${onboardingUrl.search}${onboardingUrl.hash}`
     );
-  } else if (signedInWithPasswordThisTurn && state.onboarding && ['PENDING_CHOICE', 'PAYMENT_PENDING', 'TRIAL_STARTED'].includes(state.onboarding.status) && profile.role === 'admin') {
+  } else if (signedInWithPasswordThisTurn && state.onboarding && ['PENDING_CHOICE', 'PAYMENT_PENDING', 'TRIAL_STARTED'].includes(state.onboarding.status) && profile.role === 'admin' && !hasCurrentSubscriptionAccess()) {
     state.page = 'onboarding';
     state.pageHistory = [];
     state.onboardingPurchaseOpen = false;
@@ -4685,6 +4692,7 @@ document.addEventListener('click', async event => {
       }
     }).catch(error => console.error('Süper Admin ödeme bildirimi gönderilemedi:', error));
     state.onboarding = { ...state.onboarding, status: 'PAYMENT_PENDING' };
+    state.onboardingPurchaseOpen = false;
     render();
     showToast('Ödeme bildiriminiz incelemeye gönderildi.');
     return;
