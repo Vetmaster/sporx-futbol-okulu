@@ -735,6 +735,25 @@
       return period && typeof period === 'object' ? period : null;
     }
 
+    async function listMySubscriptionHistory() {
+      requireContext();
+      const { data, error } = await client
+        .from('subscription_payment_reports')
+        .select('id, amount, status, created_at, reviewed_at, school_subscription_periods!subscription_payment_reports_period_id_fkey(plan_code, billing_period, amount, starts_on, ends_on, status)')
+        .eq('school_id', schoolId)
+        .order('created_at', { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      return (data || []).map(item => ({
+        id: item.id,
+        amount: Number(item.amount || 0),
+        status: item.status,
+        created_at: item.created_at,
+        reviewed_at: item.reviewed_at,
+        period: item.school_subscription_periods || {}
+      }));
+    }
+
     async function getSubscriptionBankAccounts() {
       const { data, error } = await client.rpc('get_subscription_bank_accounts');
       if (error) throw error;
@@ -1348,6 +1367,7 @@
       approveSchoolApplication,
       getMySchoolOnboarding,
       getMyApprovedSubscriptionPeriod,
+      listMySubscriptionHistory,
       getSubscriptionBankAccounts,
       saveSubscriptionBankAccounts,
       sendSubscriptionReminderTestEmail,

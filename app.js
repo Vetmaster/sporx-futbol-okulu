@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.23.469';
+const APP_VERSION = '2026.09.23.470';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -141,6 +141,7 @@ const state = {
   schoolApplications: [],
   applicationSearchQuery: '',
   subscriptionPaymentReports: [],
+  subscriptionHistory: [],
   onboarding: null,
   approvedSubscriptionPeriod: null,
   onboardingPurchaseOpen: false,
@@ -1319,6 +1320,30 @@ function subscriptionPeriodLabel(billingPeriod) {
   return SUBSCRIPTION_PERIODS[billingPeriod]?.name || SUBSCRIPTION_PERIODS.monthly.name;
 }
 
+function subscriptionHistoryStatusLabel(status) {
+  return ({ PENDING_REVIEW: 'İncelemede', APPROVED: 'Onaylandı', REJECTED: 'İptal edildi', PENDING_PAYMENT: 'Ödeme bekliyor', SCHEDULED: 'Planlandı', ACTIVE: 'Aktif', EXPIRED: 'Tamamlandı' })[status] || status || 'Kayıt';
+}
+
+function subscriptionHistoryStatusClass(status) {
+  if (['PENDING_REVIEW', 'PENDING_PAYMENT'].includes(status)) return 'blue';
+  if (status === 'REJECTED') return 'warning';
+  return '';
+}
+
+function subscriptionHistorySection() {
+  const rows = (state.subscriptionHistory || []).map(item => {
+    const period = item.period || {};
+    const status = item.status || period.status;
+    const range = [period.starts_on, period.ends_on].filter(Boolean).map(subscriptionDateLabel).join(' – ');
+    return `<article class="subscription-history-row">
+      <div><strong>${subscriptionPeriodLabel(period.billing_period)}</strong><small>${range || 'Dönem bilgisi bekleniyor'}</small></div>
+      <span>${formatCurrency(item.amount || period.amount || subscriptionPrice('standard', period.billing_period))}<small>${formatDateTime(item.created_at)}</small></span>
+      <span class="status ${subscriptionHistoryStatusClass(status)}">${subscriptionHistoryStatusLabel(status)}</span>
+    </article>`;
+  }).join('');
+  return `<section class="panel subscription-history-card"><div class="panel-heading"><div><h3>Abonelik geçmişi</h3><small class="muted">Ödeme bildirimi ve abonelik dönemlerinizi buradan takip edebilirsiniz.</small></div></div><div class="subscription-history-list">${rows || '<div class="empty-state">Henüz abonelik geçmişi bulunmuyor.</div>'}</div></section>`;
+}
+
 function subscriptionsView() {
   const schools = state.schools;
   const activeCount = schools.filter(school => school.subscriptionStatus === 'active').length;
@@ -1404,26 +1429,26 @@ function onboardingView() {
     const subscriptionEndsOn = state.schoolSubscriptionEndsOn;
     const remaining = trialRemainingLabel(subscriptionEndsOn);
     const paymentPendingNotice = paymentPending ? `<p class="onboarding-trial-remaining"><strong>Yeni ödeme bildiriminiz incelemede.</strong><br>sasa-f.com ödemeyi onayladığında satın aldığınız süre mevcut abonelik bitiş tarihinize eklenecek.</p>` : '';
-    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ABONELİĞİNİZ AKTİF</span><h2>Standart üyeliğiniz devam ediyor.</h2><p>Abonelik sürenizi ve yenileme bilgilerinizi buradan takip edebilirsiniz.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(state.schoolSubscriptionBillingPeriod)}<br><strong>Abonelik bitişi:</strong> ${subscriptionDateLabel(subscriptionEndsOn)}${remaining ? ` · ${remaining}` : ''}</p>${paymentPendingNotice}<div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Süre uzat</button></div></section></div>`;
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ABONELİĞİNİZ AKTİF</span><h2>Standart üyeliğiniz devam ediyor.</h2><p>Abonelik sürenizi ve yenileme bilgilerinizi buradan takip edebilirsiniz.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(state.schoolSubscriptionBillingPeriod)}<br><strong>Abonelik bitişi:</strong> ${subscriptionDateLabel(subscriptionEndsOn)}${remaining ? ` · ${remaining}` : ''}</p>${paymentPendingNotice}<div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Süre uzat</button></div></section>${subscriptionHistorySection()}</div>`;
   }
   if (approvedPeriod && !state.onboardingPurchaseOpen) {
     const scheduledStart = subscriptionDateLabel(approvedPeriod.starts_on);
     const scheduledEnd = subscriptionDateLabel(approvedPeriod.ends_on);
     const trialEndsOn = subscriptionDateLabel(state.schoolSubscriptionEndsOn);
-    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEMENİZ ONAYLANDI</span><h2>Aboneliğiniz planlandı.</h2><p>Mevcut deneme süreniz <strong>${trialEndsOn}</strong> tarihinde bittiğinde üyeliğiniz otomatik olarak başlayacaktır.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(approvedPeriod.billing_period)}<br><strong>Başlangıç:</strong> ${scheduledStart}<br><strong>Bitiş / yenileme:</strong> ${scheduledEnd}</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section></div>`;
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEMENİZ ONAYLANDI</span><h2>Aboneliğiniz planlandı.</h2><p>Mevcut deneme süreniz <strong>${trialEndsOn}</strong> tarihinde bittiğinde üyeliğiniz otomatik olarak başlayacaktır.</p><p class="onboarding-trial-remaining"><strong>Abonelik süresi:</strong> ${subscriptionPeriodLabel(approvedPeriod.billing_period)}<br><strong>Başlangıç:</strong> ${scheduledStart}<br><strong>Bitiş / yenileme:</strong> ${scheduledEnd}</p><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button></section>${subscriptionHistorySection()}</div>`;
   }
   if (trialStarted && !state.onboardingPurchaseOpen) {
     const trialEndsOn = state.schoolSubscriptionEndsOn;
     const remaining = trialRemainingLabel(trialEndsOn);
-    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 2 ay boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p>${remaining ? `<p class="onboarding-trial-remaining"><strong>Deneme bitişi:</strong> ${subscriptionDateLabel(trialEndsOn)} · ${remaining}</p>` : ''}<div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Satın al</button></div></section></div>`;
+    return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">DENEME BAŞLATILDI</span><h2>Standart üyeliğinizi 2 ay boyunca ücretsiz deneyebilirsiniz.</h2><p>Deneme sonunda aboneliğinizi başlatabilirsiniz.</p>${remaining ? `<p class="onboarding-trial-remaining"><strong>Deneme bitişi:</strong> ${subscriptionDateLabel(trialEndsOn)} · ${remaining}</p>` : ''}<div class="onboarding-actions"><button class="primary-button" type="button" data-action="complete-onboarding">Yönetim ekranına geç</button><button class="secondary-button" type="button" data-action="open-subscription-purchase">Satın al</button></div></section>${subscriptionHistorySection()}</div>`;
   }
-  if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>sasa-f.com ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p></section></div>`;
+  if (paymentPending) return `<div class="page-stack"><section class="panel onboarding-card"><span class="eyebrow">ÖDEME İNCELEMEDE</span><h2>Havale bildiriminiz alındı.</h2><p>sasa-f.com ödemeyi onayladığında aboneliğiniz etkinleşir. Bu aşamada ödeme talep edilmez.</p></section>${subscriptionHistorySection()}</div>`;
   const bankAccounts = state.subscriptionBankAccounts?.length
     ? `<div class="parent-bank-account-list">${state.subscriptionBankAccounts.map((account, index) => `<article class="parent-bank-account ${parentBankThemeClass(account.bankName)}"><strong>${escapeHtml(account.bankName)}</strong><small>${escapeHtml(account.accountHolder)}</small><code>${escapeHtml(formatIban(account.iban))}</code><button class="secondary-button" type="button" data-action="copy-subscription-iban" data-account-index="${index}">IBAN'ı kopyala</button></article>`).join('')}</div>`
     : '<p class="muted">Havale hesabı bilgileri henüz tanımlanmadı. Ödeme bildirimi oluşturmak için yetkili ile iletişime geçin.</p>';
   const trialChoice = (trialStarted || subscriptionActive) ? '' : `<section class="panel onboarding-card"><span class="eyebrow">HOŞ GELDİNİZ</span><h2>Aboneliğinizi nasıl başlatmak istersiniz?</h2><p>Standart üyeliğinizi 2 ay ücretsiz deneyebilir veya havale bildirimi oluşturabilirsiniz.</p><button class="primary-button" type="button" data-action="start-school-trial">2 ay ücretsiz dene</button></section>`;
   const purchaseTitle = subscriptionActive ? 'Aboneliğinizi uzatın' : trialStarted ? 'Aboneliğinizi başlatın' : 'Aboneliği başlat';
-  return `<div class="page-stack">${trialChoice}<section class="panel onboarding-card"><h3>${purchaseTitle}</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><p class="onboarding-payment-amount" id="onboardingPaymentAmount" aria-live="polite">${onboardingPaymentAmountMarkup()}</p><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale gönderen ad soyad<input id="onboardingPayerName" maxlength="120" autocomplete="name" placeholder="Ödemeyi gönderen kişinin adı soyadı"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra sasa-f.com tarafından onayı beklenir; abonelik otomatik olarak açılmaz.</small></section></div>`;
+  return `<div class="page-stack">${trialChoice}<section class="panel onboarding-card"><h3>${purchaseTitle}</h3><label>Ödeme dönemi<select id="onboardingBillingPeriod"><option value="monthly">1 aylık</option><option value="quarterly">3 aylık</option><option value="yearly">Yıllık</option></select></label><p class="onboarding-payment-amount" id="onboardingPaymentAmount" aria-live="polite">${onboardingPaymentAmountMarkup()}</p><div class="payment-method-list"><span class="status blue">Havale</span><button class="secondary-button" type="button" disabled>Kredi kartı · Yakında</button></div>${bankAccounts}<label>Havale gönderen ad soyad<input id="onboardingPayerName" maxlength="120" autocomplete="name" placeholder="Ödemeyi gönderen kişinin adı soyadı"></label><button class="primary-button" type="button" data-action="report-subscription-payment">Ödemeyi yaptım</button><small class="muted">Ödeme bildirimi gönderildikten sonra sasa-f.com tarafından onayı beklenir; abonelik otomatik olarak açılmaz.</small></section>${subscriptionHistorySection()}</div>`;
 }
 
 function settingsView() {
@@ -3113,6 +3138,12 @@ async function showAuthenticatedApp(user) {
     state.approvedSubscriptionPeriod = null;
   }
   try {
+    state.subscriptionHistory = profile.role === 'admin' ? await remoteDataStore.listMySubscriptionHistory() : [];
+  } catch (subscriptionHistoryError) {
+    console.warn('Abonelik geçmişi yüklenemedi:', subscriptionHistoryError);
+    state.subscriptionHistory = [];
+  }
+  try {
     state.subscriptionBankAccounts = ['super_admin', 'admin'].includes(profile.role)
       ? await remoteDataStore.getSubscriptionBankAccounts()
       : [];
@@ -4692,6 +4723,7 @@ document.addEventListener('click', async event => {
       }
     }).catch(error => console.error('Süper Admin ödeme bildirimi gönderilemedi:', error));
     state.onboarding = { ...state.onboarding, status: 'PAYMENT_PENDING' };
+    try { state.subscriptionHistory = await remoteDataStore.listMySubscriptionHistory(); } catch (error) { console.warn('Abonelik geçmişi güncellenemedi:', error); }
     state.onboardingPurchaseOpen = false;
     render();
     showToast('Ödeme bildiriminiz incelemeye gönderildi.');
