@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.483';
+const APP_VERSION = '2026.09.24.484';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -142,6 +142,8 @@ const state = {
   emailLogs: [],
   schoolApplications: [],
   applicationSearchQuery: '',
+  applicationStatusFilter: 'all',
+  applicationSortOrder: 'created_desc',
   subscriptionPaymentReports: [],
   subscriptionHistory: [],
   onboarding: null,
@@ -1407,9 +1409,21 @@ function applicationStatusLabel(status) {
 
 function applicationsView() {
   const normalizedSearch = state.applicationSearchQuery.trim().toLocaleLowerCase('tr');
+  const statusFilter = ['all', 'pending', 'approved', 'rejected'].includes(state.applicationStatusFilter) ? state.applicationStatusFilter : 'all';
+  const sortOrder = ['name_asc', 'name_desc', 'created_desc', 'created_asc'].includes(state.applicationSortOrder) ? state.applicationSortOrder : 'created_desc';
   const filteredApplications = state.schoolApplications.filter(application => {
+    if (statusFilter === 'pending' && !['PENDING', 'INFO_REQUESTED'].includes(application.status)) return false;
+    if (statusFilter === 'approved' && application.status !== 'APPROVED') return false;
+    if (statusFilter === 'rejected' && application.status !== 'REJECTED') return false;
     if (!normalizedSearch) return true;
     return `${application.school_name || ''} ${application.applicant_name || ''}`.toLocaleLowerCase('tr').includes(normalizedSearch);
+  }).sort((a, b) => {
+    if (sortOrder === 'name_asc' || sortOrder === 'name_desc') {
+      return String(a.school_name || '').localeCompare(String(b.school_name || ''), 'tr', { sensitivity: 'base' }) * (sortOrder === 'name_asc' ? 1 : -1);
+    }
+    const aTime = new Date(a.created_at || 0).getTime();
+    const bTime = new Date(b.created_at || 0).getTime();
+    return (aTime - bTime) * (sortOrder === 'created_asc' ? 1 : -1);
   });
   const rows = filteredApplications.map(application => {
     const canReview = ['PENDING', 'INFO_REQUESTED'].includes(application.status);
@@ -1427,7 +1441,7 @@ function applicationsView() {
       ${canReview ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="reject-application" data-id="${application.id}">Reddet</button><button class="primary-button" type="button" data-action="approve-application" data-id="${application.id}">Onayla ve davet et</button></div>` : ''}
     </article>`;
   }).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><div class="toolbar"><input class="search-input" id="applicationSearch" type="search" value="${escapeHtml(state.applicationSearchQuery)}" placeholder="Futbol okulu veya yetkili kişi ara" aria-label="Başvurularda ara"><span class="muted" aria-live="polite">${filteredApplications.length} / ${state.schoolApplications.length} başvuru</span></div><section class="page-stack application-card-list">${rows || `<div class="panel empty-state">${state.schoolApplications.length ? 'Aramanızla eşleşen başvuru bulunamadı.' : 'İncelenecek başvuru bulunmuyor.'}</div>`}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><div class="toolbar application-toolbar"><div class="application-filter-row"><label class="training-sort-control"><span>Durum</span><select id="applicationStatusFilter" aria-label="Başvuruları duruma göre filtrele"><option value="all" ${statusFilter === 'all' ? 'selected' : ''}>Tümü</option><option value="pending" ${statusFilter === 'pending' ? 'selected' : ''}>Bekliyor</option><option value="approved" ${statusFilter === 'approved' ? 'selected' : ''}>Onaylandı</option><option value="rejected" ${statusFilter === 'rejected' ? 'selected' : ''}>Reddedildi</option></select></label><label class="training-sort-control"><span>Sırala</span><select id="applicationSortOrder" aria-label="Başvuruları sırala"><option value="created_desc" ${sortOrder === 'created_desc' ? 'selected' : ''}>Başvuru tarihi · Yeni-eski</option><option value="created_asc" ${sortOrder === 'created_asc' ? 'selected' : ''}>Başvuru tarihi · Eski-yeni</option><option value="name_asc" ${sortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye</option><option value="name_desc" ${sortOrder === 'name_desc' ? 'selected' : ''}>Z’den A’ya</option></select></label></div><div class="application-search-row"><input class="search-input" id="applicationSearch" type="search" value="${escapeHtml(state.applicationSearchQuery)}" placeholder="Futbol okulu veya yetkili kişi ara" aria-label="Başvurularda ara"><span class="muted" aria-live="polite">${filteredApplications.length} / ${state.schoolApplications.length} başvuru</span></div></div><section class="page-stack application-card-list">${rows || `<div class="panel empty-state">${state.schoolApplications.length ? 'Aramanızla eşleşen başvuru bulunamadı.' : 'İncelenecek başvuru bulunmuyor.'}</div>`}</section></div>`;
 }
 
 function subscriptionPaymentsView() {
@@ -5396,6 +5410,16 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'accessRequestSortOrder') {
     state.accessRequestSortOrder = ['name_asc', 'approved_desc', 'approved_asc'].includes(event.target.value) ? event.target.value : 'name_asc';
+    render();
+    return;
+  }
+  if (event.target.id === 'applicationStatusFilter') {
+    state.applicationStatusFilter = ['all', 'pending', 'approved', 'rejected'].includes(event.target.value) ? event.target.value : 'all';
+    render();
+    return;
+  }
+  if (event.target.id === 'applicationSortOrder') {
+    state.applicationSortOrder = ['name_asc', 'name_desc', 'created_desc', 'created_asc'].includes(event.target.value) ? event.target.value : 'created_desc';
     render();
     return;
   }
