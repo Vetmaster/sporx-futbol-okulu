@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.486';
+const APP_VERSION = '2026.09.24.487';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1249,7 +1249,12 @@ function schoolsView() {
     const bTime = new Date(b.createdAt || 0).getTime();
     return (aTime - bTime) * (schoolSortOrder === 'created_asc' ? 1 : -1);
   });
-  const schoolCards = filteredSchools.map(school => `
+  const schoolCards = filteredSchools.map(school => {
+    const canDeleteSchool = Number(school.studentCount || 0) === 0 && Number(school.adminCount || 0) === 0;
+    const deleteSchoolTitle = canDeleteSchool
+      ? 'Okulu sil'
+      : 'Öğrencisi veya yetkili kullanıcısı olan okullar silinemez. Önce pasife alabilirsiniz.';
+    return `
     <details class="panel school-management-card ${school.id === state.schoolId ? 'is-selected' : ''}">
       <summary class="school-management-heading">
         <div><span class="eyebrow">${escapeHtml(school.slug)}</span><h3>${escapeHtml(school.name)}</h3></div>
@@ -1266,10 +1271,11 @@ function schoolsView() {
         <button class="secondary-button" type="button" data-action="invite-school-admin" data-id="${school.id}" ${school.active ? '' : 'disabled'}>Kullanıcı davet et</button>
         <button class="secondary-button" type="button" data-action="rename-school" data-id="${school.id}">Adını düzenle</button>
         <button class="secondary-button" type="button" data-action="toggle-school-status" data-id="${school.id}">${school.active ? 'Pasife al' : 'Aktifleştir'}</button>
-        <button class="danger-button" type="button" data-action="delete-school" data-id="${school.id}">Sil</button>
+        <button class="danger-button" type="button" data-action="delete-school" data-id="${school.id}" ${canDeleteSchool ? '' : 'disabled'} title="${deleteSchoolTitle}">Sil</button>
         </div>
       </div>
-    </details>`).join('');
+    </details>`;
+  }).join('');
   return `<div class="page-stack">
     <div class="section-heading"><div><h2>Futbol okulları</h2><p>Süper Admin yönetim merkezi</p></div></div>
     <section class="stats-grid school-platform-summary">
@@ -4904,7 +4910,11 @@ document.addEventListener('click', async event => {
   else if (action === 'delete-school' && state.role === 'super_admin') {
     const school = state.schools.find(item => item.id === actionButton.dataset.id);
     if (!school) return;
-    const confirmed = window.confirm(`“${school.name}” kalıcı olarak silinsin mi? Bu okula ait öğrenciler, kullanıcı profilleri, aidatlar, antrenmanlar, yoklamalar, muhasebe ve bildirim kayıtları silinecek. Bu işlem geri alınamaz.`);
+    if (Number(school.studentCount || 0) > 0 || Number(school.adminCount || 0) > 0) {
+      showToast('Öğrencisi veya yetkili kullanıcısı olan okullar silinemez. Okulu pasife alabilirsiniz.');
+      return;
+    }
+    const confirmed = window.confirm(`“${school.name}” kalıcı olarak silinsin mi? Bu işlem geri alınamaz.`);
     if (!confirmed) return;
     const deleted = await runRemoteMutation(() => remoteDataStore.deleteSchool(school.id));
     if (!deleted) return;
