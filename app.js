@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.23.480';
+const APP_VERSION = '2026.09.24.481';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -3285,7 +3285,7 @@ function friendlyAuthError(error) {
   if (/already registered|already been registered/i.test(message)) return 'Bu e-posta adresiyle daha önce kullanıcı kaydı oluşturulmuş.';
   if (/database error saving new user|kayıtlı veli e-posta adresi/i.test(message)) return 'Bu e-posta adresi öğrenci kayıtlarındaki irtibat adresleriyle eşleşmiyor.';
   if (/confirmation email|sending.*email|smtp|email.*authorized/i.test(message)) return 'Güvenli e-posta işlemi tamamlanamadı. Lütfen yöneticiyle iletişime geçin.';
-  if (/rate limit/i.test(message)) return 'Çok fazla deneme yapıldı. Lütfen kısa bir süre sonra tekrar deneyin.';
+  if (/rate limit/i.test(message)) return 'İşlem şu anda tamamlanamadı. Kısa süre içinde çok fazla deneme yapıldığı için sistem geçici olarak beklemeye aldı. Lütfen birkaç dakika sonra tekrar deneyin.';
   return message || 'Kullanıcı kaydı tamamlanamadı. Lütfen tekrar deneyin.';
 }
 

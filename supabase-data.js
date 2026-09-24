@@ -22,7 +22,7 @@
   async function edgeFunctionErrorMessage(error, data, fallback) {
     const friendlyEdgeMessage = message => {
       if (/email rate limit exceeded|over_email_send_rate_limit|rate limit/i.test(message)) {
-        return 'Davet e-postası gönderim limiti doldu. Lütfen kısa bir süre sonra tekrar deneyin veya e-posta limitini yükseltin.';
+        return 'Davet şu anda gönderilemedi. Kısa süre içinde çok fazla davet gönderildiği için sistem geçici olarak beklemeye aldı. Lütfen birkaç dakika sonra tekrar deneyin.';
       }
       return message;
     };
