@@ -201,6 +201,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .subscription-history-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
 .subscription-history-row > div, .subscription-history-row > span:not(.status) { display: grid; gap: 3px; min-width: 0; }
 .subscription-history-row small { color: var(--muted); font-size: 10px; }
+.application-card-list { gap: 14px; }
 .application-card > :not(.panel-heading) { margin-inline: 20px; }
 .application-card > strong { margin-top: 18px; }
 .application-card > p { margin-top: 16px; margin-bottom: 0; }

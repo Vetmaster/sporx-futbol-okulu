@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.482';
+const APP_VERSION = '2026.09.24.483';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1427,7 +1427,7 @@ function applicationsView() {
       ${canReview ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="reject-application" data-id="${application.id}">Reddet</button><button class="primary-button" type="button" data-action="approve-application" data-id="${application.id}">Onayla ve davet et</button></div>` : ''}
     </article>`;
   }).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><div class="toolbar"><input class="search-input" id="applicationSearch" type="search" value="${escapeHtml(state.applicationSearchQuery)}" placeholder="Futbol okulu veya yetkili kişi ara" aria-label="Başvurularda ara"><span class="muted" aria-live="polite">${filteredApplications.length} / ${state.schoolApplications.length} başvuru</span></div><section class="page-stack">${rows || `<div class="panel empty-state">${state.schoolApplications.length ? 'Aramanızla eşleşen başvuru bulunamadı.' : 'İncelenecek başvuru bulunmuyor.'}</div>`}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Yeni müşteri başvuruları</h2><p>Onayda okul ve ilk Admin hesabı oluşturulur; başvuru sahibine şifre kurulum bağlantısı gönderilir.</p></div><span class="status blue">${state.schoolApplications.filter(item => item.status === 'PENDING').length} yeni</span></div><div class="toolbar"><input class="search-input" id="applicationSearch" type="search" value="${escapeHtml(state.applicationSearchQuery)}" placeholder="Futbol okulu veya yetkili kişi ara" aria-label="Başvurularda ara"><span class="muted" aria-live="polite">${filteredApplications.length} / ${state.schoolApplications.length} başvuru</span></div><section class="page-stack application-card-list">${rows || `<div class="panel empty-state">${state.schoolApplications.length ? 'Aramanızla eşleşen başvuru bulunamadı.' : 'İncelenecek başvuru bulunmuyor.'}</div>`}</section></div>`;
 }
 
 function subscriptionPaymentsView() {
