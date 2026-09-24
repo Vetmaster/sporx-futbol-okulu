@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.491';
+const APP_VERSION = '2026.09.24.492';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -146,7 +146,7 @@ const state = {
   applicationStatusFilter: 'all',
   applicationSortOrder: 'created_desc',
   subscriptionPaymentReports: [],
-  subscriptionPaymentStatusFilter: 'pending',
+  subscriptionPaymentStatusFilter: 'all',
   subscriptionPaymentSortOrder: 'created_desc',
   subscriptionPaymentSearchQuery: '',
   subscriptionHistory: [],
@@ -1463,7 +1463,7 @@ function applicationsView() {
 }
 
 function subscriptionPaymentsView() {
-  const statusFilter = ['all', 'pending', 'approved', 'rejected'].includes(state.subscriptionPaymentStatusFilter) ? state.subscriptionPaymentStatusFilter : 'pending';
+  const statusFilter = ['all', 'pending', 'approved', 'rejected'].includes(state.subscriptionPaymentStatusFilter) ? state.subscriptionPaymentStatusFilter : 'all';
   const sortOrder = ['created_desc', 'created_asc'].includes(state.subscriptionPaymentSortOrder) ? state.subscriptionPaymentSortOrder : 'created_desc';
   const normalizedSearch = state.subscriptionPaymentSearchQuery.trim().toLocaleLowerCase('tr');
   const filteredReports = state.subscriptionPaymentReports.filter(report => {
@@ -5479,7 +5479,7 @@ appContent.addEventListener('change', async event => {
     return;
   }
   if (event.target.id === 'subscriptionPaymentStatusFilter') {
-    state.subscriptionPaymentStatusFilter = ['all', 'pending', 'approved', 'rejected'].includes(event.target.value) ? event.target.value : 'pending';
+    state.subscriptionPaymentStatusFilter = ['all', 'pending', 'approved', 'rejected'].includes(event.target.value) ? event.target.value : 'all';
     render();
     return;
   }
