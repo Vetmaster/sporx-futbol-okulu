@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.489';
+const APP_VERSION = '2026.09.24.490';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -148,6 +148,7 @@ const state = {
   subscriptionPaymentReports: [],
   subscriptionPaymentStatusFilter: 'pending',
   subscriptionPaymentSortOrder: 'created_desc',
+  subscriptionPaymentSearchQuery: '',
   subscriptionHistory: [],
   onboarding: null,
   approvedSubscriptionPeriod: null,
@@ -1464,11 +1465,17 @@ function applicationsView() {
 function subscriptionPaymentsView() {
   const statusFilter = ['all', 'pending', 'approved', 'rejected'].includes(state.subscriptionPaymentStatusFilter) ? state.subscriptionPaymentStatusFilter : 'pending';
   const sortOrder = ['created_desc', 'created_asc'].includes(state.subscriptionPaymentSortOrder) ? state.subscriptionPaymentSortOrder : 'created_desc';
+  const normalizedSearch = state.subscriptionPaymentSearchQuery.trim().toLocaleLowerCase('tr');
   const filteredReports = state.subscriptionPaymentReports.filter(report => {
     if (statusFilter === 'pending') return report.status === 'PENDING_REVIEW';
     if (statusFilter === 'approved') return report.status === 'APPROVED';
     if (statusFilter === 'rejected') return report.status === 'REJECTED';
     return true;
+  }).filter(report => {
+    if (!normalizedSearch) return true;
+    const schoolRelation = Array.isArray(report.schools) ? report.schools[0] : report.schools;
+    const schoolName = schoolRelation?.name || state.schools.find(school => school.id === report.school_id)?.name || '';
+    return `${schoolName} ${report.payer_note || ''} ${report.amount || ''}`.toLocaleLowerCase('tr').includes(normalizedSearch);
   }).sort((a, b) => {
     const aTime = new Date(a.created_at || 0).getTime();
     const bTime = new Date(b.created_at || 0).getTime();
@@ -1476,11 +1483,12 @@ function subscriptionPaymentsView() {
   });
   const rows = filteredReports.map(report => {
     const period = report.school_subscription_periods || {};
-    const school = Array.isArray(report.schools) ? report.schools[0] : report.schools;
+    const schoolRelation = Array.isArray(report.schools) ? report.schools[0] : report.schools;
+    const schoolName = schoolRelation?.name || state.schools.find(school => school.id === report.school_id)?.name || 'Okul';
     const pending = report.status === 'PENDING_REVIEW';
-    return `<article class="panel application-card"><div class="panel-heading"><div><span class="eyebrow">HAVALE BİLDİRİMİ</span><h3>${escapeHtml(school?.name || 'Okul')}</h3><small>${subscriptionPeriodLabel(period.billing_period)} · ${subscriptionDateLabel(period.starts_on)} – ${subscriptionDateLabel(period.ends_on)}</small></div><span class="status ${pending ? 'blue' : report.status === 'APPROVED' ? '' : 'warning'}">${pending ? 'İncelemede' : report.status === 'APPROVED' ? 'Onaylandı' : 'İptal edildi'}</span></div><strong>${formatCurrency(report.amount)}</strong>${report.payer_note ? `<p class="muted">${escapeHtml(report.payer_note)}</p>` : ''}<small class="muted">Bildirim: ${formatDateTime(report.created_at)}</small>${pending ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="review-payment-report" data-approved="false" data-id="${report.id}">İptal et</button><button class="primary-button" type="button" data-action="review-payment-report" data-approved="true" data-id="${report.id}">Ödemeyi onayla</button></div>` : ''}</article>`;
+    return `<article class="panel application-card"><div class="panel-heading"><div><span class="eyebrow">HAVALE BİLDİRİMİ</span><h3>${escapeHtml(schoolName)}</h3><small>${subscriptionPeriodLabel(period.billing_period)} · ${subscriptionDateLabel(period.starts_on)} – ${subscriptionDateLabel(period.ends_on)}</small></div><span class="status ${pending ? 'blue' : report.status === 'APPROVED' ? '' : 'warning'}">${pending ? 'İncelemede' : report.status === 'APPROVED' ? 'Onaylandı' : 'İptal edildi'}</span></div><strong>${formatCurrency(report.amount)}</strong>${report.payer_note ? `<p class="muted">${escapeHtml(report.payer_note)}</p>` : ''}<small class="muted">Bildirim: ${formatDateTime(report.created_at)}</small>${pending ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="review-payment-report" data-approved="false" data-id="${report.id}">İptal et</button><button class="primary-button" type="button" data-action="review-payment-report" data-approved="true" data-id="${report.id}">Ödemeyi onayla</button></div>` : ''}</article>`;
   }).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Ödemeler ve abonelikler</h2><p>Havale bildirimi tek başına aboneliği aktifleştirmez; onay burada verilir.</p></div></div><div class="toolbar application-toolbar"><div class="application-filter-row"><label class="training-sort-control"><span>Durum</span><select id="subscriptionPaymentStatusFilter" aria-label="Ödemeleri duruma göre filtrele"><option value="all" ${statusFilter === 'all' ? 'selected' : ''}>Tümü</option><option value="pending" ${statusFilter === 'pending' ? 'selected' : ''}>Bekliyor</option><option value="approved" ${statusFilter === 'approved' ? 'selected' : ''}>Onaylandı</option><option value="rejected" ${statusFilter === 'rejected' ? 'selected' : ''}>İptal edildi</option></select></label><label class="training-sort-control"><span>Sırala</span><select id="subscriptionPaymentSortOrder" aria-label="Ödemeleri tarihe göre sırala"><option value="created_desc" ${sortOrder === 'created_desc' ? 'selected' : ''}>Bildirim tarihi · Yeni-eski</option><option value="created_asc" ${sortOrder === 'created_asc' ? 'selected' : ''}>Bildirim tarihi · Eski-yeni</option></select></label></div><span class="muted" aria-live="polite">${filteredReports.length} / ${state.subscriptionPaymentReports.length} ödeme</span></div><section class="page-stack application-card-list">${rows || '<div class="panel empty-state">Bu filtreyle eşleşen ödeme bildirimi bulunmuyor.</div>'}</section></div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Ödemeler ve abonelikler</h2><p>Havale bildirimi tek başına aboneliği aktifleştirmez; onay burada verilir.</p></div></div><div class="toolbar application-toolbar"><div class="application-filter-row"><label class="training-sort-control"><span>Durum</span><select id="subscriptionPaymentStatusFilter" aria-label="Ödemeleri duruma göre filtrele"><option value="all" ${statusFilter === 'all' ? 'selected' : ''}>Tümü</option><option value="pending" ${statusFilter === 'pending' ? 'selected' : ''}>Bekliyor</option><option value="approved" ${statusFilter === 'approved' ? 'selected' : ''}>Onaylandı</option><option value="rejected" ${statusFilter === 'rejected' ? 'selected' : ''}>İptal edildi</option></select></label><label class="training-sort-control"><span>Sırala</span><select id="subscriptionPaymentSortOrder" aria-label="Ödemeleri tarihe göre sırala"><option value="created_desc" ${sortOrder === 'created_desc' ? 'selected' : ''}>Bildirim tarihi · Yeni-eski</option><option value="created_asc" ${sortOrder === 'created_asc' ? 'selected' : ''}>Bildirim tarihi · Eski-yeni</option></select></label></div><div class="application-search-row"><input class="search-input" id="subscriptionPaymentSearch" type="search" value="${escapeHtml(state.subscriptionPaymentSearchQuery)}" placeholder="Okul adı, açıklama veya tutar ara" aria-label="Ödemelerde ara"><span class="muted" aria-live="polite">${filteredReports.length} / ${state.subscriptionPaymentReports.length} ödeme</span></div></div><section class="page-stack application-card-list payment-report-card-list">${rows || '<div class="panel empty-state">Bu filtreyle eşleşen ödeme bildirimi bulunmuyor.</div>'}</section></div>`;
 }
 
 function onboardingView() {
@@ -5383,6 +5391,15 @@ appContent.addEventListener('input', event => {
     const applicationSearch = document.querySelector('#applicationSearch');
     applicationSearch?.focus();
     applicationSearch?.setSelectionRange(cursorPosition, cursorPosition);
+    return;
+  }
+  if (event.target.id === 'subscriptionPaymentSearch') {
+    state.subscriptionPaymentSearchQuery = event.target.value;
+    const cursorPosition = event.target.selectionStart ?? state.subscriptionPaymentSearchQuery.length;
+    render();
+    const paymentSearch = document.querySelector('#subscriptionPaymentSearch');
+    paymentSearch?.focus();
+    paymentSearch?.setSelectionRange(cursorPosition, cursorPosition);
     return;
   }
   if (event.target.id === 'subscriptionSearch') {
