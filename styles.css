@@ -205,7 +205,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .payment-report-card-list { width: 100%; max-width: none; }
 .payment-report-card-list .application-card { width: 100%; max-width: none; }
 .application-card > :not(.panel-heading) { margin-inline: 20px; }
-.application-card > strong { margin-top: 18px; }
+.application-card > strong { display: block; margin-top: 18px; }
 .application-card > p { margin-top: 16px; margin-bottom: 0; }
 .application-card > small { margin-top: 12px; }
 .application-card-dates { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; margin-top: 18px; margin-bottom: 22px; }
