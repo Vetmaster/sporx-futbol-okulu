@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.487';
+const APP_VERSION = '2026.09.24.488';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -146,6 +146,8 @@ const state = {
   applicationStatusFilter: 'all',
   applicationSortOrder: 'created_desc',
   subscriptionPaymentReports: [],
+  subscriptionPaymentStatusFilter: 'pending',
+  subscriptionPaymentSortOrder: 'created_desc',
   subscriptionHistory: [],
   onboarding: null,
   approvedSubscriptionPeriod: null,
@@ -1460,13 +1462,25 @@ function applicationsView() {
 }
 
 function subscriptionPaymentsView() {
-  const rows = state.subscriptionPaymentReports.map(report => {
+  const statusFilter = ['all', 'pending', 'approved', 'rejected'].includes(state.subscriptionPaymentStatusFilter) ? state.subscriptionPaymentStatusFilter : 'pending';
+  const sortOrder = ['created_desc', 'created_asc'].includes(state.subscriptionPaymentSortOrder) ? state.subscriptionPaymentSortOrder : 'created_desc';
+  const filteredReports = state.subscriptionPaymentReports.filter(report => {
+    if (statusFilter === 'pending') return report.status === 'PENDING_REVIEW';
+    if (statusFilter === 'approved') return report.status === 'APPROVED';
+    if (statusFilter === 'rejected') return report.status === 'REJECTED';
+    return true;
+  }).sort((a, b) => {
+    const aTime = new Date(a.created_at || 0).getTime();
+    const bTime = new Date(b.created_at || 0).getTime();
+    return (aTime - bTime) * (sortOrder === 'created_asc' ? 1 : -1);
+  });
+  const rows = filteredReports.map(report => {
     const period = report.school_subscription_periods || {};
     const school = Array.isArray(report.schools) ? report.schools[0] : report.schools;
     const pending = report.status === 'PENDING_REVIEW';
     return `<article class="panel application-card"><div class="panel-heading"><div><span class="eyebrow">HAVALE BİLDİRİMİ</span><h3>${escapeHtml(school?.name || 'Okul')}</h3><small>${subscriptionPeriodLabel(period.billing_period)} · ${subscriptionDateLabel(period.starts_on)} – ${subscriptionDateLabel(period.ends_on)}</small></div><span class="status ${pending ? 'blue' : report.status === 'APPROVED' ? '' : 'warning'}">${pending ? 'İncelemede' : report.status === 'APPROVED' ? 'Onaylandı' : 'İptal edildi'}</span></div><strong>${formatCurrency(report.amount)}</strong>${report.payer_note ? `<p class="muted">${escapeHtml(report.payer_note)}</p>` : ''}<small class="muted">Bildirim: ${formatDateTime(report.created_at)}</small>${pending ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="review-payment-report" data-approved="false" data-id="${report.id}">İptal et</button><button class="primary-button" type="button" data-action="review-payment-report" data-approved="true" data-id="${report.id}">Ödemeyi onayla</button></div>` : ''}</article>`;
   }).join('');
-  return `<div class="page-stack"><div class="section-heading"><div><h2>Ödemeler ve abonelikler</h2><p>Havale bildirimi tek başına aboneliği aktifleştirmez; onay burada verilir.</p></div></div>${rows || '<div class="panel empty-state">İncelenecek ödeme bildirimi bulunmuyor.</div>'}</div>`;
+  return `<div class="page-stack"><div class="section-heading"><div><h2>Ödemeler ve abonelikler</h2><p>Havale bildirimi tek başına aboneliği aktifleştirmez; onay burada verilir.</p></div></div><div class="toolbar application-toolbar"><div class="application-filter-row"><label class="training-sort-control"><span>Durum</span><select id="subscriptionPaymentStatusFilter" aria-label="Ödemeleri duruma göre filtrele"><option value="all" ${statusFilter === 'all' ? 'selected' : ''}>Tümü</option><option value="pending" ${statusFilter === 'pending' ? 'selected' : ''}>Bekliyor</option><option value="approved" ${statusFilter === 'approved' ? 'selected' : ''}>Onaylandı</option><option value="rejected" ${statusFilter === 'rejected' ? 'selected' : ''}>İptal edildi</option></select></label><label class="training-sort-control"><span>Sırala</span><select id="subscriptionPaymentSortOrder" aria-label="Ödemeleri tarihe göre sırala"><option value="created_desc" ${sortOrder === 'created_desc' ? 'selected' : ''}>Bildirim tarihi · Yeni-eski</option><option value="created_asc" ${sortOrder === 'created_asc' ? 'selected' : ''}>Bildirim tarihi · Eski-yeni</option></select></label></div><span class="muted" aria-live="polite">${filteredReports.length} / ${state.subscriptionPaymentReports.length} ödeme</span></div><section class="page-stack application-card-list">${rows || '<div class="panel empty-state">Bu filtreyle eşleşen ödeme bildirimi bulunmuyor.</div>'}</section></div>`;
 }
 
 function onboardingView() {
@@ -5444,6 +5458,16 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'schoolSortOrder') {
     state.schoolSortOrder = ['name_asc', 'name_desc', 'created_desc', 'created_asc'].includes(event.target.value) ? event.target.value : 'name_asc';
+    render();
+    return;
+  }
+  if (event.target.id === 'subscriptionPaymentStatusFilter') {
+    state.subscriptionPaymentStatusFilter = ['all', 'pending', 'approved', 'rejected'].includes(event.target.value) ? event.target.value : 'pending';
+    render();
+    return;
+  }
+  if (event.target.id === 'subscriptionPaymentSortOrder') {
+    state.subscriptionPaymentSortOrder = ['created_desc', 'created_asc'].includes(event.target.value) ? event.target.value : 'created_desc';
     render();
     return;
   }
