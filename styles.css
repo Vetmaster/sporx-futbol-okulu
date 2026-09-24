@@ -850,6 +850,9 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .access-requests-filter-row .training-sort-control select { width: 100%; max-width: none; }
   .access-requests-search-row .search-input { flex: 1 1 100%; max-width: none; }
   .access-requests-search-row > .muted { margin-left: 0; width: 100%; padding-bottom: 0; }
+  .application-filter-row { flex-wrap: nowrap; gap: 8px; }
+  .application-filter-row .training-sort-control { flex: 1 1 0; min-width: 0; justify-content: stretch; }
+  .application-filter-row .training-sort-control select { width: 100%; min-width: 0; max-width: none; }
   .attendance-history-filter { align-items: stretch; }
   .attendance-history-filter label { width: 100%; }
   .attendance-history-filter select { flex: 1; min-width: 0; }
