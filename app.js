@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.481';
+const APP_VERSION = '2026.09.24.482';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1423,8 +1423,7 @@ function applicationsView() {
       ${application.note ? `<p>${escapeHtml(application.note)}</p>` : ''}
       ${application.customer_message ? `<p class="muted"><strong>Müşteriye not:</strong> ${escapeHtml(application.customer_message)}</p>` : ''}
       ${application.internal_note ? `<p class="muted"><strong>İç not:</strong> ${escapeHtml(application.internal_note)}</p>` : ''}
-      <small class="muted">Başvuru: ${formatDateTime(application.created_at)}</small>
-      ${approvedAt}
+      <div class="application-card-dates"><small class="muted">Başvuru: ${formatDateTime(application.created_at)}</small>${approvedAt}</div>
       ${canReview ? `<div class="subscription-row-actions"><button class="danger-button" type="button" data-action="reject-application" data-id="${application.id}">Reddet</button><button class="primary-button" type="button" data-action="approve-application" data-id="${application.id}">Onayla ve davet et</button></div>` : ''}
     </article>`;
   }).join('');

@@ -205,6 +205,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shad
 .application-card > strong { margin-top: 18px; }
 .application-card > p { margin-top: 16px; margin-bottom: 0; }
 .application-card > small { margin-top: 12px; }
+.application-card-dates { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; margin-top: 18px; margin-bottom: 22px; }
 .application-card > .subscription-row-actions { margin-top: 18px; margin-bottom: 20px; }
 .settings-hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .settings-link-card { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 20px; color: var(--ink); text-align: left; cursor: pointer; }
