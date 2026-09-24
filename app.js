@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.24.485';
+const APP_VERSION = '2026.09.24.486';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -121,6 +121,7 @@ const state = {
   schoolSubscriptionEndsOn: '',
   schools: [],
   schoolSearchQuery: '',
+  schoolSortOrder: 'name_asc',
   subscriptionSearchQuery: '',
   subscriptionSortOrder: 'name_asc',
   userId: null,
@@ -1239,7 +1240,15 @@ function schoolsView() {
   const totalStudents = state.schools.reduce((total, school) => total + school.studentCount, 0);
   const totalActiveStudents = state.schools.reduce((total, school) => total + school.activeStudentCount, 0);
   const normalizedSearch = state.schoolSearchQuery.trim().toLocaleLowerCase('tr');
-  const filteredSchools = state.schools.filter(school => !normalizedSearch || `${school.name} ${school.slug}`.toLocaleLowerCase('tr').includes(normalizedSearch));
+  const schoolSortOrder = ['name_asc', 'name_desc', 'created_desc', 'created_asc'].includes(state.schoolSortOrder) ? state.schoolSortOrder : 'name_asc';
+  const filteredSchools = state.schools.filter(school => !normalizedSearch || `${school.name} ${school.slug}`.toLocaleLowerCase('tr').includes(normalizedSearch)).sort((a, b) => {
+    if (schoolSortOrder === 'name_asc' || schoolSortOrder === 'name_desc') {
+      return String(a.name || '').localeCompare(String(b.name || ''), 'tr', { sensitivity: 'base' }) * (schoolSortOrder === 'name_asc' ? 1 : -1);
+    }
+    const aTime = new Date(a.createdAt || 0).getTime();
+    const bTime = new Date(b.createdAt || 0).getTime();
+    return (aTime - bTime) * (schoolSortOrder === 'created_asc' ? 1 : -1);
+  });
   const schoolCards = filteredSchools.map(school => `
     <details class="panel school-management-card ${school.id === state.schoolId ? 'is-selected' : ''}">
       <summary class="school-management-heading">
@@ -1276,7 +1285,7 @@ function schoolsView() {
         <button class="primary-button" type="submit">Okulu oluştur</button>
       </form>
     </details>
-    <label class="school-search-control"><span class="sr-only">Okul ara</span><input id="schoolSearch" type="search" value="${escapeHtml(state.schoolSearchQuery)}" placeholder="Okul adı veya kodu ara" autocomplete="off"></label>
+    <div class="toolbar school-toolbar"><label class="training-sort-control"><span>Sırala</span><select id="schoolSortOrder" aria-label="Okulları sırala"><option value="name_asc" ${schoolSortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye</option><option value="name_desc" ${schoolSortOrder === 'name_desc' ? 'selected' : ''}>Z’den A’ya</option><option value="created_desc" ${schoolSortOrder === 'created_desc' ? 'selected' : ''}>Açılış tarihi · Yeni-eski</option><option value="created_asc" ${schoolSortOrder === 'created_asc' ? 'selected' : ''}>Açılış tarihi · Eski-yeni</option></select></label><label class="school-search-control"><span class="sr-only">Okul ara</span><input id="schoolSearch" type="search" value="${escapeHtml(state.schoolSearchQuery)}" placeholder="Okul adı veya kodu ara" autocomplete="off"></label></div>
     <section class="school-management-grid">${schoolCards || `<div class="panel empty-state">${state.schools.length ? 'Aramanızla eşleşen okul bulunamadı.' : 'Henüz okul bulunmuyor.'}</div>`}</section>
   </div>`;
 }
@@ -5420,6 +5429,11 @@ appContent.addEventListener('change', async event => {
   }
   if (event.target.id === 'applicationSortOrder') {
     state.applicationSortOrder = ['name_asc', 'name_desc', 'created_desc', 'created_asc'].includes(event.target.value) ? event.target.value : 'created_desc';
+    render();
+    return;
+  }
+  if (event.target.id === 'schoolSortOrder') {
+    state.schoolSortOrder = ['name_asc', 'name_desc', 'created_desc', 'created_asc'].includes(event.target.value) ? event.target.value : 'name_asc';
     render();
     return;
   }
