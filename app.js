@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.25.502';
+const APP_VERSION = '2026.09.25.503';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -1294,7 +1294,7 @@ function schoolsView() {
         <button class="primary-button" type="submit">Okulu oluştur</button>
       </form>
     </details>
-    <div class="toolbar school-toolbar"><label class="training-sort-control"><span>Sırala</span><select id="schoolSortOrder" aria-label="Okulları sırala"><option value="created_desc" ${schoolSortOrder === 'created_desc' ? 'selected' : ''}>Açılış tarihi · Yeni-eski</option><option value="created_asc" ${schoolSortOrder === 'created_asc' ? 'selected' : ''}>Açılış tarihi · Eski-yeni</option><option value="name_asc" ${schoolSortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye sırala</option><option value="name_desc" ${schoolSortOrder === 'name_desc' ? 'selected' : ''}>Z’den A’ya sırala</option></select></label><label class="school-search-control"><span class="sr-only">Okul ara</span><input id="schoolSearch" type="search" value="${escapeHtml(state.schoolSearchQuery)}" placeholder="Okul adı veya kodu ara" autocomplete="off"></label></div>
+    <div class="toolbar school-toolbar"><label class="training-sort-control"><span>Sırala</span><select id="schoolSortOrder" aria-label="Okulları sırala"><option value="created_desc" ${schoolSortOrder === 'created_desc' ? 'selected' : ''}>Yeniden eskiye doğru sırala</option><option value="created_asc" ${schoolSortOrder === 'created_asc' ? 'selected' : ''}>Eskiden yeniye doğru sırala</option><option value="name_asc" ${schoolSortOrder === 'name_asc' ? 'selected' : ''}>A’dan Z’ye sırala</option><option value="name_desc" ${schoolSortOrder === 'name_desc' ? 'selected' : ''}>Z’den A’ya sırala</option></select></label><label class="school-search-control"><span class="sr-only">Okul ara</span><input id="schoolSearch" type="search" value="${escapeHtml(state.schoolSearchQuery)}" placeholder="Okul adı veya kodu ara" autocomplete="off"></label></div>
     <section class="school-management-grid">${schoolCards || `<div class="panel empty-state">${state.schools.length ? 'Aramanızla eşleşen okul bulunamadı.' : 'Henüz okul bulunmuyor.'}</div>`}</section>
   </div>`;
 }
