@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.25.505';
+const APP_VERSION = '2026.09.25.506';
 const ANDROID_APK_URL = 'https://github.com/Vetmaster/sporx-futbol-okulu/releases/download/v1.0.30-beta/SASA-F-v1.0.30-beta.apk';
 const INSTALL_PROMPT_DISMISS_KEY = 'sasa_install_prompt_dismissed_v2';
 const INSTALL_PROMPT_SESSION_DISMISS_KEY = 'sasa_install_prompt_dismissed_this_session';
@@ -4512,6 +4512,7 @@ document.querySelector('#schoolApplicationButton')?.addEventListener('click', ()
   void updateSchoolApplicationLocationFields();
   const message = document.querySelector('#schoolApplicationMessage');
   message?.classList.add('is-hidden');
+  message?.classList.remove('error');
   document.querySelector('#schoolApplicationDialog')?.showModal();
 });
 document.querySelector('#schoolApplicationForm')?.addEventListener('submit', async event => {
@@ -4521,6 +4522,7 @@ document.querySelector('#schoolApplicationForm')?.addEventListener('submit', asy
   const submit = form.querySelector('button[type="submit"]');
   const values = Object.fromEntries(new FormData(form).entries());
   message.classList.add('is-hidden');
+  message.classList.remove('error');
   submit.disabled = true;
   submit.textContent = 'Başvuru gönderiliyor…';
   try {
@@ -4528,16 +4530,19 @@ document.querySelector('#schoolApplicationForm')?.addEventListener('submit', asy
     const result = await remoteDataStore.submitSchoolApplication(values);
     if (result?.status === 'PENDING_REVIEW') {
       message.textContent = result.message || 'Başvurunuz henüz onay aşamasında.';
+      message.classList.remove('error');
       message.classList.remove('is-hidden');
       return;
     }
     if (result?.status === 'REGISTERED_SCHOOL') {
       message.textContent = result.message || 'Bu e-posta adresiyle kayıtlı bir futbol okulu vardır. Lütfen farklı bir e-posta adresiyle başvuru yapın.';
+      message.classList.add('error');
       message.classList.remove('is-hidden');
       return;
     }
     if (result?.status === 'REGISTERED_SCHOOL_NAME') {
       message.textContent = result.message || 'Bu isimle kayıtlı bir futbol okulu bulunmaktadır. Lütfen okul adını kontrol edin veya farklı bir okul adıyla başvuru yapın.';
+      message.classList.add('error');
       message.classList.remove('is-hidden');
       return;
     }
@@ -4545,6 +4550,7 @@ document.querySelector('#schoolApplicationForm')?.addEventListener('submit', asy
     form.reset();
     message.textContent = '';
     message.classList.add('is-hidden');
+    message.classList.remove('error');
     const dialog = form.closest('dialog');
     if (dialog?.open) dialog.close();
     window.setTimeout(() => showRecordCreated('İnceleme sonrasında e-posta adresiniz üzerinden bilgilendirileceksiniz.', {
@@ -4553,6 +4559,7 @@ document.querySelector('#schoolApplicationForm')?.addEventListener('submit', asy
     }), 0);
   } catch (error) {
     message.textContent = error.message || 'Başvuru gönderilemedi.';
+    message.classList.add('error');
     message.classList.remove('is-hidden');
   } finally {
     submit.disabled = false;
