@@ -883,7 +883,7 @@ dialog::backdrop { background: rgba(45,42,37,.62); backdrop-filter: blur(3px); }
   .subscription-toolbar .training-sort-control { margin-left: 0; }
   .subscription-toolbar .training-sort-control select { width: 176px; max-width: 176px; }
   .school-toolbar { align-items: stretch; gap: 8px; }
-  .school-toolbar .training-sort-control { width: 100%; justify-content: stretch; }
+  .school-toolbar .training-sort-control { flex: 1 1 calc(50% - 4px); min-width: 0; justify-content: stretch; }
   .school-toolbar .training-sort-control select { width: 100%; max-width: none; }
   .school-toolbar .school-search-control { flex-basis: 100%; min-width: 0; }
   .push-permission-row { gap: 12px; }
